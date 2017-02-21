@@ -1,0 +1,229 @@
+RIFF: http://www.johnloomis.org/cpe102/asgn/asgn1/riff.html
+
+(
+basically, 
+4 bytes chunkID
+4 bytes chunklength
+<chunklength> bytes chunkdata (plus extra byte if not even length)
+)
+
+special chunks (like "RIFF") have one extra field
+(
+4 bytes chunkID
+4 bytes chunklength
+4 bytes formtype ("WAVE", for example)
+<chunklength> bytes chunkdata (plus extra byte if not even length)
+	(
+	sub-chunks
+	)
+)
+
+RIFX:
+network byte order / big-endian
+
+XFIR:
+network byte order / big-endian
+EXCEPT
+(
+chunkID
+chunklength
+formtype (???)
+), which are little-endian
+
+SHOCKWAVE FORMAT:
+
+FIRX
+(
+chunklength x
+formtype "MV93"
+data (entire file, minus chunkID & chunklength), chunklength bytes long
+)
+
+sub-chunks:
+imap 
+{
+	chunklength
+	8 bytes unknown
+	4 bytes mapOffset 
+	//points to the currently valid mapp chunk
+	//as it turns-out, re-saving a .dir just appends data, including
+	//a new mmap chunk (o...k...)
+}
+
+mmap
+{
+	length
+	data (first 0x18 bytes are unknown)
+	/*following those bytes is a list of chunks
+	That's where this gets good
+	this is the signifnicant mapping chunk*/
+	entry
+	{
+		fourcc chunkID
+		uint32 length (not sure why include this, since these entries are nothing but pointers to the chunk)
+		unit32 offset
+		//remaining 8 bytes are unknown, and always seem to be set to 0
+		//in total, each entry is 0x14 in length
+	}
+
+}
+
+KEY*
+{
+	length
+	data
+	/*
+	similar to mmap, this lists chunks found in the file
+	unlike mmap, this doesn't include EVERYTHING. 
+	MUCH MORE RESEARCH REQUIRED TO FIND HOW THIS WORKS
+	*/
+}
+
+free
+(
+	length always 0
+	//but entire entry is always 0x14 in size
+	//these are basically just free space, and seem to serve no real purpose
+	//this part of docu is now outdated
+)
+
+XMED
+(
+	length
+	followed immediatly by data <length> in size
+	//these seem to contain texts and flash SWF, from current observations
+)
+
+snd 
+{
+	length (always 0)
+	//purpose unknown, seems to trail SWA audio
+}
+
+ediM
+{
+	length
+	data <length> in size
+	//contains SWA audio
+}
+
+BITD
+{
+	length
+	data
+	//bitmap data, but i am unsure how to parse them
+}
+
+CASt
+{
+	length
+	<length> bytes data
+		{
+			0x2A bytes unknown
+			0x40 bytes Uint32 array mapIndex (same value is repeated, IDK why. this is the index in the mapping table for the offset of the actual cast member data)
+			0x14 bytes unknown
+			byte nameLength
+			<nameLength> bytes name
+			4 bytes UTCdate dateCreated
+			4 bytes UTCdate dateLastModified
+			byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
+			byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
+			8 bytes unknown
+			2 bytes short width
+			2 bytes short height
+			4 bytes unknown (0x10000000 only observed value so far)
+			[4 bytes unknown = 0x00000000 (old format)]
+			4 bytes color palette index/ID??? (need more research)
+			
+		}
+	//cast member, currently focusing on bitmap members...
+}
+
+CAS*
+{
+	length
+	data 
+	//a Unit32 array length/4 long, containing indices in the mapping table
+	//cast member list for a given cast, empty casts do not have one
+}
+
+CLUT
+{
+	length
+	data
+	//color palettes? , probably RGB24, still researching...
+	//data is simply an array of 24-bit RGB colors, but more research is needed
+}
+
+MCsL
+{
+	length
+	4 bytes unknown (0x0c)
+	4 bytes castCount
+	2 bytes short unknown (4)
+	4 bytes arraySize
+	[4 bytes unknown] (0)
+	<arraySize * 4> - 4 bytes unknownDataEntries (one entry per cast) {
+		4 bytes unknown
+		4 bytes unknown
+		4 bytes unknown
+		4 bytes unknown
+	}
+	4 bytes castEntriesLength
+	<castCount> entries
+	{
+		byte nameLength
+		<nameLength> bytes name
+		1 byte null
+		2 bytes short preloadSettings (0:when needed, 1: after frame one, before frame one)
+		2 bytes short storageType (0:external,1:internal)
+		[1 byte unknown] (if external cast)
+		2 bytes short membersCount
+		2 bytes short numID
+		byte unknown (4)
+		byte unknown (0)
+	}
+	/*
+	cast list
+	all attempts to figure-out how these actually link to a cast have been fruitless
+	only remaining option thus far is that this happens automatically, meaning
+	the cast names and their member lists(if present) are stored in the same
+	order
+	*/
+}
+
+shockwave format types:
+DXR : protected/encrypted
+DCR : compressed (via zlib???)
+DIR : doesn't seem to be encrypted or compressed
+CXT : protected/encrypted
+CCT : compressed
+CST : nothing special... 
+
+purposes:
+D*R : movie, runs stand-alone, may load C*T's as dependencies
+C*T : 
+(
+external "cast" , basically an external library of stuff. 
+D*R's are made of multiple internal casts, and will attempt to
+load external casts if any have been linked.
+Some movies can play without the external casts
+External casts are essentially the same structure as a movie,
+except they only contain one cast, and cannot run as a stand-alone application.
+)
+
+extra notes:
+Spybotics, does not actually require its external casts to run.
+However, this might impact the music*
+
+the format of the CASt chunks in spybotics seems just 
+slightly different from the format of the example .dir's
+I am using...
+compression data directly follows the name, timestamps not yet located, 
+they may not exist...
+
+*All remaining copies/archives of Spybotics: The Nightfall Incident
+do not have the sound_level_<1-5>.cct, and the snd_netload_<1-5>.cct files.
+It's quite possible official releases never actually did use them.
+the sound_level_<x> files are all empty, and the snd_netload_<x> files
+contain alternative soundtracks. These tracks probably are for databattles.
