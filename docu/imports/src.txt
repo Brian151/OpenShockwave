@@ -1,0 +1,2 @@
+doc_schockabsorber : https://github.com/eriksoe/Schockabsorber/
+Lingo_Bytecode : http://fileformats.archiveteam.org/wiki/Lingo_bytecode
