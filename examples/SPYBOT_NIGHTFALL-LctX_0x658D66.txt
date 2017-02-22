@@ -1,0 +1,75 @@
+this is a manual dump + diassembly of the LctX found at offset 00 65 8d 66,
+in a dir-opened copy of Spybotics : The Nightfall Incident.
+Besides seemingly containing nothing of note, one value
+does not match what the documentation says it can be.
+Other parts of the documentation don't well explain what's going on
+Conclusion: it's a bust.
+Next Goals: 
+attempt to crack the KEY* chunk, it must be important!
+make automated tool to disassemble any chunk known to be associated with the compiled bytecode,
+as it is far too tedious and inefficient to do this manually, and also highly prone to human error.
+
+
+[CHUNKHEADER]
+58 74 63 4C CKID
+78 00 00 00 CKLN
+
+[HEADER]
+00 00 00 00 CONST
+00 00 00 00 CONST
+00 00 00 02 COUNT
+00 00 00 02 COUNT2
+00 60 OFFSET
+00 0C SIZE
+00 00 00 00 CONST
+00 00 00 0F //DOESN'T SEEM TO MATCH THE EXPECTED VALUES!
+FF FF FF FF CONST
+00 03 69 1D NAMEID
+00 00 VALIDCNT
+00 04 FLAGS
+00 01 FREEPTR
+
+[HANDLERS]
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+FF FF 
+
+FF FF 
+FF FF 
+
+[ENTRIES]
+00 00 00 00 ???
+FF FF FF FF ID
+00 00 USED
+FF FF LINK
+
+00 00 00 00 ???
+FF FF FF FF ID
+00 00 USED
+00 00 LINK
