@@ -1,0 +1,84 @@
+<html>
+<head>
+	<meta charset="UTF-8"/>
+	<title>JavaScript - Binary Files Derp</title>
+</head>
+<body>
+<div id="out"></div>
+<script src="RIFF.js"></script>
+<script>
+/*
+sources:
+http://www.html5rocks.com/en/tutorials/file/xhr2/#disqus_thread
+http://stackoverflow.com/questions/15341912/how-to-go-from-blob-to-arraybuffer
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+*/
+var place = document.getElementById("out");
+var fUrl = "spybot_0807_sw.dir";
+//var fUrl = "redsquare.dir";
+var xhr = new XMLHttpRequest();
+xhr.open('GET', fUrl, true);
+xhr.responseType = 'arraybuffer';
+
+xhr.onload = function(e) {
+	if (this.status == 200) {
+		var reader = new RIFFParser(this.response);
+		reader.setFormat(2);
+		reader.getChunkAt(0,true);
+		//var mapChunk = reader.getChunkAt(0x2c);
+		//place.innerHTML = mapChunk.join();
+		var names = [];
+		var nameTabs = [];
+		var nameOffs = [];
+		var collectOffs = [];
+		var mapLength = reader.getLengthAt(0x3c) * 20;
+		var i3 = 0;
+		for (var i = 0x4c; i < mapLength; i += 20) {
+			var name = reader.getFourCCAt(i);
+			var foundIt = false;
+			if (name == "Lnam") {
+				nameTabs.push("name_table " + i3);
+				nameOffs.push(i3);
+			}
+			if (name == "LctX") {
+				collectOffs.push(i);
+			}
+			i3++;
+			for (var i2=0; i2 < names.length; i2++) {
+				var curr = names[i2];
+				//console.log(curr == name);
+				//console.log(curr + " | " + name);
+				if (curr == name) {
+					foundIt = true;
+					break;
+				}
+			}
+			if (!foundIt) names.push(name);
+		}
+		for (var i=0; i < collectOffs.length; i++) {
+			var curr = collectOffs[i];
+			var ID = reader.view.getUint32(curr + 0x28);
+			console.log(reader.view.getUint8(curr + 0x28));
+			for (var i2=0; i2 < nameOffs.length; i2++) {
+				var curr2 = nameOffs[i2];
+				if (ID == curr2) {
+					curr += " $ " + curr2;
+					break;
+				}
+			}
+		}
+		place.innerHTML = names.join(" , ");
+		place.innerHTML += "<br/>" + nameTabs.join("<br/>");
+		place.innerHTML += "<br/>script_collections : " + collectOffs.join("<br/>");
+		place.innerHTML += "<br/>" + "total mapped chunks : " + i3;
+		// *SAC *YEK XFIR AFLA BLWV CSWV DEMX DTIB FCRD IFWV LsCM Mide TULC TXTS WVCS XtcL dns droS eerf fniC 
+		// knuj lRTX lcc manL pamF pami pamm pmXF rcsL tSAC
+	}
+};
+
+xhr.send();
+</script>
+</body>
+
+</html>

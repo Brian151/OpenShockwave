@@ -1,3 +1,3 @@
 schockabsorber : https://github.com/eriksoe/Schockabsorber/
-dirOpener : must retrive links... i've forgotten
-recover-cct : must retrive links... i've forgotten
+dirOpener : http://oastone.com/blog/post/2008/05/19/dirOpener-for-Director-85-for-opening-locked-dxr-files.aspx
+recover-cct : http://www.mediafire.com/file/xatdzkfga3sed4s/recover-cct.exe
