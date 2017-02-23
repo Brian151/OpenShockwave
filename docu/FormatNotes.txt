@@ -108,8 +108,9 @@ XMED
 snd 
 {
 	length (sometimes 0)
-	//purpose unknown, seems to trail SWA audio
-	//sometimes contains values (for an example see MLKER.DXR in MYLK game)
+	// sometimes the length is 0 and it trails SWA audio.
+	// other times it contains raw PCM streams which GoldWave can import, and probably Audacity as well.
+	// observed: Raw PCM unsigned 8 bit, 11025 Hz, 88 kbps, mono (for the door opening sound in MYLK)
 }
 
 ediM
