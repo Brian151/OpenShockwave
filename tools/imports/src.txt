@@ -1,1 +1,3 @@
 schockabsorber : https://github.com/eriksoe/Schockabsorber/
+dirOpener : must retrive links... i've forgotten
+recover-cct : must retrive links... i've forgotten
