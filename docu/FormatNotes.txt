@@ -107,8 +107,9 @@ XMED
 
 snd 
 {
-	length (always 0)
+	length (sometimes 0)
 	//purpose unknown, seems to trail SWA audio
+	//sometimes contains values (for an example see MLKER.DXR in MYLK game)
 }
 
 ediM
