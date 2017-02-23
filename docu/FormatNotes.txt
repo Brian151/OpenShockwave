@@ -77,6 +77,17 @@ KEY*
 	unlike mmap, this doesn't include EVERYTHING. 
 	MUCH MORE RESEARCH REQUIRED TO FIND HOW THIS WORKS
 	*/
+	{
+		4 bytes unknown (only 0C 0C observed, possibly the length of each entry?)
+		4 bytes number_of_sections
+		4 bytes number_of_casts (just a guess, need to verify)
+		entry {
+			4 bytes section_index (the index of the section in the mmap excluding "free" sections, they are to be ignored)
+			4 bytes section_cast_index (the index of the related CAS* section in the mmap excluding "free" sections, they are to be ignored)
+			fourcc chunkID
+		}
+		
+	}
 }
 
 free
