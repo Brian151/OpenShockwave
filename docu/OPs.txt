@@ -4,63 +4,63 @@ subject to change!
 byte value, memonic name, ;comment #more comment
 
 ONE BYTE CODES
-01 RET ;leave current function and return to caller
+01 END ;leave current function and return to caller
 02 <null> ; nothing documented for this
-03 FALSE or 0 ; push 0 or false
-04 MULT ; multiply two values
+03 PUSHINT0 ; push 0 or false
+04 MUL ; multiply two values
 05 ADD ; add two values
 06 SUB ; subtract B from A
 07 DIV ; divide A by B
 08 MOD ; mod A by B
 09 INV ; negate A
-0a CONCAT ; concat strings A and B #need better token
-0b CONCAT2 ; concat strings A and B with a space in-between #need better token
-0c LESS ; check if A is less than B
-0d LEQ ; check if A is less than or equal to B
-0e NEQ ; check if A and B are unequal
+0a JOINSTR ; concat strings A and B #need better token
+0b JOINPADSTR ; concat strings A and B with a space in-between #need better token
+0c LT ; check if A is less than B
+0d LTEQ ; check if A is less than or equal to B
+0e NTEQ ; check if A and B are unequal
 0f EQ ; check if A and B are equal
-10 GRTR ; check if A is greater than B
-11 GEQ ; check if A is greaten than or equal to B
+10 GT ; check if A is greater than B
+11 GTEQ ; check if A is greaten than or equal to B
 12 AND ; check if A and B are logically true
 13 OR ; check if A or B is logically true
 14 NOT ; check if A is logically false
-15 CONTAINS ; check if string A contains string B, case insensitive
-16 STARTS ; check is string A starts with string B, case insensitive 
-17 STR_SPLIT ; string splice/split
-18 HGLT ; highlight some text
-19 SPRT_INTRSCT ; sprite A is colliding with B
-1a SPRT_WTHN ; sprite A is inside B
-1b <???> ; unsure what to call it
-1c <???> ; also unsure
-1d <???> ; unsure, related to 1c
+15 CONTAINSSTR ; check if string A contains string B, case insensitive
+16 CONTAINS0STR ; check is string A starts with string B, case insensitive 
+17 SPLITSTR ; string splice/split
+18 LIGHTSTR ; highlight some text
+19 ONTOSPR ; sprite A is colliding with B
+1a INTOSPR ; sprite A is inside B
+1b CASTSTR ; unsure what to call it
+1c STARTOBJ ; also unsure
+1d STOPOBJ ; unsure, related to 1c
 1e <???> ; documetation is not sure
-1f <???> ; unsure, creates property lists
+1f UNFLATTENLIST ; unsure, creates property lists
 
 TWO BYTE CODES
-41 XX PUSHINT ; push an integer of values 1-127
-42 XX ARGS ; pop values from stack to be used in a function call
-43 XX ARR ; pop values from the stack to create a list/array
+41 XX PUSHINT8 ; push an integer of values 1-127
+42 XX POPARGS8 ; pop values from stack to be used in a function call
+43 XX POPLIST8 ; pop values from the stack to create a list/array
 44 XX PUSH ; push a value from constants records
-45 XX SYMB ; push a symbol from the namelst into the stack
+45 XX PUSHSYMB ; push a symbol from the namelst into the stack
 46 XX <null> ; NO INFO
 47 XX <null> ; NO INFO
 48 XX <null> ; NO INFO
-49 XX GLOB ; push value of a global variable with a name from the namelist
+49 XX PUSHG ; push value of a global variable with a name from the namelist
 4a XX <null> ; NO INFO
-4b XX PAR ; push value of a function call parameter
-4c XX LOC ; push the value of a local variable
+4b XX PUSHPARAMS ; push value of a function call parameter
+4c XX PUSHL ; push the value of a local variable
 4d XX <null> ; NO INFO
 4e XX <null> ; NO INFO
-4f XX SET GLOB ; pop a value to set as the value of a global variable with a name from the namelist
+4f XX POPG ; pop a value to set as the value of a global variable with a name from the namelist
 50 XX <null> ; NO INFO
 51 XX <null> ; NO INFO
-52 XX SET LOC ; pop a value to set as a local variable
+52 XX POPL ; pop a value to set as a local variable
 53 XX <null> ; NO INFO
-54 XX END REPEAT ; unconditonal backwards jump
+54 XX ENDREPEAT ; unconditonal backwards jump
 55 XX <null> ; NO INFO
-56 XX CALL LOC ; call a local function
-57 XX CALL EXT ; call an external function
-58 XX CALL OBJ ; call an object method
+56 XX CALLL ; call a local function
+57 XX CALLE ; call an external function
+58 XX CALLOBJ ; call an object method
 59 16 <???> ; unsure how target value is specified
 59 25 <???> ; same...
 59 35 <???> ; same...
@@ -106,8 +106,8 @@ TWO BYTE CODES
 66 XX <???> ; read docu
 
 THREE BYTE CODES
-81 XX YY PUSHINT ; push an integer from 128-32767 
-82 XX YY ; like code 42, but for greater than 255 arguments
-83 XX YY ; like code 43, but for greater than 255 arguments
+81 XX YY PUSHINT16 ; push an integer from 128-32767 
+82 XX YY POPARGS16 ; like code 42, but for greater than 255 arguments
+83 XX YY POPLIST16 ; like code 43, but for greater than 255 arguments
 93 XX YY ; read bytecode docu
 95 XX YY ; read bytecode docu
