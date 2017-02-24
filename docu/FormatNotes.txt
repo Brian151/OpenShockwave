@@ -63,6 +63,7 @@ imap
 
 mmap
 {
+	/* in DCR, this is the contents of the second extracted file, and describes the third extracted file, but it seems to be arranged differently, where the list of chunks is seperated by null terminator 0xFFFFFF7F, and the section name starts with 0x00, I can't see where the length comes from */
 	length
 	data (first 0x18 bytes are unknown)
 	/*following those bytes is a list of chunks
@@ -81,7 +82,6 @@ mmap
 
 KEY*
 {
-	/* this section appears to function vastly differently in a DCR file than it does in DXR; this is how it appears in DXR */
 	length
 	data
 	{
