@@ -42,9 +42,13 @@ xhr.onload = function(e) {
 				nameOffs.push(i3);
 			}
 			if (name == "LctX") {
-				collectOffs.push(i);
+				var off = reader.view.getUint32(i + 8,true);
+				collectOffs.push(off);
 			}
 			i3++;
+			if (name == "free") {
+				//i3--; //didn't seem to help...
+			}
 			for (var i2=0; i2 < names.length; i2++) {
 				var curr = names[i2];
 				//console.log(curr == name);
@@ -59,18 +63,25 @@ xhr.onload = function(e) {
 		for (var i=0; i < collectOffs.length; i++) {
 			var curr = collectOffs[i];
 			var ID = reader.view.getUint32(curr + 0x28);
-			console.log(reader.view.getUint8(curr + 0x28));
+			//console.log(ID);
+			var found = false;
+			var fOff = 0;
 			for (var i2=0; i2 < nameOffs.length; i2++) {
 				var curr2 = nameOffs[i2];
+				//console.log(curr2);
 				if (ID == curr2) {
-					curr += " $ " + curr2;
+					found = true;
+					fOff = i2;
 					break;
 				}
+			}
+			if (found) {
+				collectOffs[i] += " $ " + nameOffs[fOff];
 			}
 		}
 		place.innerHTML = names.join(" , ");
 		place.innerHTML += "<br/>" + nameTabs.join("<br/>");
-		place.innerHTML += "<br/>script_collections : " + collectOffs.join("<br/>");
+		place.innerHTML += "<br/>script_collections : <br/>" + collectOffs.join("<br/>");
 		place.innerHTML += "<br/>" + "total mapped chunks : " + i3;
 		// *SAC *YEK XFIR AFLA BLWV CSWV DEMX DTIB FCRD IFWV LsCM Mide TULC TXTS WVCS XtcL dns droS eerf fniC 
 		// knuj lRTX lcc manL pamF pami pamm pmXF rcsL tSAC

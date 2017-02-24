@@ -1,0 +1,37 @@
+<html>
+<head>
+	<meta charset="UTF-8"/>
+	<title>JavaScript - Shockwave Decompiler</title>
+</head>
+<body>
+<div id="out"></div>
+<script src="RIFF.js"></script>
+<script src="ShockwaveParser.js"></script>
+<script>
+/*
+sources:
+http://www.html5rocks.com/en/tutorials/file/xhr2/#disqus_thread
+http://stackoverflow.com/questions/15341912/how-to-go-from-blob-to-arraybuffer
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+*/
+var place = document.getElementById("out");
+var fUrl = "spybot_0807_sw.dir";
+//var fUrl = "redsquare.dir";
+var xhr = new XMLHttpRequest();
+xhr.open('GET', fUrl, true);
+xhr.responseType = 'arraybuffer';
+var swFile = null;
+
+xhr.onload = function(e) {
+	if (this.status == 200) {
+		swFile = new ShockwaveParser(this.response);
+		swFile.parse();
+	}
+};
+
+xhr.send();
+</script>
+</body>
+
+</html>
