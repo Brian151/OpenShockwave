@@ -35,11 +35,22 @@ SHOCKWAVE FORMAT:
 FIRX
 (
 chunklength x
-formtype "MV93"
+formtype "MV93" for DXR, "FGDM" for DCR, or "LPPA" for Projector RIFX container (see Projector Notes)
 data (entire file, minus chunkID & chunklength), chunklength bytes long
 )
 
 sub-chunks:
+Fver
+{
+	6 bytes unknown (too long to be chunkLength?)
+	string fileVersion (written as length followed by string)
+}
+
+Fcdr
+{
+	contains ziplib compressed data, each file begins with 0x78DA
+}
+
 imap 
 {
 	chunklength
@@ -70,13 +81,9 @@ mmap
 
 KEY*
 {
+	/* this section appears to function vastly differently in a DCR file than it does in DXR; this is how it appears in DXR */
 	length
 	data
-	/*
-	similar to mmap, this lists chunks found in the file
-	unlike mmap, this doesn't include EVERYTHING. 
-	MUCH MORE RESEARCH REQUIRED TO FIND HOW THIS WORKS
-	*/
 	{
 		4 bytes unknown (only 0C 0C observed, possibly the length of each entry?)
 		4 bytes number_of_sections
@@ -102,13 +109,14 @@ XMED
 (
 	length
 	followed immediatly by data <length> in size
-	//these seem to contain texts and flash SWF, from current observations
+	// contains Xtra Media, any media requiring an Xtra to play, such as SWA requiring the SWA Decompression Xtra or SWF requiring the FLash Asset Xtra etc.
 )
 
 snd 
 {
 	length (sometimes 0)
 	// sometimes the length is 0 and it trails SWA audio.
+	// in that scenario the XMED and snd are linked to the same CASt in the KEY* section so the cast member is classed as a sound even though it requires an Xtra to play
 	// other times it contains raw PCM streams which GoldWave can import, and probably Audacity as well.
 	// observed: Raw PCM unsigned 8 bit, 11025 Hz, 88 kbps, mono (for the door opening sound in MYLK)
 }
@@ -125,6 +133,7 @@ BITD
 	length
 	data
 	//bitmap data, but i am unsure how to parse them
+	// Can be Standard (probably uncompressed) or JPEG
 }
 
 CASt
