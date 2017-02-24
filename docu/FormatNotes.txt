@@ -42,13 +42,67 @@ data (entire file, minus chunkID & chunklength), chunklength bytes long
 sub-chunks:
 Fver
 {
+	// Appears only in DCR.
 	6 bytes unknown (too long to be chunkLength?)
 	string fileVersion (written as length followed by string)
 }
 
 Fcdr
 {
-	contains ziplib compressed data, each file begins with 0x78DA
+	// Appears only in DCR.
+	// contains ziplib compressed data
+	// is just strings for if there was an error like "Missing Xtra" etc.
+}
+
+ABMP
+{
+	// Appears only in DCR.
+	/*
+	Similar to mmap, but using varints
+	
+	A varint is an int that can be any number of bytes long.
+	This is accomplished by the first bit of every byte
+	representing whether the next byte is part of the number
+	or not. For example:
+	
+	
+	0x19 is the same in both representations.
+	
+	Normal:    00011001
+	As varint: 00011001
+	
+	
+	0xE1 is different as a varint
+	
+	Normal:             1110 0001
+	As varint: 10000001 0110 0001
+	
+	Notice how with 0xE1, what is normally the first bit
+	became the last bit of the first byte, because in
+	a varint, the first bit of each byte says whether
+	or not another byte will follow.
+	
+	With that said, the format of ABMP is as follows:
+	varint id
+	varint offset // this refers to the FGEI section
+	varint compressed_size
+	varint decompressed_size
+	varint repr_mode (not sure what this does, just the name according to Schockabsorber)
+	fourcc chunkID
+	*/
+}
+
+FGEI
+{
+	// Appears only in DCR.
+	/*
+	Compressed zlib data.
+	Contains all the sections referenced in ABMP.
+	Note that this doesn't use RIFX at all, it depends
+	on the ABMP section to lay it out, so
+	there's no redundant information like how mmap
+	repeats the name and length of each section.
+	*/
 }
 
 imap 
