@@ -1,0 +1,36 @@
+A Shockwave Projector is an EXE file published within Macromedia/Adobe Director capable of playing D*R movies. These EXE files contain all the resources, including all the DLLs/Xtras needed to play the D*R files, as well as the D*R files themselves - with the exception of Director MX 2004, a.k.a. Director 10, which has an option to create a Skeleton Projector, that is to say it won't include these within the EXE and instead rely on the user's Shockwave install. A single Projector can contain multiple D*R files of multiple types, but although they technically could contain DIR files, they only ever are published with DXR/DCR files. MacroMind Director 4.0 uses DXR, while newer versions use DCR.
+
+Some example Shockwave Projectors can be seen in the tools folder. These were files I exported straight from Director and removed the EOF Extra Data for (more info on that below.)
+
+This briefly documents the behaviours and inner workings of Shockwave Projectors.
+
+The resources contained within these EXE files are in the EOF Extra Data, the address of which can be found in a hex editor by adding the RawOffset and RawSize of the last section in the PE header. If the EOF Extra Data is removed, the Projector looks for a movie to be spcified in an external INI file with the same filename as the EXE file using the Movie01 parameter. Amongst the files in the EOF Extra Data are:
+
+-A BMP image with a splash screen logo to show before playing a movie which is the Macromedia logo by default, but these are rarely shown as most D*Rs load quickly enough that it will not appear.
+
+-The Proj.DLL (Projector, contains functions related to playback,) IML32.DLL (Ideal Machine Language, contains functions to interpret Lingo) DIRAPI.DLL (Director API, contains the actual code for basic built-in Lingo handlers such as "go" as well as decides which Xtra is needed for a handler) and sometimes DIRAPI.MCH (Macromedia Cache) files for this version of Director.
+
+-Any required DXR/DCR files.
+
+The structure of the EOF Extra Data varies depending on the version of Director.
+
+Here is how it works in Director 8 and above. At the beginning of the EOF Extra Data (typically starting at 0xB000) is some sort of magic key "JP10" followed by an address, then compressed versions of the DLLs. Going to said address brings you to a RIFX container, though it is not a valid Director file (even after correcting the mmap.) The RIFX container contains these chunks:
+
+File
+The length of and offset to an Xtra or DCR file.
+
+List
+Seems similar to the KEY* section of a DXR. I don't know what it does, but I'm guessing it has to do with the relationship between Xtras and DCRs.
+
+Dict
+Contains the full path to the Xtra or DIR file on the original computer the Projector was created from. This is so that the Lingo go handler can work correctly despite all movies being contained in one file.
+
+Director 7 and below projectors also contain a RIFX container but I am not sure how to get there. Simply searching for "XFIR" or "RIFX" reveals it.
+
+MacroMind Director 4 projectors contains the DXR file directly, and has no container for Xtras.
+
+In the memory, the paths in the File chunks are stored as PATH (or HTAP) chunks.
+
+The mmap sections of DXR files in Projectors contain addresses relative to the start of the EXE file rather than the start of the RIFX container. This is not the case for DCR files. By taking the entire RIFX container and fixing the addresses in the imap and mmap sections, you can store the DXR file seperately and play it in a browser. With DCR files, no sections need to be corrected. Their binary data can simply be copy-pasted to a new DCR file with no modifications.
+
+Upon starting a Projector, the splash screen BMP image is shown while any DLLs and Xtras are extracted to a temporary folder. On Windows 7 and above this is located at "%localappdata%/Temp/TempFolder.aaa" . If TempFolder.aaa is in use by another Projector, it will instead go to TempFolder.aab etc. Although DLLs and Xtras are extracted in order that they can be used by LoadLibrary, any DXR/DCR files are not extracted and are instead read directly from the EXE. It is noteworthy that by breaking on the _llseek and _lread functions used to read the DLLs, and changing the offsets to that of a DCR, it may be possible to get a more accurate decompression of a DCR file.
