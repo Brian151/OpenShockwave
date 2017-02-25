@@ -43,7 +43,6 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 		var i0 = 0; //full range num ID
 		var i1 = 0; //limited range (ignore free) num ID
 		var lookup = [];
-		//console.log((offset + 0x20).toString(16));
 		for (var i= (offset + 0x20); i < length; i+=20) {
 			var id = this.structParser.getFourCCAt(i);
 			var len = this.structParser.getLengthAt(i + 4);
@@ -79,11 +78,100 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 ShockwaveParser.prototype.parseKeyTable = function(offset) {
 	var head = this.structParser.getFourCCAt(offset)
 	var length = this.structParser.getLengthAt(offset + 4);
+	var max = offset + length;
+	var total = this.structParser.getLengthAt(offset + 0xc);
 	console.log("keys @" + offset.toString(16));
 	var dataOffset = (offset + 8 + 0xc);
-	for (i = dataOffset; i < length i += 0xc) {
-		var parentID = this.structParser.getLengthAt(i);
-		var childID = this.structParser.getLengthAt(i + 4);
-		var childSecIS = this.structParser.getFourCCAt(i + 8);
+	var i0 = 0;
+	var i1 = 0;
+	var i3 = 0;
+	var foundTags = [];
+	for (var i = dataOffset; i < max; i += 0xc) {
+		var childID = this.structParser.getLengthAt(i);
+		var parentID = this.structParser.getLengthAt(i + 4);
+		var childSecID = this.structParser.getFourCCAt(i + 8);
+		if (i == dataOffset) {
+			console.log("--=first key entry=--");
+			console.log(parentID.toString(16));
+			console.log(childID.toString(16));
+			console.log(childSecID);
+			console.log(this.doMapLookup(0,parentID))
+			console.log(this.doMapLookup(1,childID))
+			console.log("-end trace-");
+		}
+		//not always CASt...WHY?
+		//also, still doesn't work fully
+		var pIDStr = this.doMapLookup(0,parentID)[0];
+		if (pIDStr == "CASt") {
+			var temp = this.doCastMemberLookup(parentID);
+			if (temp == -1)
+				temp = this.addCastMember(this.doMapLookup(0,parentID));
+			this.castMemberLib[temp].parts.push(this.doMapLookup(1,childID));
+		}
 	}
+}
+ShockwaveParser.prototype.doMapLookup = function(mode,id) {
+	if (mode > 2) {
+		mode = 2;
+	} else if (mode < 0) {
+		mode = 0;
+	}
+	//exclude free chunks
+	if (mode == 0) {
+		for (var i=0; i < this.map.length; i++) {
+			var curr = this.map[i];
+			if (curr.tagName != "free") {
+				for (var i2=0; i2 < curr.instances.length; i2++) {
+					var curr2 = curr.instances[i2][3];
+					if (curr2 == id) {
+						return [curr.tagName,curr.instances[i2]];
+					}
+				}
+			}
+		}
+	}
+	//include free chunks
+	if (mode == 1) {
+		for (var i=0; i < this.map.length; i++) {
+			var curr = this.map[i];
+			for (var i2=0; i2 < curr.instances.length; i2++) {
+				var curr2 = curr.instances[i2][2];
+				if (curr2 == id) {
+					return [curr.tagName,curr.instances[i2]];
+				}
+			}
+		}
+	}
+	//lookup by tag ID
+	if (mode == 2) {
+		for (var i=0; i < this.map.length; i++) {
+			var curr = this.map[i];
+			if (curr.tagName == id) {
+				return [curr.tagName,curr.instances];
+			}
+		}
+	}
+	//default, return something suggesting error
+	return ["@ERR",[0,0,0,0]];
+}
+ShockwaveParser.prototype.addCastMember = function(mapping) {
+	var out = this.castMemberLib.length;
+	this.castMemberLib.push({
+		name : "",
+		type : "Cast_Member",
+		parts : [],
+		mapping : mapping,
+	});
+	return out;
+}
+ShockwaveParser.prototype.doCastMemberLookup = function(id) {
+	var out = -1;
+	for (var i=0; i < this.castMemberLib.length; i++) {
+		var curr = this.castMemberLib[i];
+		if (curr.mapping[1][3] == id) {
+			out = i;
+			break;
+		}
+	}
+	return out;
 }
