@@ -194,7 +194,10 @@ CASt
 {
 	length
 	<length> bytes data
-		{
+		@DEFINITIVE{
+			Uint32 [big-end] castMemberType 
+		}
+		@IDK WHAT I AM DOING HERE{
 			0x2A bytes unknown
 			0x40 bytes Uint32 array mapIndex (same value is repeated, IDK why. this is the index in the mapping table for the offset of the actual cast member data)
 			0x14 bytes unknown
@@ -212,7 +215,12 @@ CASt
 			4 bytes color palette index/ID??? (need more research)
 			
 		}
-	//cast member, currently focusing on bitmap members...
+	/*cast member header/metadata
+	this chunk is proving particularly difficult to fully decypher, and recent efforts have 
+	shown the available fields vary quite largely depending on any number of factors.
+	This can be attributed to both the type of cast member, and even if a file has been
+	Dir-Opened vs. being the genuine DIR source movie/document
+	*/
 }
 
 CAS*

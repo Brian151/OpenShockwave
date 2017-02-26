@@ -1,0 +1,42 @@
+74 53 41 43 chunk ID "CASt"
+D2 00 00 00 uint length 0xD2
+00 00 00 0B uint32 castMemberType
+
+//accursed header................. SHOW ME YOUR SECRETS ALREADY!!!
+//these could be ushorts, they could be uint's... not sure which
+//byte order also unknown
+00 00 
+00 C4 00 00 
+00 02 00 00 
+00 14 00 00 
+00 00 00 00 
+00 00 00 00 
+02 00 00 00 
+00 01 00 14 
+00 00 00 00
+//these are almost certainly UINT32's 
+00 00 00 1B Uint32 scriptLength
+00 00 00 26 
+00 00 00 26 
+00 00 00 26 
+00 00 00 26 
+00 00 00 3A 
+00 00 00 3A 
+00 00 00 3A 
+00 00 00 3A 
+00 00 00 3A 
+00 00 00 3A 
+00 00 00 4E 
+00 00 00 4E 
+00 00 00 4E 
+00 00 00 4E 
+00 00 00 4E 
+00 00 00 4E 
+00 00 00 52 
+00 00 00 56 
+00 00 00 5A 
+
+76 61 72 20 68 65 6C 6C 6F 20 3D 20 22 68 65 6C 6C 6F 20 77 6F 72 6C 64 22 3B 20 String scriptText
+0A 73 63 72 69 70 74 54 65 73 74 00 Uint8 nameLength, String name, null terminator
+//everything from my notes falls apart here... EVERYTHING
+77 00 41 01 F7 04 81 00 00 00 1B 00 00 00 1B 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 14 00 2C 55 F7 0F 7B 55 F7 1A E7 4E 2F 41 00 00 03
