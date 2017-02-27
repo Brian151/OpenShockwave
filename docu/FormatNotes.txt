@@ -110,9 +110,9 @@ imap
 	chunklength
 	8 bytes unknown
 	4 bytes mapOffset 
-	//points to the currently valid mapp chunk
-	//as it turns-out, re-saving a .dir just appends data, including
-	//a new mmap chunk (o...k...)
+	*points to the currently valid mapp chunk
+	as it turns-out, re-saving a .dir just appends data, including
+	a new mmap chunk (o...k...)*/
 }
 
 mmap
@@ -122,7 +122,7 @@ mmap
 	data (first 0x18 bytes are unknown)
 	/*following those bytes is a list of chunks
 	That's where this gets good
-	this is the signifnicant mapping chunk*/
+	this is the mapping table*/
 	entry
 	{
 		fourcc chunkID
@@ -139,12 +139,22 @@ KEY*
 	length
 	data
 	{
-		4 bytes unknown (only 0C 0C observed, possibly the length of each entry?)
-		4 bytes number_of_sections
-		4 bytes number_of_casts (just a guess, need to verify)
+		Uint16 unknown (only 0x0C observed, possibly the length of each entry or the chunk header?)
+		Uint16 unknown (only 0x0C observed, possibly the length of each entry or the chunk header?)
+		Uint32 sectionCount
+		Uint32 castCount (just a guess, need to verify)
 		entry {
-			4 bytes section_index (the index of the section in the mmap excluding "free" sections, they are to be ignored)
-			4 bytes section_cast_index (the index of the related CASt section in the mmap excluding "free" sections, they are to be ignored)
+			/*
+				dealing with spybotics suggests there's something more that goes on with
+				the ID/index lookup. It could be a version-specific quirk? Using the exclusive
+				IDs (ignoring free) is causing problems... and recent research with CAS* indicates certain values
+				point to freespace (entries of solid 0x00, e.g. NULL) in the mapping table. Also noteworthy
+				is the JavaScript parser at this time is unable to successfully parse the KEY* section in
+				spybotics, and a majority of the CASt sections are somehow being skipped...
+				This needs to be solved pronto, the castlib cannot be reconstructed without this data!
+			*/
+			Uint32 sectionIdex (the index of the section in the mmap excluding "free" sections, they are to be ignored)
+			Uint32 castIndex (the index of the related CASt section in the mmap excluding "free" sections, they are to be ignored)
 			fourcc chunkID
 		}
 		
@@ -194,27 +204,65 @@ CASt
 {
 	length
 	<length> bytes data
-		@DEFINITIVE{
-			Uint32 [big-end] castMemberType 
+		header{
+			Uint32 [big-end] castMemberType
+			(
+				0x01 : bitmap
+				0x02 : film loop
+				0x04 : palette
+				0x06 : audio
+				0X07 : button
+				0x08 : vector shape
+				0x0B : script
+				0x0F : flash,font,text [why use same number???]
+			)
 		}
-		@IDK WHAT I AM DOING HERE{
-			0x2A bytes unknown
-			0x40 bytes Uint32 array mapIndex (same value is repeated, IDK why. this is the index in the mapping table for the offset of the actual cast member data)
-			0x14 bytes unknown
+		fields {
+			/*
+			My mistake was in assuming two things:
+			1. All CASt have the same fields
+			2. Fields always appear in the same order
+			This is evidentally, not the case...
+			*/
+			name {
 			byte nameLength
 			<nameLength> bytes name
-			4 bytes UTCdate dateCreated
-			4 bytes UTCdate dateLastModified
-			byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
-			byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
-			8 bytes unknown
-			2 bytes short width
-			2 bytes short height
-			4 bytes unknown (0x10000000 only observed value so far)
-			[4 bytes unknown = 0x00000000 (old format)]
-			4 bytes color palette index/ID??? (need more research)
-			
+			}
+			UTCdate dateCreated
+			UTCdate dateLastModified
+			imageCompression {
+				byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
+				byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
+				Uint16 [big-end] unknown
+			}
+			4 bytes unknown (4e 2f 41 00)
 		}
+		specificData{
+			/*
+			These vary a lot, but they do seem to have an absolute structure and order
+			*/
+			bitmapData {
+				4 bytes unknown
+				2 bytes unknown
+				Uint16 width
+				Uint16 height
+				//not entirely sure from here on out...
+				4 bytes unknown (01 00 00 00)
+				4 bytes unknown
+				4 bytes unknown
+				4 bytes unknown
+				2 bytes unknown
+			}
+			scriptData {
+				Uint16 scriptType
+				(
+					00 01 : behavior
+					00 03 : movie
+					00 07 : parent
+				)
+			}
+		}
+	
 	/*cast member header/metadata
 	this chunk is proving particularly difficult to fully decypher, and recent efforts have 
 	shown the available fields vary quite largely depending on any number of factors.
@@ -226,9 +274,17 @@ CASt
 CAS*
 {
 	length
-	data 
-	//a Unit32 array length/4 long, containing indices in the mapping table
-	//cast member list for a given cast, empty casts do not have one
+	data {
+		/*
+		a Unit32 array, each value is an indice according to the mapping table...
+		The indeces should all point to CASt sections
+		*/
+	}
+	/*
+		This is a cast, or rather, a cast association table. This contains the neccesarry data to group
+		CASt sections into a complete cast. It does not contain the name, however. The cast name would be found 
+		in the MCsl section. External casts do not have a CAS* table, probaby because they do not need one.
+	*/
 }
 
 CLUT
@@ -246,12 +302,16 @@ MCsL
 	4 bytes castCount
 	2 bytes short unknown (4)
 	4 bytes arraySize
-	[4 bytes unknown] (0)
-	<arraySize * 4> - 4 bytes unknownDataEntries (one entry per cast) {
+	<arraySize * 4> bytes unknownDataEntries (one entry per cast) {
 		4 bytes unknown
 		4 bytes unknown
 		4 bytes unknown
 		4 bytes unknown
+		/*
+			This could be similar to the length tables found in CASt sections...
+			Unlike the CASt length tables, the absolute length of this has been
+			determined, it's (arraySize * 4)
+		*/
 	}
 	4 bytes castEntriesLength
 	<castCount> entries
@@ -266,6 +326,10 @@ MCsL
 		2 bytes short numID
 		byte unknown (4)
 		byte unknown (0)
+		/*
+		This might be slightly innaccurate...
+		It's also somehow missing a value for preload settings
+		*/
 	}
 	/*
 	cast list
@@ -299,12 +363,6 @@ except they only contain one cast, and cannot run as a stand-alone application.
 extra notes:
 Spybotics, does not actually require its external casts to run.
 However, this might impact the music*
-
-the format of the CASt chunks in spybotics seems just 
-slightly different from the format of the example .dir's
-I am using...
-compression data directly follows the name, timestamps not yet located, 
-they may not exist...
 
 *All remaining copies/archives of Spybotics: The Nightfall Incident
 do not have the sound_level_<1-5>.cct, and the snd_netload_<1-5>.cct files.

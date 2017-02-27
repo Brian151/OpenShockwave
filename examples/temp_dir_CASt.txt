@@ -1,42 +1,51 @@
-74 53 41 43 chunk ID "CASt"
-D2 00 00 00 uint length 0xD2
-00 00 00 0B uint32 castMemberType
+74 53 41 43 FourCC chunkID "CASt"
+D2 00 00 00 Uint length 0xD2 //total size is oxDA
+00 00 00 0B Uint32 castMemberType
 
-//accursed header................. SHOW ME YOUR SECRETS ALREADY!!!
-//these could be ushorts, they could be uint's... not sure which
-//byte order also unknown
-00 00 
-00 C4 00 00 
-00 02 00 00 
-00 14 00 00 
-00 00 00 00 
-00 00 00 00 
-02 00 00 00 
-00 01 00 14 
-00 00 00 00
-//these are almost certainly UINT32's 
-00 00 00 1B Uint32 scriptLength
-00 00 00 26 
-00 00 00 26 
-00 00 00 26 
-00 00 00 26 
-00 00 00 3A 
-00 00 00 3A 
-00 00 00 3A 
-00 00 00 3A 
-00 00 00 3A 
-00 00 00 3A 
-00 00 00 4E 
-00 00 00 4E 
-00 00 00 4E 
-00 00 00 4E 
-00 00 00 4E 
-00 00 00 4E 
-00 00 00 52 
-00 00 00 56 
-00 00 00 5A 
+/*accursed header................. SHOW ME YOUR SECRETS ALREADY!!!
+some of these could be ushorts or ubytes... not sure which
+byte order also unknown for some values
+The majority is a length table using Uint32 [big-endian]*/
+00 00 00 C4 Uint32 length2 (0x14 to specificData)
+00 00 00 02 Uint32 specificDataLength
+00 00 00 14 Uint32 offset (alriiiight...)
+00 00 00 00 Uint32 ??? (always 0x0)
+00 00 00 00 Uint32 ??? (always 0x0)
+00 00 02 00 
+00 00 00 01 
+00 14
+00 00 00 00 (the length may REALLY begin here)
+/*these are almost certainly UINT32's
+these may not be repeated for redundancy
+these are all lengths representing the size of the data*/
+00 00 00 1B Uint32 scriptLength (this may be the real len00)
+00 00 00 26 Uint32 len00
+00 00 00 26 Uint32 len01
+00 00 00 26 Uint32 len02
+00 00 00 26 Uint32 len03
+00 00 00 3A Uint32 len04
+00 00 00 3A Uint32 len05
+00 00 00 3A Uint32 len06
+00 00 00 3A Uint32 len07
+00 00 00 3A Uint32 len08
+00 00 00 3A Uint32 len09
+00 00 00 4E Uint32 len10
+00 00 00 4E Uint32 len12
+00 00 00 4E Uint32 len13
+00 00 00 4E Uint32 len14
+00 00 00 4E Uint32 len15
+00 00 00 4E Uint32 len16
+00 00 00 52 Uint32 len17
+00 00 00 56 Uint32 len18
+00 00 00 5A Uint32 len19
 
+//actual cast data
 76 61 72 20 68 65 6C 6C 6F 20 3D 20 22 68 65 6C 6C 6F 20 77 6F 72 6C 64 22 3B 20 String scriptText
-0A 73 63 72 69 70 74 54 65 73 74 00 Uint8 nameLength, String name, null terminator
-//everything from my notes falls apart here... EVERYTHING
-77 00 41 01 F7 04 81 00 00 00 1B 00 00 00 1B 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 14 00 2C 55 F7 0F 7B 55 F7 1A E7 4E 2F 41 00 00 03
+0A 73 63 72 69 70 74 54 65 73 74 Uint8 nameLength, String name
+00 77 00 41 01 F7 04 81 00 00 00 1B 00 00 00 1B 00 01 00 00 unknown field
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 14 00 2C unknown field
+55 F7 0F 7B UTCDate created
+55 F7 1A E7 UTCDate modified
+4E 2F 41 00 unknown field
+
+00 03 specifcData(script) - scriptType : movie
