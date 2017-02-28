@@ -32,19 +32,40 @@ formtype (???)
 
 SHOCKWAVE FORMAT:
 
-FIRX
-(
-chunklength x
-formtype "MV93" for DXR, "FGDM" for DCR, or "LPPA" for Projector RIFX container (see Projector Notes)
-data (entire file, minus chunkID & chunklength), chunklength bytes long
-)
+RIFFX
+{
+Uint32 chunklength
+FourCC formtype 
+	(
+	"MV93" for DXR and DIR 
+	"FGDM" for DCR
+	"LPPA" for Projector RIFX container (see Projector Notes)
+	)
+	data (entire file, minus chunkID & chunklength), chunklength bytes long
+}
 
 sub-chunks:
 Fver
 {
 	// Appears only in DCR.
-	6 bytes unknown (too long to be chunkLength?)
-	string fileVersion (written as length followed by string)
+	1 byte [Uint8? Varint?]! chunkLength!!
+	5 bytes unknown (binary representation of version, maybe?)
+	String fileVersion (written as byte length followed by string)
+	/*
+	! type cannot be exactly verified, no observed Fver has yet reason to
+	be a very large size. version numbers are usually small in size, even
+	when written as plaintext. However, DCR does use varints for numbers, a lot...
+	See ABMP for explanation of varints
+	
+	!! This only seems to make sense so far, but no counter-example has yet been observed.
+	It logically makes sense, because whatever is reading the file NEEDS to know the size
+	of a given chunk. Zlib is no compression, and would likely fail catostrophically if
+	it didn't know the size of what it is supposed to be decompressing. A hacker or hacker tool
+	could simply sniff for headers (in this case, RIFF FourCC's) , however, this is potentially
+	error-prone. No sane programmer uses guesswork on a file format, especially a complex one.
+	The length of a given block/section generally is declared explicitly, somewhere. Sometimes,
+	it is declared in multiple places. 
+	*/
 }
 
 Fcdr
@@ -337,6 +358,37 @@ MCsL
 	only remaining option thus far is that this happens automatically, meaning
 	the cast names and their member lists(if present) are stored in the same
 	order
+	*/
+}
+
+XTRl
+{
+	Uint32 length
+	4 bytes unknown
+	Uint32 [big-end] xtraCount
+	<xTraCount> entries {
+		Uint32 [big end] length
+		<length> bytes data
+		{
+			//needs more research
+			0x22 bytes unknown (values seem fairly consistent)
+			Uint32 [big-end] length2
+			<length2> bytes data
+			{
+				2 bytes unknown
+				Uint8 nameLength
+				<nameLength> bytes name
+				3 bytes unknown
+				Uint8 pathLength
+				<pathLength> bytes path/url
+				byte unknown (0x00)
+			}
+		}
+	}
+	[one extra padding byte if odd length]
+	/*
+	Xtra library/linkage...
+	Lists required Xtras to play the movie
 	*/
 }
 
