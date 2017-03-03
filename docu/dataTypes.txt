@@ -1,0 +1,132 @@
+==common data types seen in Director/Shockwave formats==
+format
+{
+shortened name(bytesize)
+long name
+aka
+purposes/description
+}
+
+Uint32(4):
+Unsigned 32-bit Integer
+Unsigned Integer, Uint
+commonly used for encoding lengths in binary files
+
+Int32(4):
+Signed 32-bit Integer
+Signed Integer, Integer, Int
+like a Uint32, but with positive and negative values, the first bit is a 'sign' bit,
+that is, it's used to indicate if the number is negative or positive. These are
+used for storing a multitude of values, excluding file/data sizes
+
+Uint16(2)
+Unsigned 16-bit Integer
+Unsigned Short, Ushort
+half the size of a Uint32, can store significantly smaller values, hence
+being more commonly referred to as an unsigned "short". Used especially in
+image dimensions because most images have yet to exceed width or heights exceeding 65,535
+
+Int16(2)
+Signed 16-bit Integer
+Signed Short, Short
+like an Int32, but two bytes, instead of four.
+
+Uint8(1)
+Unsigned 8-bit Integer
+Unsigned Byte, Ubyte, Byte
+For values that won't exceed the range 0-255
+The Shockwave formats use these especially in encoding the length of shorter text strings
+
+String(?)
+String
+String
+Values that store text, these have an arbitrary length, which is defined somewhere before,
+or even completely isolated from the actual data.
+
+Varint(?)
+Varying Length Integer
+Variable-Length Quantity
+a special type of integer that for all practical purposes, is comprised of a group of 7-bit values.
+The first bit is used to signify if the next byte is part of the value. The DCR format uses these almost exclusively
+
+FourCC(4)
+Four Character Code
+FourCC
+A string of exactly four characters, used by IFF and RIFF formats as ID codes for various sections/blocks
+
+Tag
+RIFF tag
+RIFF Tag
+These are used to provide the basic stucture of shockwave files, as Shockwave is a variant of
+R.I.F.F. : Resource Interchange File Format
+The basic structure is this:
+{
+	FourCC ID
+	Uint32 length
+	<length> bytes data
+}
+the main tag of the entire file also has one extra fourCC in the first four bytes of data:
+FourCC formID
+
+DCRTag
+DCRTag
+DCRTag
+Similar to a RIFF tag, but these use Varints to encode their lengths
+
+UTCDate(4)
+Universal Time Coordinated Date/Time
+Date
+counts milliseconds since January 1, 1970
+
+==other stuff==
+[<big|little>-end]
+{
+	used to indicate if a value's byte order is big-ended or little-ended
+	By default, shockwave tends to use little-endian byte order, including the FourCC
+}
+/* */
+{
+	multi-line comment
+	Not all that neccesarry in documentation, but none the less is used to
+	keep sidenotes separate from actual information about the format
+}
+//
+{
+	single line comment, same purpose as multi-line comment, but only occur on one line
+}
+()
+{
+	primarily used to indicate possible values and meanings of certain data
+}
+
+==RIFF/RIFX==
+RIFF: http://www.johnloomis.org/cpe102/asgn/asgn1/riff.html
+basically, 
+(
+	FourCC(4) chunkID
+	Uint32(4) chunklength
+	<chunklength> bytes chunkdata (plus extra byte if not even length)
+)
+
+special chunks (like "RIFF") have one extra field
+(
+	FourCC(4) chunkID
+	Uint32(4) chunkLength
+	<chunklength> bytes chunkdata (plus extra byte if not even length)
+	(
+		FourCC(4) formType ("WAVE", for example)
+		sub-chunks
+	)
+)
+
+RIFX:
+network byte order / big-endian
+
+XFIR:
+network byte order / big-endian
+EXCEPT
+(
+	chunkID
+	chunkLength
+	formType
+), which are little-endian

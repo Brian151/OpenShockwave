@@ -50,8 +50,12 @@ the value it holds is its name
 Not really sure there's any way to emulate this,
 I can't wrap my head around how these actually would work.
 They're supposed to be faster than using a string, though...
+(actually, bytecode docus suggests this is just like how anayonmous objects work in JSON/JS)
 )
 Really, this doesn't change that the format is definitely similar to JSON.
 But, it's a more accurate interpretation of the format.
 It might impact the process for how these are converted to JSON, though.
 everything may just become an array, and i'll add code for reading from that array.
+
+current re-implementation/conversion status:
+one horribly broken tool that can even crash the browser

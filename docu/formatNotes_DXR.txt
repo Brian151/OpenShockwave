@@ -1,0 +1,3 @@
+The following notes are specific to the DXR (protected/projector) format:
+
+pending... 

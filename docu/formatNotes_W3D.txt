@@ -1,0 +1,3 @@
+Notes specific to W3D file format (exported shockwave 3D scene/model files):
+
+research required...

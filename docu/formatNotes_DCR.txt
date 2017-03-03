@@ -1,0 +1,89 @@
+The following specifications are specific to the DCR format:
+
+Fver
+{
+	1 byte [Uint8? Varint?]! chunkLength!!
+	5 bytes unknown (binary representation of version, maybe?)
+	String fileVersion (written as byte length followed by string)
+	/*
+	! type cannot be exactly verified, no observed Fver has yet reason to
+	be a very large size. version numbers are usually small in size, even
+	when written as plaintext. However, DCR does use varints for numbers, a lot...
+	See ABMP for explanation of varints
+	
+	!! This only seems to make sense so far, but no counter-example has yet been observed.
+	It logically makes sense, because whatever is reading the file NEEDS to know the size
+	of a given chunk. Zlib is no compression, and would likely fail catostrophically if
+	it didn't know the size of what it is supposed to be decompressing. A hacker or hacker tool
+	could simply sniff for headers (in this case, RIFF FourCC's) , however, this is potentially
+	error-prone. No sane programmer uses guesswork on a file format, especially a complex one.
+	The length of a given block/section generally is declared explicitly, somewhere. Sometimes,
+	it is declared in multiple places. 
+	*/
+}
+
+Fcdr
+{
+	// contains ziplib compressed data
+	// is just strings for if there was an error like "Missing Xtra" etc.
+}
+
+ABMP
+{
+	/*
+	Similar to mmap, but using varints
+	
+	A varint is an int that can be any number of bytes long.
+	This is accomplished by the first bit of every byte
+	representing whether the next byte is part of the number
+	or not. For example:
+	
+	
+	0x19 is the same in both representations.
+	
+	Normal:    00011001
+	As varint: 00011001
+	
+	
+	0xE1 is different as a varint
+	
+	Normal:             1110 0001
+	As varint: 10000001 0110 0001
+	
+	Notice how with 0xE1, what is normally the first bit
+	became the last bit of the first byte, because in
+	a varint, the first bit of each byte says whether
+	or not another byte will follow.
+	
+	With that said, the format of ABMP is as follows:
+	varint id
+	varint offset // this refers to the FGEI section
+	varint compressed_size
+	varint decompressed_size
+	varint repr_mode (not sure what this does, just the name according to Schockabsorber)
+	fourcc chunkID
+	*/
+}
+
+FGEI
+{
+	/*
+	Compressed zlib data.
+	Contains all the sections referenced in ABMP.
+	Note that this doesn't use RIFX at all, it depends
+	on the ABMP section to lay it out, so
+	there's no redundant information like how mmap
+	repeats the name and length of each section.
+	*/
+}
+
+mmap
+{
+  /* 
+  in DCR, this is the contents of the second extracted file, 
+  and describes the third extracted file, but it seems to be arranged differently, 
+  where the list of chunks is seperated by null terminator 0xFFFFFF7F, 
+  and the section name starts with 0x00, I can't see where the length comes from.
+  Otherwise, format is same as MMAP for DXR and DIR (see formatNotes)
+  */
+}
