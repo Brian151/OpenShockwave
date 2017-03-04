@@ -27,8 +27,10 @@ ShockwaveParser.prototype.parse = function() {
 			}
 				
 		}
+		this.linkScripts();
+		this.parseNameTables();
 		if (foundKeys) {
-			this.parseKeyTable(keyOffset);
+			//this.parseKeyTable(keyOffset);
 		} else {
 			console.error("cannot locate the key table");
 		}
@@ -174,4 +176,101 @@ ShockwaveParser.prototype.doCastMemberLookup = function(id) {
 		}
 	}
 	return out;
+}
+ShockwaveParser.prototype.linkScripts = function() {
+	var scrCollects = this.doMapLookup(2,"LctX");
+	var scrNames = this.doMapLookup(2,"Lnam");
+	for (var i=0; i < scrCollects[1].length; i++) {
+		var curr = scrCollects[1][i];
+		var off = curr[1];
+		var id = this.structParser.view.getUint32(off + 0x28);
+		for (var i2 =0; i2 < scrNames[1].length; i2++) {
+			var curr2 = scrNames[1][i2];
+			var id2 = curr2[2];
+			if (id == id2) {
+				this.addScriptCollection(off,curr2[1])
+				break;
+			}
+		}
+	}
+	this.linkByteCode();
+}
+ShockwaveParser.prototype.addScriptCollection = function(off,off2) {
+	this.scriptLib.push ({
+		offset : off,
+		offsetName : off2,
+		scripts : [],
+		names : [],
+		dbg : [off.toString(16),off2.toString(16)]
+	});
+}
+ShockwaveParser.prototype.parseNameTables = function() {
+	for (var i=0; i < this.scriptLib.length; i++) {
+		var curr = this.scriptLib[i];
+		var off = curr.offsetName;
+		var l = this.structParser.view.getUint32(off + 0x10);
+		var l2 = this.structParser.view.getUint32(off + 0x14);
+		var o2 = this.structParser.view.getUint16(off + 0x18);
+		var nameCount = this.structParser.view.getUint16(off + 0x1A);
+		var pointer = off + 8 + o2;
+		for (var i2 = 0; i2 < nameCount; i2++) {
+			var nameLen = this.structParser.view.getUint8(pointer);
+			/*if (i == 0 && i2 < 10) {
+				console.log("nameLen : " + nameLen.toString(16));
+				console.log(pointer.toString(16));
+			}*/
+			var name = this.parseStringASCII(pointer + 1,nameLen);
+			this.scriptLib[i].names.push(name);
+			pointer += nameLen + 1;
+		}
+	}
+}
+ShockwaveParser.prototype.parseStringASCII = function(offset,length) {
+	var out = "";
+	for (var i=0; i < length; i++) {
+		out += String.fromCharCode(this.structParser.view.getUint8(offset + i));
+	}
+	return out;
+}
+ShockwaveParser.prototype.linkByteCode = function() {
+	var bytecodes = this.doMapLookup(2,"Lscr")
+	console.log(bytecodes.length);
+	var hasfound = false;
+	for (var i=0; i < this.scriptLib.length; i++) {
+		var off = this.scriptLib[i].offset;
+		var entryCount = this.structParser.view.getUint32(off + 0x10);
+		var entryCount2 = this.structParser.view.getUint32(off + 0x14);
+		var off2 = this.structParser.view.getUint16(off + 0x18);
+		for (var i2=0; i2 < entryCount; i2++) {
+			var baseOffset = off + 8 + off2 + (i2 * 12);
+			var used = this.structParser.view.getUint16(baseOffset + 8);
+			if (used == 4) {
+				var id = this.structParser.view.getUint32(baseOffset + 4);
+				if (!hasfound) {
+					hasfound = true;
+					console.log(i);
+					console.log("LctX offset : " + off.toString(16));
+					console.log("script id : " + id.toString(16));
+					console.log("script entry offset : " + off2.toString(16));
+					console.log(
+						"raw id hex : " + " " +
+						this.structParser.view.getUint8(baseOffset + 4).toString(16) + " " +
+						this.structParser.view.getUint8(baseOffset + 5).toString(16) + " " +
+						this.structParser.view.getUint8(baseOffset + 6).toString(16) + " " +
+						this.structParser.view.getUint8(baseOffset + 7).toString(16)
+					);
+				}
+				for (var i3=0; i3 < bytecodes[1].length; i3++) {
+					var curr = bytecodes[1][i3];
+					if (curr[2] == id) {
+						this.scriptLib[i].scripts.push({
+							offset : curr[1]
+						});
+						break;
+					}
+				}
+			}
+		}
+		
+	}
 }

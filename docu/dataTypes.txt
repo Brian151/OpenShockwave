@@ -49,6 +49,23 @@ Variable-Length Quantity
 a special type of integer that for all practical purposes, is comprised of a group of 7-bit values.
 The first bit is used to signify if the next byte is part of the value. The DCR format uses these almost exclusively
 
+Boolean(1)
+Boolean
+Bool
+A value storing true(1) or false(0). The lowest adressable size in memory or on disk is a byte,
+so these always take-up an entire byte when in use. When either not in use, or writing to a file,
+these can sometimes be stored in Bitfields.
+
+Bitfield(?)
+Bitfield
+Flags
+Effectively, a super-compact array of Booleans
+It's not always efficient to store entire booleans to
+files, this was especially true of older systems, which
+had limited storage space. As the name suggests, each
+individual bit is its own value. These are typically read
+using bitwise operators.
+
 FourCC(4)
 Four Character Code
 FourCC
