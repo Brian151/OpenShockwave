@@ -57,14 +57,15 @@ function convertLscr(save) {
 					var LscrDataStream = new DataStream(e.target.result);
 					// this is always little endian afaik but hey that's just a theory a FILE FORMAT THEORY
 					LscrDataStream.endianness = false;
-					// skip the header, we can deal with that later
+					// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
 					LscrDataStream.seek(74);
 					var HandlersOffset = LscrDataStream.readUint32();
 					LscrDataStream.seek(HandlersOffset+4);
+					// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
 					var HandlerLength = LscrDataStream.readUint32();
 					var HandlerOffset = LscrDataStream.readUint32();
 					LscrDataStream.seek(HandlerOffset);
-					// while there's still more script to read...
+					// loop while there's still more code left
 					while (LscrDataStream.position < HandlerOffset + HandlerLength) {
 						// read the first byte to convert to an opcode
 						var bytecode = LscrDataStream.readUint8();
@@ -91,7 +92,7 @@ function convertLscr(save) {
 							bytecode.push(" ");
 						}
 						var opcode = "";
-						// here's the fun part, ready?
+						// see the documentation for notes on these opcodes
 						switch (bytecode[0]) {
 							/* Single Byte Instructions */
 							case 1:
