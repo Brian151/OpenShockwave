@@ -18,6 +18,9 @@ function convertBytecodeToOpcode(bytecode) {
 		case 1:
 			opcode = "end";
 			break;
+		case 2:
+			opcode = "nop";
+			break;
 		case 3:
 			opcode = "pushint0";
 			break;
@@ -118,8 +121,20 @@ function convertBytecodeToOpcode(bytecode) {
 		case 69:
 			opcode = "pushsymb";
 			break;
+		case 70:
+			opcode = "nop";
+			break;
+		case 71:
+			opcode = "nop";
+			break;
+		case 72:
+			opcode = "nop";
+			break;
 		case 73:
 			opcode = "pushg";
+			break;
+		case 74:
+			opcode = "nop";
 			break;
 		case 75:
 			opcode = "pushparams";
@@ -127,14 +142,32 @@ function convertBytecodeToOpcode(bytecode) {
 		case 76:
 			opcode = "pushl";
 			break;
+		case 77:
+			opcode = "nop";
+			break;
+		case 78:
+			opcode = "nop";
+			break;
 		case 79:
 			opcode = "popg";
+			break;
+		case 80:
+			opcode = "nop";
+			break;
+		case 81:
+			opcode = "nop";
 			break;
 		case 82:
 			opcode = "popl";
 			break;
+		case 83:
+			opcode = "nop";
+			break;
 		case 84:
 			opcode = "endrepeat";
+			break;
+		case 85:
+			opcode = "nop";
 			break;
 		case 86:
 			opcode = "calll";
@@ -144,6 +177,12 @@ function convertBytecodeToOpcode(bytecode) {
 			break;
 		case 88:
 			opcode = "callobj";
+			break;
+		case 90:
+			opcode = "nop";
+			break;
+		case 94:
+			opcode = "nop";
 			break;
 		/* Three Byte Instructions */
 		case 129:
@@ -156,7 +195,7 @@ function convertBytecodeToOpcode(bytecode) {
 			opcode = "poplist";
 			break;
 		default:
-			opcode = "nop";
+			opcode = "analysis failed";
 		}
 	return opcode.toUpperCase();
 }
@@ -164,7 +203,7 @@ function convertBytecodeToOpcode(bytecode) {
 // Draw as RAWRGB555, the way the format is on the CD. It also can draw the image to the canvas while it's hidden and use that to save it as a JPEG.
 // It's best to implement it this way, as BGR533 can convert to RGB555 with no quality loss, but not vice versa.
 // Also 3D Groove went on to use JPEG in this format's place making it the best format to save out to, so it'll be compatible with the later versions of the Groove Xtra.
-function convertLscrToScript(save) {
+function convertLscrToLingoScript(save) {
 	if (!!files) {
 		for (i=0;i<files.length;i++) {
 			var LscrReader = new FileReader();
