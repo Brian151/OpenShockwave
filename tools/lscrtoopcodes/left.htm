@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Resources</title>
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		<script src="js/DataStream.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<h2>Lscr to Script Converter</h2>
+		<p>Convert Lingo Script to Script. Lnam not accounted for. A very basic converter, which currently requires you copy the contents of the Lscr chunk from the DIR/DXR/DCR to a seperate file.<p>
+		<form name="form1">
+			<ul>
+				<li><input type="file" name="Lscr" multiple="multiple"></li>
+				<li><input type="button" value="Convert as Lscr to Script" onClick="convertLscrToScript(false);"></input></li>
+			</ul>
+		</form>
+		<hr>
+		<a href="#" onClick="Expand();return false;">[Expand All]</a><br>
+		<a href="#" onClick="Collapse();return false;">[Collapse All]</a>
+		<ul>
+			<li><a href="#" class="resource">[+]</a>
+			score</li>
+			<ul class="xresource" style="display:none; margin-left:2em">
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">frame 1</a></li>
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">frame 2</a></li>
+				<li><a href="#" class="resource">[+]</a>
+				frame 3
+				<ul class="xresource" style="display:none; margin-left:2em">
+					<li><a href="#" onClick="parent.right.location='right.htm';return false;">on exitFrame</a></li>
+					<li><a href="#" onClick="parent.right.location='right.htm';return false;">on mouseUp</a></li>
+				</ul>
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">frame 4</a></li>
+			</ul>
+			<li><a href="#" class="resource">[+]</a>
+			casts</li>
+			<ul class="xresource" style="display:none; margin-left:2em">
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">bitmap</a></li>
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">sound</a></li>
+				<li><a href="#" onClick="parent.right.location='about:blank';return false;">sound (Xtra Media: SWA)</a></li>
+			</ul>
+		</ul>
+		<script src="js/list14-2.js" type="text/javascript"></script>
+		<script src="js/projectorrays.js" type="text/javascript"></script>
+	</body>
+</html>
