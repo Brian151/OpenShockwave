@@ -15,184 +15,236 @@ function convertBytecodeToOpcode(bytecode) {
 	// see the documentation for notes on these opcodes
 	switch (bytecode[0]) {
 		/* Single Byte Instructions */
-		case 1:
-			opcode = "end";
+		case 0x1:
+			opcode = "ret";
 			break;
-		case 2:
+		case 0x2:
 			opcode = "nop";
 			break;
-		case 3:
+		case 0x3:
 			opcode = "pushint0";
 			break;
-		case 4:
+		case 0x4:
 			opcode = "mul";
 			break;
-		case 5:
+		case 0x5:
 			opcode = "add";
 			break;
-		case 6:
+		case 0x6:
 			opcode = "sub";
 			break;
-		case 7:
+		case 0x7:
 			opcode = "div";
 			break;
-		case 8:
+		case 0x8:
 			opcode = "mod";
 			break;
-		case 9:
+		case 0x9:
 			opcode = "inv";
 			break;
-		case 10:
+		case 0xa:
 			opcode = "joinstr";
 			break;
-		case 11:
+		case 0xb:
 			opcode = "joinpadstr";
 			break;
-		case 12:
+		case 0xc:
 			opcode = "lt";
 			break;
-		case 13:
+		case 0xd:
 			opcode = "lteq";
 			break;
-		case 14:
+		case 0xe:
 			opcode = "nteq";
 			break;
-		case 15:
+		case 0xf:
 			opcode = "eq";
 			break;
-		case 16:
+		case 0x10:
 			opcode = "gt";
 			break;
-		case 17:
+		case 0x11:
 			opcode = "gteq";
 			break;
-		case 18:
+		case 0x12:
 			opcode = "and";
 			break;
-		case 19:
+		case 0x13:
 			opcode = "or";
 			break;
-		case 20:
+		case 0x14:
 			opcode = "not";
 			break;
-		case 21:
+		case 0x15:
 			opcode = "containsstr";
 			break;
-		case 22:
+		case 0x16:
 			opcode = "contains0str";
 			break;
-		case 23:
+		case 0x17:
 			opcode = "splitstr";
 			break;
-		case 24:
+		case 0x18:
 			opcode = "lightstr";
 			break;
-		case 25:
+		case 0x19:
 			opcode = "ontospr";
 			break;
-		case 26:
+		case 0x1a:
 			opcode = "intospr";
 			break;
-		case 27:
+		case 0x1b:
 			opcode = "caststr";
 			break;
-		case 28:
+		case 0x1c:
 			opcode = "startobj";
 			break;
-		case 29:
+		case 0x1d:
 			opcode = "stopobj";
 			break;
-		case 31:
+		case 0x1e:
+			opcode = "op_1e";
+			break; //TEMP NAME
+		case 0x1f:
 			opcode = "unflattenlist";
 			break;
 		/* Two Byte Instructions */
-		case 65:
+		/*
+		To-do: handle special cases that determine context of the opcode,
+		or what values it is reading/writing
+		*/
+		case 0x41:
 			opcode = "pushint8";
 			break;
-		case 66:
+		case 0x42:
 			opcode = "popargs";
 			break;
-		case 67:
+		case 0x43:
 			opcode = "pushlist";
 			break;
-		case 68:
+		case 0x44:
 			opcode = "push";
 			break;
-		case 69:
+		case 0x45:
 			opcode = "pushsymb";
 			break;
-		case 70:
+		case 0x46:
 			opcode = "nop";
 			break;
-		case 71:
+		case 0x47:
 			opcode = "nop";
 			break;
-		case 72:
+		case 0x48:
 			opcode = "nop";
 			break;
-		case 73:
+		case 0x49:
 			opcode = "pushg";
 			break;
-		case 74:
+		case 0x4a:
 			opcode = "nop";
 			break;
-		case 75:
+		case 0x4b:
 			opcode = "pushparams";
 			break;
-		case 76:
+		case 0x4c:
 			opcode = "pushl";
 			break;
-		case 77:
+		case 0x4d:
 			opcode = "nop";
 			break;
-		case 78:
+		case 0x4e:
 			opcode = "nop";
 			break;
-		case 79:
+		case 0x4f:
 			opcode = "popg";
 			break;
-		case 80:
+		case 0x50:
 			opcode = "nop";
 			break;
-		case 81:
+		case 0x51:
 			opcode = "nop";
 			break;
-		case 82:
+		case 0x52:
 			opcode = "popl";
 			break;
-		case 83:
+		case 0x53:
 			opcode = "nop";
 			break;
-		case 84:
+		case 0x54:
 			opcode = "endrepeat";
 			break;
-		case 85:
+		case 0x55:
 			opcode = "nop";
 			break;
-		case 86:
+		case 0x56:
 			opcode = "calll";
 			break;
-		case 87:
+		case 0x57:
 			opcode = "calle";
 			break;
-		case 88:
+		case 0x58:
 			opcode = "callobj";
 			break;
-		case 90:
+		case 0x59:
+			opcode = "op_59xx";
+			break; //TEMP NAME
+		case 0x5a:
 			opcode = "nop";
 			break;
-		case 94:
+		case 0x5b:
+			opcode = "op_5bxx";
+			break; //TEMP NAME
+		case 0x5c:
+			opcode = "get";
+			break; //needs values from stack to determine what it's getting
+			//that said, dissassembly of this instruction is not yet complete
+		case 0x5d:
+			opcode = "set";
+			break; //needs values from stack to determine what it's setting
+			//that said, dissassembly of this instruction is not yet complete
+		case 0x5e:
 			opcode = "nop";
+			break;
+		case 0x5f:
+			opcode = "getprop";
+			break;
+		
+		case 0x60:
+			opcode = "setprop";
+			break;
+		case 0x61:
+			opcode = "getobjprop";
+			break;
+		case 0x63:
+			opcode = "setobjprop";
+			break;
+		case 0x64:
+			opcode = "op_64xx";
+			break;
+		case 0x65:
+			opcode = "op_65xx";
+			break;
+		case 0x66:
+			opcode = "op_66xx";
 			break;
 		/* Three Byte Instructions */
-		case 129:
+		/*
+		To-do: decode the bytes XX YY as a ushort to complete instruction dissassembly
+		*/
+		case 0x81:
 			opcode = "pushint16";
 			break;
-		case 130:
+		case 0x82:
 			opcode = "popargs";
 			break;
-		case 131:
+		case 0x83:
 			opcode = "poplist";
+			break;
+		case 0x93:
+			opcode = "jmp";
+			break;
+		case 0x95:
+			opcode = "whiletrue";
 			break;
 		default:
 			opcode = "analysis failed";
@@ -242,7 +294,7 @@ function convertLscrToLingoScript(save) {
 									bytecodelength = 2;
 								} else {
 									// 0x44 is always six bytes long because it's a rebel
-									bytecodelength = 6;
+									bytecodelength = 2;
 								}
 							}
 						}

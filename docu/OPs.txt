@@ -1,11 +1,15 @@
 based on lingo bytecode documetation, but given more human-readable names
 subject to change!
+to-do: 
+probably could have the notation format updated...
+some instructions need better names
+some instructions need names that aren't placeholders (OP_HH[XX][YY])
 
 byte value, memonic name, ;comment #more comment
 
 ONE BYTE CODES
-01 END ;leave current function and return to caller
-02 <null> ; nothing documented for this
+01 RET ; leave current function and return to caller #I perfer ret, since in programming, ret or return is typically used to end functions -Brian151
+02 NOP ; nothing documented for this
 03 PUSHINT0 ; push 0 or false
 04 MUL ; multiply two values
 05 ADD ; add two values
@@ -23,7 +27,7 @@ ONE BYTE CODES
 11 GTEQ ; check if A is greaten than or equal to B
 12 AND ; check if A and B are logically true
 13 OR ; check if A or B is logically true
-14 NOT ; check if A is logically false
+14 NOT ; check if A is logically false #might do IFTRUE
 15 CONTAINSSTR ; check if string A contains string B, case insensitive
 16 CONTAINS0STR ; check is string A starts with string B, case insensitive 
 17 SPLITSTR ; string splice/split
@@ -31,9 +35,9 @@ ONE BYTE CODES
 19 ONTOSPR ; sprite A is colliding with B
 1a INTOSPR ; sprite A is inside B
 1b CASTSTR ; unsure what to call it
-1c STARTOBJ ; also unsure
-1d STOPOBJ ; unsure, related to 1c
-1e <???> ; documetation is not sure
+1c STARTOBJ ; read bytecode docu
+1d STOPOBJ ; read bytecode docu, related to code 1c
+1e OP_1E ; writers of documetation are unsure of purpose
 1f UNFLATTENLIST ; unsure, creates property lists
 
 TWO BYTE CODES
@@ -41,73 +45,70 @@ TWO BYTE CODES
 42 XX POPARGS8 ; pop values from stack to be used in a function call
 43 XX POPLIST8 ; pop values from the stack to create a list/array
 44 XX PUSH ; push a value from constants records
+;may be changed to PUSHCONS
+;or use the type indicated in the respective constant record
+;ex. PUSHSTRING
 45 XX PUSHSYMB ; push a symbol from the namelst into the stack
-46 XX <null> ; NO INFO
-47 XX <null> ; NO INFO
-48 XX <null> ; NO INFO
+46 XX NOP ; NO INFO
+47 XX NOP ; NO INFO
+48 XX NOP ; NO INFO
 49 XX PUSHG ; push value of a global variable with a name from the namelist
-4a XX <null> ; NO INFO
+4a XX NOP ; NO INFO
 4b XX PUSHPARAMS ; push value of a function call parameter
 4c XX PUSHL ; push the value of a local variable
-4d XX <null> ; NO INFO
-4e XX <null> ; NO INFO
+4d XX NOP ; NO INFO
+4e XX NOP ; NO INFO
 4f XX POPG ; pop a value to set as the value of a global variable with a name from the namelist
-50 XX <null> ; NO INFO
-51 XX <null> ; NO INFO
+50 XX NOP ; NO INFO
+51 XX NOP ; NO INFO
 52 XX POPL ; pop a value to set as a local variable
-53 XX <null> ; NO INFO
+53 XX NOP ; NO INFO
 54 XX ENDREPEAT ; unconditonal backwards jump
-55 XX <null> ; NO INFO
+55 XX NOP ; NO INFO
 56 XX CALLL ; call a local function
 57 XX CALLE ; call an external function
 58 XX CALLOBJ ; call an object method
-59 16 <???> ; unsure how target value is specified
-59 25 <???> ; same...
-59 35 <???> ; same...
-5a XX <null> ; NO INFO
-5b 05 <???> ; unsure how target is specified 
-5c 00 <???> ; the 5C opcodes are somewhat ambiguous, 
+59 16 OP_5916 ; unsure how target value is specified
+59 25 OP_5925 ; same...
+59 35 OP_5935 ; same...
+5a XX NOP ; NO INFO
+5b 05 OP_5B05 ; unsure how target is specified 
+5c 00 GET ; the 5C opcodes are somewhat ambiguous, 
 ; their context is established based on a value that's 
 ; pulled from the stack, so creating a memonic token/name for
-; the codes is impossible. this probably must be generated
-; in conjunction
-5c 01 <???> ; same as 5c family/group
+; the codes using purely the 5c instructions is impossible. 
+; values popped from stack must be used to establish the exact
+; instruction. see OPs_special.txt
+5c 01
 5c 02 
 5c 03 
 5c 04 
-5c 05 
 5c 06 
 5c 07 
 5c 08 
 5c 09 
-5c 0a 
-5c 0b 
 5c 0c 
-5d 00
-5d 01
-5d 02
+5d 00 SET ; same as 5c family/group, but sets values. see OPs_special.txt
 5d 03
 5d 04
-5d 05
 5d 06
 5d 07
-5d 08
 5d 09
-5d 0a
-5d 0b
-5e XX <null> ; NO INFO 
-5f XX <???> ; push the value of a contextual property
-60 XX <???> ; set the value of a contextual property
-61 XX <???> ; push the value of a property from an object
-62 XX <???> ; set the value of the proprty from an object
-63 XX <???> ; tell some object to go to frame 1
-64 XX <???> ; just read the docu from archiveteam
-65 XX <???> ; clean-up after a loop
-66 XX <???> ; read docu
+5d 0c
+5d 0d
+5e XX NOP ; NO INFO 
+5f XX GETPROP ; push the value of a contextual property
+60 XX SETPROP ; set the value of a contextual property
+61 XX GETOBJPROP ; push the value of a property from an object
+62 XX SETOBJPROP ; set the value of the proprty from an object
+63 XX OP_63XX ; tell some object to go to frame 1
+64 XX OP_64XX ; just read the docu from archiveteam
+65 XX OP_65XX ; clean-up after a loop
+66 XX OP_66XX ; read docu
 
 THREE BYTE CODES
 81 XX YY PUSHINT16 ; push an integer from 128-32767 
 82 XX YY POPARGS16 ; like code 42, but for greater than 255 arguments
 83 XX YY POPLIST16 ; like code 43, but for greater than 255 arguments
-93 XX YY ; read bytecode docu
-95 XX YY ; read bytecode docu
+93 XX YY JMP; unconditional jump, but documentation is less than clear on some things concerning the lingo source code
+95 XX YY LOOPWHILE ; seems to be the begining of a loop
