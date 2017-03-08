@@ -517,11 +517,7 @@ var movie = null;
 function createNewOpenShockwaveMovie() {
 	!loggingEnabled||console.log("Creating New Shockwave Movie");
 	if (!!files) {
-		try {
-			movie = new OpenShockwaveMovie(files[0]);
-		} catch (e) {
-			console.log(e);
-		}
+		movie = new OpenShockwaveMovie(files[0]);
 	} else {
 		window.alert("You need to choose a file first.");
 	}
