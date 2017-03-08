@@ -22,12 +22,15 @@ PathTooNewError = function(message) {
 }
 PathTooNewError.prototype = new Error;
 
-// TODO: add more logging
 function OpenShockwaveMovie(file) {
+	// you know you want to
+	//var self = this;
 	this.bytecodeToOpcode = function(bytecode) {
+		!loggingEnabled||console.log("Bytecode to Opcode: " + bytecode);
 		var opcode = "";
 		// see the documentation for notes on these opcodes
 		switch (bytecode[0]) {
+			// TODO: copy the comments from OP.txt into the code for a quicker reference
 			/* Single Byte Instructions */
 			case 0x1:
 				opcode = "ret";
@@ -266,16 +269,18 @@ function OpenShockwaveMovie(file) {
 		return opcode.toUpperCase();
 	}
 	
-	this.chunk = function(MainDataStream, name, len, offset, padding) {
+	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, unknown1, link) {
+		!loggingEnabled||console.log("Constructing Chunk: " + name);
 		// check if this is the chunk we are expecting
+		// we're using this instead of readString because we need to respect endianness
 		var validName = DataStream.createStringFromArray(MainDataStream.readUint8Array(4));
-		switch (validName) {
-			case "RIFX":
-				MainDataStream.endianness = false;
-				break;
-			case "XFIR":
+		if (name == "RIFX") {
+			//if (validName.substring(0, 2) == "MZ") {
+				// handle Projector HERE
+			//}
+			if(validName == "XFIR") {
 				MainDataStream.endianness = true;
-				break;
+			}
 		}
 		// check if it has the length the mmap table specifies
 		var validLen = MainDataStream.readUint32();
@@ -310,6 +315,21 @@ function OpenShockwaveMovie(file) {
 				this.padding = 12;
 			}
 		}
+		if (typeof unknown0 !== 'undefined') {
+			this.unknown0 = unknown0;
+		} else {
+			this.unknown0 = undefined;
+		}
+		if (typeof unknown1 !== 'undefined') {
+			this.unknown1 = unknown1;
+		} else {
+			this.unknown1 = undefined;
+		}
+		if (typeof link !== 'undefined') {
+			this.link = link;
+		} else {
+			this.link = undefined;
+		}
 		if (!this.validate(this.name, validName, this.len, validLen, this.offset, validOffset)) {
 			throw new InvalidDirectorFileError("Expected '" + this.name + "' with a length of " + this.len + " and offset of " + this.offset + " chunk but found an '" + validName + "' chunk with a length of " + validLen + " and offset of " + validOffset + ".");
 		}
@@ -327,9 +347,9 @@ function OpenShockwaveMovie(file) {
 		this.ChunkDataStream.seek(0);
 		
 		// read in the values pertaining to this chunk
+		// this will be a huge part of the code
+		// TODO: insert notes from FormatNotes.txt here for a quicker reference
 		switch (name) {
-			//case "MZ":
-				//break;
 			case "RIFX":
 				this.codec = DataStream.createStringFromArray(this.ChunkDataStream.readUint8Array(4));
 				break;
@@ -339,11 +359,43 @@ function OpenShockwaveMovie(file) {
 				break;
 			case "mmap":
 				// read in mmap here
+				// these names are taken from Schockabsorber, I don't know what they do
+				this.unknown0 = this.ChunkDataStream.readUint16();
+				this.unknown1 = this.ChunkDataStream.readUint16();
+				// possible one of the unknown mmap entries determines why an unused item is there?
+				// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
+				this.chunkCount = this.ChunkDataStream.readInt32();
+				this.chunkCountUsed = this.ChunkDataStream.readInt32();
+				this.junkPointer = this.ChunkDataStream.readInt32();
+				this.unknown2 = this.ChunkDataStream.readInt32();
+				this.freePointer = this.ChunkDataStream.readInt32();
+				this.mapArray = new Array();
+				// seems chunkCountUsed is used here, so what is chunkCount for?
+				for(var i=0,len=this.chunkCountUsed;i<len;i++) {
+					// don't actually generate new chunk objects here, just read in data
+					this.mapArray[i] = [];
+					this.mapArray[i]["name"] = DataStream.createStringFromArray(this.ChunkDataStream.readUint8Array(4));
+					alert(i + " " + len + " " + this.mapArray[i]["name"]);
+					this.mapArray[i]["len"] = this.ChunkDataStream.readUint32();
+					this.mapArray[i]["offset"] = this.ChunkDataStream.readUint32();
+					this.mapArray[i]["padding"] = this.ChunkDataStream.readInt16();
+					this.mapArray[i]["unknown0"] = this.ChunkDataStream.readInt16();
+					this.mapArray[i]["link"] = this.ChunkDataStream.readInt32();
+					// we don't care about free or junk chunks, go back and overwrite them
+					// don't move this if block up - the cursor has to be in the right position to read the next chunk
+					if (this.mapArray[i]["name"] == "free" || this.mapArray[i]["name"] == "junk") {
+						// delete this chunk
+						this.mapArray.splice(i, 1);
+						i--;
+						len--;
+					}
+				}
 				break;
 		}
 	}
 	
 	this.chunk.prototype.validate = function(name, validName, len, validLen, offset, validOffset) {
+		!loggingEnabled||console.log("Validating Chunk: " + name);
 		if (name != validName || len != validLen || offset != validOffset) {
 			return false;
 		} else {
@@ -353,6 +405,7 @@ function OpenShockwaveMovie(file) {
 	
 	// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
 	this.lookupMmap = function(ShockwaveMovieDataStream) {
+		!loggingEnabled||console.log("Looking Up mmap");
 		// valid length is undefined because we have not yet reached mmap
 		// however, it will be filled automatically in chunk's constructor
 		this.chunkArray["RIFX"][0] = new this.chunk(ShockwaveMovieDataStream, "RIFX");
@@ -384,12 +437,15 @@ function OpenShockwaveMovie(file) {
 	// files[i] which exists because of the for loop, looping through each uploaded file, is passed into this onload function
 	// as well as the save variable, as the actual desicion is made later
 	ShockwaveMovieReader.onload = (function(OpenShockwaveMovie, file) {
+		!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
 		return function(e) {
 			e=e||event;
 			// we'll be displaying content in the right frame
 			window.parent.right.document.getElementById("Lscrtable").innerHTML = "<tr><th>bytecode</th><th>opcode</th></tr>";
 			// with DataStream.js
 			var ShockwaveMovieDataStream = new DataStream(e.target.result);
+			// we set this properly when we create the RIFX chunk
+			ShockwaveMovieDataStream.endianness = false;
 			// for some reason this is passed as a reference, I guess my brain is melting
 			OpenShockwaveMovie.lookupMmap(ShockwaveMovieDataStream);
 			// OpenShockwaveMovie should be the offset for mmap
@@ -464,6 +520,7 @@ function OpenShockwaveMovie(file) {
 // Also 3D Groove went on to use JPEG in this format's place making it the best format to save out to, so it'll be compatible with the later versions of the Groove Xtra.
 var movie = null;
 function createNewOpenShockwaveMovie() {
+	!loggingEnabled||console.log("Creating New Shockwave Movie");
 	if (!!files) {
 		try {
 			movie = new OpenShockwaveMovie(files[0]);
