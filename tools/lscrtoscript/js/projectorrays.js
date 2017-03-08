@@ -429,23 +429,23 @@ function OpenShockwaveMovie(file) {
 		ShockwaveMovieDataStream.seek(HandlerOffset);
 		*/
 		// loop while there's still more code left
-		var bytecode = null;
+		var pos = null;
 		while (ShockwaveMovieDataStream.position < HandlerOffset + HandlerLength) {
 			// read the first byte to convert to an opcode
-			bytecode = new this.bytecode(ShockwaveMovieDataStream.readUint8());
+			pos = new this.bytecode(ShockwaveMovieDataStream.readUint8());
 			// instructions can be one, two or three bytes
-			if (bytecode.val > 128) {
-			bytecode.obj = ShockwaveMovieDataStream.readUint16();
+			if (pos.val > 128) {
+			pos.obj = ShockwaveMovieDataStream.readUint16();
 			} else {
-				if (bytecode.val > 64) {
-					//if (bytecode != 68) {
-					bytecode.obj = ShockwaveMovieDataStream.readUint8();
+				if (pos.val > 64) {
+					//if (pos != 68) {
+					pos.obj = ShockwaveMovieDataStream.readUint8();
 					//} else {
 						// 0x44 is always six bytes long because it's a rebel
 					//}
 				}
 			}
-			bytecodeArray.push(bytecode);
+			bytecodeArray.push(pos);
 			//parent.right.document.getElementById("Lscrtable").innerHTML += "<tr><td>" + bytecodeArray.join(" ") + "</td><td>" + bytecodeArray[0].toOpcode() + "</td></tr>";
 	}
 	
