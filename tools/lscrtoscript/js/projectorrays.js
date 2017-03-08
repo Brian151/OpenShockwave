@@ -9,6 +9,19 @@ function setFiles(e) {
 	files = e.target.files;
 }
 
+InvalidDirectorFileError = function(message) {
+	this.name = "InvalidDirectorFileError";
+	this.message = message;
+	this.stack = (new Error()).stack;
+}
+InvalidDirectorFileError.prototype = new Error;
+PathTooNewError = function(message) {
+	this.name = "PathTooNewError";
+	this.message = message;
+	this.stack = (new Error()).stack;
+}
+PathTooNewError.prototype = new Error;
+
 // TODO: add more logging
 function OpenShockwaveMovie(file) {
 	this.bytecodeToOpcode = function(bytecode) {
@@ -253,18 +266,21 @@ function OpenShockwaveMovie(file) {
 		return opcode.toUpperCase();
 	}
 	
-	this.chunk = function(DataStream, name, len, offset, padding) {
+	this.chunk = function(MainDataStream, name, len, offset, padding) {
 		// check if this is the chunk we are expecting
-		var validName = DataStream.createStringFromArray(DataStream.readUint8Array(4));
-		if (name == "RIFX" && validName == "XFIR") {
-			DataStream.endianness = !DataStream.endianness;
-			validName = "RIFX";
+		var validName = DataStream.createStringFromArray(MainDataStream.readUint8Array(4));
+		switch (validName) {
+			case "RIFX":
+				MainDataStream.endianness = false;
+				break;
+			case "XFIR":
+				MainDataStream.endianness = true;
+				break;
 		}
 		// check if it has the length the mmap table specifies
-		// WHY IS THIS IGNORING ENDIANNESS!?
-		var validLen = DataStream.readUint32();
+		var validLen = MainDataStream.readUint32();
 		// the offset is checked against, well, our offset
-		var validOffset = DataStream.position - 8;
+		var validOffset = MainDataStream.position - 8;
 		// if we don't know what to expect, grab the name of the chunk
 		if (typeof name !== 'undefined') {
 			this.name = name;
@@ -272,17 +288,10 @@ function OpenShockwaveMovie(file) {
 			this.name = validName;
 		}
 		// ignore validation if we have not yet reached the mmap section
-		if (this.name != "RIFX") {
-			if (typeof len !== 'undefined') {
-				this.len = len;
-			} else {
-				this.len = validLen;
-			}
+		if (typeof len !== 'undefined') {
+			this.len = len;
 		} else {
-			// we're going to pretend RIFX is only 12 bytes long
-			// this is because offsets are relative to the beginning of the file
-			// whereas everywhere else they're relative to chunk start
-			this.len = 12;
+			this.len = validLen;
 		}
 		// use our current offset if we have not yet reached the mmap section
 		if (typeof offset !== 'undefined') {
@@ -302,12 +311,19 @@ function OpenShockwaveMovie(file) {
 			}
 		}
 		if (!this.validate(this.name, validName, this.len, validLen, this.offset, validOffset)) {
-			throw new Error({"InvalidDirectorFile": "Expected '" + this.name + "' with a length of " + this.len + " and offset of " + this.offset + " chunk but found an '" + validName + "' chunk with a length of " + validLen + " and offset of " + validOffset + "."});
+			throw new InvalidDirectorFileError("Expected '" + this.name + "' with a length of " + this.len + " and offset of " + this.offset + " chunk but found an '" + validName + "' chunk with a length of " + validLen + " and offset of " + validOffset + ".");
+		}
+		if (this.name != "RIFX") {
+		} else {
+			// we're going to pretend RIFX is only 12 bytes long
+			// this is because offsets are relative to the beginning of the file
+			// whereas everywhere else they're relative to chunk start
+			this.len = 12;
 		}
 		// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
 		this.ChunkDataStream = new DataStream();
-		this.ChunkDataStream.endianness = DataStream.endianness;
-		this.ChunkDataStream.writeUint8Array(DataStream.mapUint8Array(this.len));
+		this.ChunkDataStream.endianness = MainDataStream.endianness;
+		this.ChunkDataStream.writeUint8Array(MainDataStream.mapUint8Array(this.len - 8));
 		this.ChunkDataStream.seek(0);
 		
 		// read in the values pertaining to this chunk
@@ -343,7 +359,7 @@ function OpenShockwaveMovie(file) {
 		// we can only open DIR or DXR
 		// we'll read OpenShockwaveMovie from ShockwaveMovieDataStream because OpenShockwaveMovie is an exception to the normal rules
 		if (this.chunkArray["RIFX"][0].codec != "MV93") {
-			throw new Error({"UnsupportedFourCCCodec":"Codec " + this.chunkArray["RIFX"][0].codec + " unsupported."});
+			throw this.PathTooNewError("Codec " + this.chunkArray["RIFX"][0].codec + " unsupported.");
 		}
 		// the next chunk should be imap
 		// this HAS to be ShockwaveMovieDataStream for the OFFSET check to be correct
@@ -449,7 +465,11 @@ function OpenShockwaveMovie(file) {
 var movie = null;
 function createNewOpenShockwaveMovie() {
 	if (!!files) {
-		movie = new OpenShockwaveMovie(files[0]);
+		try {
+			movie = new OpenShockwaveMovie(files[0]);
+		} catch (e) {
+			console.log(e);
+		}
 	} else {
 		window.alert("You need to choose a file first.");
 	}
