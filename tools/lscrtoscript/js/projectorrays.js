@@ -269,7 +269,7 @@ function OpenShockwaveMovie(file) {
 		return opcode.toUpperCase();
 	}
 	
-	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, unknown1, link) {
+	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, link) {
 		!loggingEnabled||console.log("Constructing Chunk: " + name);
 		// check if this is the chunk we are expecting
 		// we're using this instead of readString because we need to respect endianness
@@ -319,11 +319,6 @@ function OpenShockwaveMovie(file) {
 			this.unknown0 = unknown0;
 		} else {
 			this.unknown0 = undefined;
-		}
-		if (typeof unknown1 !== 'undefined') {
-			this.unknown1 = unknown1;
-		} else {
-			this.unknown1 = undefined;
 		}
 		if (typeof link !== 'undefined') {
 			this.link = link;
