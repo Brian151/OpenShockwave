@@ -155,7 +155,7 @@ function OpenShockwaveMovie(file) {
 		}
 	}
 	
-	this.cast = function () {
+	this.cast = function() {
 	}
 	
 	this.LingoScript = function() {
