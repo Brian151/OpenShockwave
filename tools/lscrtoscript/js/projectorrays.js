@@ -25,249 +25,6 @@ PathTooNewError.prototype = new Error;
 function OpenShockwaveMovie(file) {
 	// you know you want to
 	//var self = this;
-	this.bytecodeToOpcode = function(bytecode) {
-		!loggingEnabled||console.log("Bytecode to Opcode: " + bytecode);
-		var opcode = "";
-		// see the documentation for notes on these opcodes
-		switch (bytecode[0]) {
-			// TODO: copy the comments from OP.txt into the code for a quicker reference
-			/* Single Byte Instructions */
-			case 0x1:
-				opcode = "ret";
-				break;
-			case 0x2:
-				opcode = "nop";
-				break;
-			case 0x3:
-				opcode = "pushint0";
-				break;
-			case 0x4:
-				opcode = "mul";
-				break;
-			case 0x5:
-				opcode = "add";
-				break;
-			case 0x6:
-				opcode = "sub";
-				break;
-			case 0x7:
-				opcode = "div";
-				break;
-			case 0x8:
-				opcode = "mod";
-				break;
-			case 0x9:
-				opcode = "inv";
-				break;
-			case 0xa:
-				opcode = "joinstr";
-				break;
-			case 0xb:
-				opcode = "joinpadstr";
-				break;
-			case 0xc:
-				opcode = "lt";
-				break;
-			case 0xd:
-				opcode = "lteq";
-				break;
-			case 0xe:
-				opcode = "nteq";
-				break;
-			case 0xf:
-				opcode = "eq";
-				break;
-			case 0x10:
-				opcode = "gt";
-				break;
-			case 0x11:
-				opcode = "gteq";
-				break;
-			case 0x12:
-				opcode = "and";
-				break;
-			case 0x13:
-				opcode = "or";
-				break;
-			case 0x14:
-				opcode = "not";
-				break;
-			case 0x15:
-				opcode = "containsstr";
-				break;
-			case 0x16:
-				opcode = "contains0str";
-				break;
-			case 0x17:
-				opcode = "splitstr";
-				break;
-			case 0x18:
-				opcode = "lightstr";
-				break;
-			case 0x19:
-				opcode = "ontospr";
-				break;
-			case 0x1a:
-				opcode = "intospr";
-				break;
-			case 0x1b:
-				opcode = "caststr";
-				break;
-			case 0x1c:
-				opcode = "startobj";
-				break;
-			case 0x1d:
-				opcode = "stopobj";
-				break;
-			case 0x1e:
-				opcode = "op_1e";
-				break; //TEMP NAME
-			case 0x1f:
-				opcode = "unflattenlist";
-				break;
-			/* Two Byte Instructions */
-			/*
-			To-do: handle special cases that determine context of the opcode,
-			or what values it is reading/writing
-			*/
-			case 0x41:
-				opcode = "pushint8";
-				break;
-			case 0x42:
-				opcode = "popargs";
-				break;
-			case 0x43:
-				opcode = "pushlist";
-				break;
-			case 0x44:
-				opcode = "push";
-				break;
-			case 0x45:
-				opcode = "pushsymb";
-				break;
-			case 0x46:
-				opcode = "nop";
-				break;
-			case 0x47:
-				opcode = "nop";
-				break;
-			case 0x48:
-				opcode = "nop";
-				break;
-			case 0x49:
-				opcode = "pushg";
-				break;
-			case 0x4a:
-				opcode = "nop";
-				break;
-			case 0x4b:
-				opcode = "pushparams";
-				break;
-			case 0x4c:
-				opcode = "pushl";
-				break;
-			case 0x4d:
-				opcode = "nop";
-				break;
-			case 0x4e:
-				opcode = "nop";
-				break;
-			case 0x4f:
-				opcode = "popg";
-				break;
-			case 0x50:
-				opcode = "nop";
-				break;
-			case 0x51:
-				opcode = "nop";
-				break;
-			case 0x52:
-				opcode = "popl";
-				break;
-			case 0x53:
-				opcode = "nop";
-				break;
-			case 0x54:
-				opcode = "endrepeat";
-				break;
-			case 0x55:
-				opcode = "nop";
-				break;
-			case 0x56:
-				opcode = "calll";
-				break;
-			case 0x57:
-				opcode = "calle";
-				break;
-			case 0x58:
-				opcode = "callobj";
-				break;
-			case 0x59:
-				opcode = "op_59xx";
-				break; //TEMP NAME
-			case 0x5a:
-				opcode = "nop";
-				break;
-			case 0x5b:
-				opcode = "op_5bxx";
-				break; //TEMP NAME
-			case 0x5c:
-				opcode = "get";
-				break; //needs values from stack to determine what it's getting
-				//that said, dissassembly of this instruction is not yet complete
-			case 0x5d:
-				opcode = "set";
-				break; //needs values from stack to determine what it's setting
-				//that said, dissassembly of this instruction is not yet complete
-			case 0x5e:
-				opcode = "nop";
-				break;
-			case 0x5f:
-				opcode = "getprop";
-				break;
-			
-			case 0x60:
-				opcode = "setprop";
-				break;
-			case 0x61:
-				opcode = "getobjprop";
-				break;
-			case 0x63:
-				opcode = "setobjprop";
-				break;
-			case 0x64:
-				opcode = "op_64xx";
-				break;
-			case 0x65:
-				opcode = "op_65xx";
-				break;
-			case 0x66:
-				opcode = "op_66xx";
-				break;
-			/* Three Byte Instructions */
-			/*
-			To-do: decode the bytes XX YY as a ushort to complete instruction dissassembly
-			*/
-			case 0x81:
-				opcode = "pushint16";
-				break;
-			case 0x82:
-				opcode = "popargs";
-				break;
-			case 0x83:
-				opcode = "poplist";
-				break;
-			case 0x93:
-				opcode = "jmp";
-				break;
-			case 0x95:
-				opcode = "whiletrue";
-				break;
-			default:
-				opcode = "analysis failed";
-			}
-		return opcode.toUpperCase();
-	}
 	
 	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, link) {
 		!loggingEnabled||console.log("Constructing Chunk: " + name);
@@ -398,6 +155,302 @@ function OpenShockwaveMovie(file) {
 		}
 	}
 	
+	this.cast = function () {
+	}
+	
+	this.LingoScript = function() {
+		// add handlers, variables...
+		
+		this.bytecode = function(val, obj) {
+			if (typeof val !== 'undefined') {
+				this.val = val;
+			} else {
+				this.val = 2;
+			}
+			if (typeof obj !== 'undefined') {
+				this.obj = obj;
+			} else {
+				this.obj = null;
+			}
+		}
+		
+		this.bytecode.prototype.toOpcode = function() {
+			!loggingEnabled||console.log("Bytecode to Opcode: " + bytecode);
+			var opcode = "";
+			// see the documentation for notes on these opcodes
+			switch (this.val) {
+				// TODO: copy the comments from OP.txt into the code for a quicker reference
+				/* Single Byte Instructions */
+				case 0x1:
+					opcode = "ret";
+					break;
+				case 0x2:
+					opcode = "nop";
+					break;
+				case 0x3:
+					opcode = "pushint0";
+					break;
+				case 0x4:
+					opcode = "mul";
+					break;
+				case 0x5:
+					opcode = "add";
+					break;
+				case 0x6:
+					opcode = "sub";
+					break;
+				case 0x7:
+					opcode = "div";
+					break;
+				case 0x8:
+					opcode = "mod";
+					break;
+				case 0x9:
+					opcode = "inv";
+					break;
+				case 0xa:
+					opcode = "joinstr";
+					break;
+				case 0xb:
+					opcode = "joinpadstr";
+					break;
+				case 0xc:
+					opcode = "lt";
+					break;
+				case 0xd:
+					opcode = "lteq";
+					break;
+				case 0xe:
+					opcode = "nteq";
+					break;
+				case 0xf:
+					opcode = "eq";
+					break;
+				case 0x10:
+					opcode = "gt";
+					break;
+				case 0x11:
+					opcode = "gteq";
+					break;
+				case 0x12:
+					opcode = "and";
+					break;
+				case 0x13:
+					opcode = "or";
+					break;
+				case 0x14:
+					opcode = "not";
+					break;
+				case 0x15:
+					opcode = "containsstr";
+					break;
+				case 0x16:
+					opcode = "contains0str";
+					break;
+				case 0x17:
+					opcode = "splitstr";
+					break;
+				case 0x18:
+					opcode = "lightstr";
+					break;
+				case 0x19:
+					opcode = "ontospr";
+					break;
+				case 0x1a:
+					opcode = "intospr";
+					break;
+				case 0x1b:
+					opcode = "caststr";
+					break;
+				case 0x1c:
+					opcode = "startobj";
+					break;
+				case 0x1d:
+					opcode = "stopobj";
+					break;
+				case 0x1e:
+					opcode = "op_1e";
+					break; //TEMP NAME
+				case 0x1f:
+					opcode = "unflattenlist";
+					break;
+				/* Two Byte Instructions */
+				/*
+				To-do: handle special cases that determine context of the opcode,
+				or what values it is reading/writing
+				*/
+				case 0x41:
+					opcode = "pushint8";
+					break;
+				case 0x42:
+					opcode = "popargs";
+					break;
+				case 0x43:
+					opcode = "pushlist";
+					break;
+				case 0x44:
+					opcode = "push";
+					break;
+				case 0x45:
+					opcode = "pushsymb";
+					break;
+				case 0x46:
+					opcode = "nop";
+					break;
+				case 0x47:
+					opcode = "nop";
+					break;
+				case 0x48:
+					opcode = "nop";
+					break;
+				case 0x49:
+					opcode = "pushg";
+					break;
+				case 0x4a:
+					opcode = "nop";
+					break;
+				case 0x4b:
+					opcode = "pushparams";
+					break;
+				case 0x4c:
+					opcode = "pushl";
+					break;
+				case 0x4d:
+					opcode = "nop";
+					break;
+				case 0x4e:
+					opcode = "nop";
+					break;
+				case 0x4f:
+					opcode = "popg";
+					break;
+				case 0x50:
+					opcode = "nop";
+					break;
+				case 0x51:
+					opcode = "nop";
+					break;
+				case 0x52:
+					opcode = "popl";
+					break;
+				case 0x53:
+					opcode = "nop";
+					break;
+				case 0x54:
+					opcode = "endrepeat";
+					break;
+				case 0x55:
+					opcode = "nop";
+					break;
+				case 0x56:
+					opcode = "calll";
+					break;
+				case 0x57:
+					opcode = "calle";
+					break;
+				case 0x58:
+					opcode = "callobj";
+					break;
+				case 0x59:
+					opcode = "op_59xx";
+					break; //TEMP NAME
+				case 0x5a:
+					opcode = "nop";
+					break;
+				case 0x5b:
+					opcode = "op_5bxx";
+					break; //TEMP NAME
+				case 0x5c:
+					opcode = "get";
+					break; //needs values from stack to determine what it's getting
+					//that said, dissassembly of this instruction is not yet complete
+				case 0x5d:
+					opcode = "set";
+					break; //needs values from stack to determine what it's setting
+					//that said, dissassembly of this instruction is not yet complete
+				case 0x5e:
+					opcode = "nop";
+					break;
+				case 0x5f:
+					opcode = "getprop";
+					break;
+				
+				case 0x60:
+					opcode = "setprop";
+					break;
+				case 0x61:
+					opcode = "getobjprop";
+					break;
+				case 0x63:
+					opcode = "setobjprop";
+					break;
+				case 0x64:
+					opcode = "op_64xx";
+					break;
+				case 0x65:
+					opcode = "op_65xx";
+					break;
+				case 0x66:
+					opcode = "op_66xx";
+					break;
+				/* Three Byte Instructions */
+				case 0x81:
+					opcode = "pushint16";
+					break;
+				case 0x82:
+					opcode = "popargs";
+					break;
+				case 0x83:
+					opcode = "poplist";
+					break;
+				case 0x93:
+					opcode = "jmp";
+					break;
+				case 0x95:
+					opcode = "whiletrue";
+					break;
+				default:
+					opcode = "analysis failed";
+				}
+			return opcode.toUpperCase();
+		}
+		
+		// needs serious work within new model
+		!loggingEnabled||console.log("Constructing Lingo Script");
+		this.bytecodeArray = new Array();
+		// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
+		/*
+		ShockwaveMovieDataStream.seek(74);
+		var HandlersOffset = ShockwaveMovieDataStream.readUint32();
+		ShockwaveMovieDataStream.seek(HandlersOffset+4);
+		// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
+		var HandlerLength = ShockwaveMovieDataStream.readUint32();
+		var HandlerOffset = ShockwaveMovieDataStream.readUint32();
+		ShockwaveMovieDataStream.seek(HandlerOffset);
+		*/
+		// loop while there's still more code left
+		var bytecode = null;
+		while (ShockwaveMovieDataStream.position < HandlerOffset + HandlerLength) {
+			// read the first byte to convert to an opcode
+			bytecode = new this.bytecode(ShockwaveMovieDataStream.readUint8());
+			// instructions can be one, two or three bytes
+			if (bytecode.val > 128) {
+			bytecode.obj = ShockwaveMovieDataStream.readUint16();
+			} else {
+				if (bytecode.val > 64) {
+					//if (bytecode != 68) {
+					bytecode.obj = ShockwaveMovieDataStream.readUint8();
+					//} else {
+						// 0x44 is always six bytes long because it's a rebel
+					//}
+				}
+			}
+			bytecodeArray.push(bytecode);
+			//parent.right.document.getElementById("Lscrtable").innerHTML += "<tr><td>" + bytecodeArray.join(" ") + "</td><td>" + bytecodeArray[0].toOpcode() + "</td></tr>";
+	}
+	
+	this.LingoScript.prototype = this.cast;
+	
 	// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
 	this.lookupMmap = function(ShockwaveMovieDataStream) {
 		!loggingEnabled||console.log("Looking Up mmap");
@@ -447,42 +500,6 @@ function OpenShockwaveMovie(file) {
 			//if (typeof chunkArray[name] === 'undefined') {
 			//chunkArray[name] = new Array();
 			//}
-			return;
-			// OpenShockwaveMovie is for Lscr chunk
-			// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
-			ShockwaveMovieDataStream.seek(74);
-			var HandlersOffset = ShockwaveMovieDataStream.readUint32();
-			ShockwaveMovieDataStream.seek(HandlersOffset+4);
-			// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
-			var HandlerLength = ShockwaveMovieDataStream.readUint32();
-			var HandlerOffset = ShockwaveMovieDataStream.readUint32();
-			ShockwaveMovieDataStream.seek(HandlerOffset);
-			// loop while there's still more code left
-			var script = new Array();
-			while (ShockwaveMovieDataStream.position < HandlerOffset + HandlerLength) {
-				// read the first byte to convert to an opcode
-				var bytecode = ShockwaveMovieDataStream.readUint8();
-				// instructions can be one, two or three bytes
-				var bytecodelength = 1;
-				if (bytecode > 128) {
-					bytecodelength = 3;
-				} else {
-					if (bytecode > 64) {
-						//if (bytecode != 68) {
-							bytecodelength = 2;
-						//} else {
-							// 0x44 is always six bytes long because it's a rebel
-							//bytecodelength = 6;
-						//}
-					}
-				}
-				// now make OpenShockwaveMovie an array of all bytes in the instruction
-				bytecode = [bytecode];
-				while (bytecode.length < bytecodelength) {
-					bytecode.push(ShockwaveMovieDataStream.readUint8());
-				}
-				script.push(bytecode);
-				parent.right.document.getElementById("Lscrtable").innerHTML += "<tr><td>" + bytecode.join(" ") + "</td><td>" + convertBytecodeToOpcode(bytecode) + "</td></tr>";
 			}
 			/*
 			if (save) {
