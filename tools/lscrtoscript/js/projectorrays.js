@@ -432,9 +432,9 @@ function OpenShockwaveMovie(file) {
 	// files[i] which exists because of the for loop, looping through each uploaded file, is passed into this onload function
 	// as well as the save variable, as the actual desicion is made later
 	ShockwaveMovieReader.onload = (function(OpenShockwaveMovie, file) {
-		!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
 		return function(e) {
 			e=e||event;
+			!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
 			// we'll be displaying content in the right frame
 			window.parent.right.document.getElementById("Lscrtable").innerHTML = "<tr><th>bytecode</th><th>opcode</th></tr>";
 			// with DataStream.js
