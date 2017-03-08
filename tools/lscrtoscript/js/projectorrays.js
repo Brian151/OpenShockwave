@@ -515,7 +515,7 @@ function OpenShockwaveMovie(file) {
 // Also 3D Groove went on to use JPEG in this format's place making it the best format to save out to, so it'll be compatible with the later versions of the Groove Xtra.
 var movie = null;
 function createNewOpenShockwaveMovie() {
-	!loggingEnabled||console.log("Creating New Shockwave Movie");
+	!loggingEnabled||console.log("Creating New Open Shockwave Movie");
 	if (!!files) {
 		movie = new OpenShockwaveMovie(files[0]);
 	} else {
