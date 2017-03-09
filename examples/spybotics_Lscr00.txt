@@ -1,0 +1,151 @@
+00 00 00 00 //0
+00 00 00 00 //0
+00 00 01 9A //length
+00 00 01 9A //length2
+00 5C //head length
+00 00 //script num
+00 03 //unknown, constant per file
+FF FF FF FF //-1
+00 00 00 00 //0
+00 00 00 00 //?
+00 00 00 00 //0
+00 00 00 00 //type 0: global script
+00 00 00 01 //1
+00 01 //script id 2
+FF FF //?
+00 10 //hveclen
+00 00 01 7A //hvec offset
+00 00 80 00 //hvec flags
+00 00 //prop count
+00 00 00 5C //prop name offset
+00 01 //glob count
+00 00 00 5C //glob offset
+00 02 //func count
+00 00 00 5E //func offset
+00 05 //literal count
+00 00 01 10 //literal offset
+00 00 00 42 //lit. data size
+00 00 01 38 //lit. data offset
+
+//globals
+00 05 //global name : "glob"
+
+//funcs
+00 00 //name "beginSprite"
+FF FF //non-standard handler
+00 00 00 36 //code length
+00 00 00 BA //code offset
+00 01 //arg count
+00 00 00 F0 //arg names offset 
+00 00 //loc count
+00 00 00 F2 //loc names offset
+00 00 //x count
+00 00 00 F2 //x offset
+00 00 00 1B //?
+00 03 //?
+00 0A //line count
+00 00 00 F2 //lines offset
+00 00 00 04 //stack height
+
+00 01 //name "exitFrame"
+00 0F //standard handler "exitFrame"
+00 00 00 0D //length
+00 00 00 FC //offset
+00 01 //args
+00 00 01 0A //arg names
+00 00 //loc count
+00 00 01 0C //loc names
+00 00 //x count
+00 00 01 0C //x off 
+00 00 01 1C //?
+00 10 //?
+00 03 //line count
+00 00 01 0C //lines offset
+00 00 00 02 //stack height
+
+//bytecode for func1
+5F 02 44 00 0F 95 00 12 44 01 42 01 57 03 44 02 42 01 57 04 93 00 21 5F 02 44 03 0F 95 00 06 93 00 16 5F 02 44 04 0F 95 00 0E 49 05 45 06 AE 00 01 42 03 67 07 01 
+//arg names for func1
+00 08 // "me"
+08 06 06 03 08 03 08 0B 00 00 //line info? 
+
+//bytecode for func2
+42 00 57 09 43 00 66 0A 42 01 57 0B 01 
+00 //padding
+00 08 //arg name "me"
+04 00 08 //line info?
+00 //padding?
+
+//literals record (seems to be 8 bytes in this case)
+//does size and format of this table's entries vary between versions?
+00 00 00 01 00 00 00 00 
+00 00 00 01 00 00 00 0A 
+00 00 00 01 00 00 00 1E 
+00 00 00 01 00 00 00 2E 
+00 00 00 01 00 00 00 38 
+
+//literals data
+00 00 00 06 74 69 74 6C 65 00 //String "title"
+00 00 00 10 73 6E 64 5F 74 69 74 6C 65 73 63 72 65 65 6E 00 //String "snd_titlescreen"
+00 00 00 0C 6D 75 73 69 63 5F 69 6E 74 72 6F 00 //String "music_intro"
+00 00 00 06 65 6E 74 72 79 00 //String "entry"
+00 00 00 05 65 64 69 74 00 //String "edit"
+
+00 //padding?
+
+//handler vector
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+FF FF //null
+00 01 //assigned to func01
+
+//bytecode dissassembly (manually...)
+
+//func 01
+5F 02 //GETPROP frameLabel
+44 00 //PUSHSTRING "title"
+0F //EQ
+95 00 12 //IFTRUE 0x12
+44 01 //PUSHSTRING "snd_titlescreen" 
+42 01 //NEWARGLIST 1
+57 03 //CALLE SndSFX
+44 02 //PUSHSTRING "music_intro"
+42 01 //NEWARGLIST 1
+57 04 //CALLE SndMusicStart
+93 00 21 //JMP 0x21
+5F 02 //GETPROP frameLabel
+44 03 //PUSHSTRING "entry"
+0F //EQ
+95 00 06 //IFTRUE 0x06
+93 00 16 //JMP 0x16
+5F 02 //GETPROP frameLabel
+44 04 //PUSHSTRING "edit"
+0F //EQ
+95 00 0E //IFTRUE 0x0E
+49 05 //PUSHG glob
+45 06 //PUSHSYMB #SPYBOT
+AE 00 01 // ;UNKNOWNOP, PRESUMED 3-BYTE TYPE
+42 03 //NEWARGLIST 3
+67 07 // ;UNKNOWNOP, PRESUMED 2-BYTE TYPE, the names table DOES have setAt stored in index 7, and setAt is a list manipulation method
+01 //RET 
+
+//func 2
+42 00 //NEWARGLIST 0
+57 09 //CALLE SndCheckPlaylist
+43 00 //NEWLIST 0
+66 0A //OP_66XX frame
+42 01 //NEWARGLIST 1
+57 0B //CALLE go
+01
