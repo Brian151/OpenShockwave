@@ -1,5 +1,19 @@
 //input, output : textareas
 
+/*
+TODO:
+Missunderstood lists...
+	Two types: Linear,Property
+	Linear is essentially an array [value,value,...]
+	Property is essentially an object [#foo:"bar"] (e.g. {foo:"bar"})
+	That said, some not-so-great things about the export format can be changed.
+	The downside is this will still be fairly tedious and subject to error.
+	(and is another problem to fix before fixing the current problems with this tool).
+	This also confirms that minus some syntactical differences and a 'special' data type, the symbol (e.g. #foobar),
+	property lists actually are very much like JSON objects and can be losslessly converted.
+Fix errors/crashes...somehow
+*/
+
 function convertToJSON() {
 	var src = trimWhiteSpace(input.value);
 	var out = parseSegment(src);
