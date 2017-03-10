@@ -49,9 +49,13 @@ ShockwaveListParser.prototype.parseSegment = function(seg) {
 		var children = this.getChildren(s);
 		var isPropList = this.detectProperty(children[0]);
 		if (isPropList) {
-			return this.appendChildren({},children,true);
+			var out = {};
+			this.appendChildren(out,children,true);
+			return out;
 		} else {
-			return this.appendChildren([],children,false);
+			var out = [];
+			this.appendChildren(out,children,false);
+			return out;
 		}
 	} else {
 		var isSymbol = this.detectSymbol(s);
@@ -113,21 +117,17 @@ ShockwaveListParser.prototype.detectProperty = function(s) {
 	return out;
 }
 //needs an update... won't work as-is
-ShockwaveListParser.prototype.appendChildren = function(obj,children) {
-	for (i=0; i < children.length; i++) {
+ShockwaveListParser.prototype.appendChildren = function(obj,children,isPropList) {
+	for (var i=0; i < children.length; i++) {
 		var curr = children[i];
-		var isProperty = detectProperty(curr);
-		if (isProperty) {
-			var ID1 = obj.list.length;
-			var ID2 = getPropertyName(curr);
-			var data = getPropertyValue(curr);
-			console.log(data);
-			//var data2 = parseSegment(data);
-			obj.list.push(null);
-			obj.props[ID2] = ID1;
+		if (isPropList) {
+			var ID = this.getPropertyName(curr);
+			var data = this.getPropertyValue(curr);
+			var data2 = this.parseSegment(data);
+			obj[ID] = data2;
 		} else {
-			var data = parseSegment(curr);
-			obj.list.push(data);
+			var data = this.parseSegment(curr);
+			obj.push(data);
 		}
 	}
 }
@@ -212,4 +212,33 @@ ShockwaveListParser.prototype.writeString = function(s) {
 	var out = s.slice(1);
 	out = out.slice(0,-1);
 	return String(out);
+}
+ShockwaveListParser.prototype.getPropertyName = function(p) {
+	var out = "";
+	for (var i=0; i < p.length; i++) {
+		var curr = p.charAt(i);
+		if (curr == "#")
+			continue;
+		if (curr == ":")
+			break;
+		out += curr;
+	}
+	if (out == "") {
+		throw new Error("invalid property name detected!");
+	}
+	return out;
+}
+ShockwaveListParser.prototype.getPropertyValue = function(p) {
+	var out = "";
+	var prop = p;
+	//console.log("parsing property : " + prop);
+	for (var i=0; i < prop.length; i++) {
+		var curr = prop.charAt(i);
+		if (curr == ":") {
+			out = prop.slice(i + 1);
+			break;
+		}
+	}
+	//console.log("retrieved property value : " + out);
+	return out;
 }
