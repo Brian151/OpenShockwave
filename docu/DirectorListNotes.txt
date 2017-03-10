@@ -1,59 +1,120 @@
-example pref:
-[
-	#ID: 1, 
-	#company: 0, 
-	#type:"SMART" , 
-	#icon:1, 
-	#name:"SMART HQ", 
-	#path:[753,792,775],
-	#state:#WIN, 
-	#data:[#security:1, #reward:400, #creditItems:0] 
-]
-JSON struct:
-obj
-{
-	attr [num]
-	attr [num]
-	attr [str]
-	attr [num]
-	attr [str]
-	attr [arr]
-	attr [state/pointer]
-	attr [obj]
-		{
-			attr [num]
-			attr [num]
-			attr [num]
-		}
-}
-rules:
-"[" ... "#" = object >> "#" .. ":" AND NOT nested = object
-"#" ... ":" = property >> same
-"#" = 'symbol' >> same
-"[" ... "]" = array >> "[" "]" AND NOT CHILD ATTRIBUTES
-":" ... <number, won't have quotes> = number >> same
-":" ... <string, WILL have quotes> = string >> same
-whitespace = ignore, except when inside string >> same
-"," = delimiter, unless inside string >> same
-""" = string control char >> new
-"\" = escape character, not observed thus far >> new
+--==Director/Shockwave Lists==--
+Director and Shockwave Player both use data structures known as lists to group sets of related data together.
+There is a text-based representation used to serialize them, as well as for writing them out in Lingo source code.
+For many years, no one ever took the time to create a converter for this format, or if they did, they never
+released it.
+There have been multiple attempts at cracking the DIR,DXR,DCR,CST,CXT,and CST formats, all with varying degrees 
+of success, but it seems like no one has taken the time to write a tool for the list format. 
+This file documents the specifics of the list format and even the basic process for converting them to JSON,
+so others may try to implement these themselves. I also have written an open source tool for converting them to JSON.
 
+==external references==
+Detailed explanation of them here:
 http://www.deansdirectortutorials.com/Lingo/lists.htm
-linear list = [0,1,[],"stuff",#stuff] (essentially, an array [0,1,[],"stuff","#stuff"])
-property list = [#foo:#bar,#tuna:#fish] (essentially, an object {foo:"bar",tuna:"fish"})
 
-[] = list (basically an array)
-#prop: = property (basically a named list element)
-#value = symbol (
-	name == value, 
-	supposed to have the speed of numbers, 
-	and the readability of a string, or something like that
-	the value it holds is its name
-	Not really sure there's any way to emulate this,
-	I can't wrap my head around how these actually would work.
-	They're supposed to be faster than using a string, though...
-	(actually, bytecode docus suggests this is just like how objects work in JSON/JS)
-)
+==Director/Shockwave format==
+linear lists:
+[
+	"cat",
+	"dog",
+	"bird"
+]
 
-current re-implementation/conversion status:
-one horribly broken tool that can even crash the browser
+property lists:
+[
+	#type : "cat"
+	#name : "Garfield",
+	#color : "orange",
+	etc...
+]
+
+symbol:
+#theSymbol
+
+==JSON format==
+linear lists:
+[
+	"item",
+	etc...
+]
+
+property lists:
+{
+	"property" : "value",
+	etc...
+}
+
+symbol:
+"#symbol"
+
+==comparison/conversion==
+#prop:"data" > "attr":"data"
+[0,1,2] > [0,1,2]
+#symbol > "#symbol" //well, this is the only one that can't technically be converted exactly... just don't use "#" as part of the data!
+[#prop:"value"] > {"prop":"value"}
+
+The actual details of properly converting these to JSON is somewhat more in-depth, but basically:
+read the string. [   #prop:#value,  #prop2:#value2  ]
+trim the extra white space from the string. [#prop:#value,#prop2:#value2] 
+trim the outer brackets, or try. #prop:#value,#prop2:#value2
+use the lengths of the string before and after bracket trimming to determine if it has children. if (len2 < len1)
+If the string has been detected to represent a list... 
+	create an array of 'children' strings. Array["#prop:#value","#prop2:#value2"]
+	Check if the first child is a property...
+		str.pos(0) == "#"
+		str.pos(?) == ":"
+	First item is definitely a property, so this is a property list. "#prop:#value"
+	If the child is a property... 
+		create an object. {}
+		loop the children array...
+			Get the property ID from the string...
+				find the pos at which the first ":" is encountered and then...
+					cut-off the "#" and return the part of the string from position 1 to and excluding the first ":"
+					So, we will get these property ID's from the two children...
+						"prop","prop2"
+			Get the property values from the string...
+				Same as with the id, we need to find the first ":"...
+					But this time, again excluding that value, we want the portion of the string after it.
+					Our two children yield these values...
+						"#value","#value2"
+			Now that we have the ID and the value, we assign a property/attribute to the object...
+				obj[prop] = ...
+					So, we need to determine what data type the value is, just as we did before...
+						"#value" and "#value2" are both symbols.
+						So, our object now looks like...
+							this. {prop:"#value",prop2:"#value2"}
+							And with this sample, we're done
+	If the child is anything besides a property...
+		create an array. []
+		loop the children array...
+			Just like with property values, the type of each child must be determined
+			Arrays do not use named indeces, so we just push the new value to the array
+If the string is determined not to represent a list...
+	the simple data type must be determined from: symbol,number,string...
+		First, symbol...
+			str.pos(0) == "#"
+			If it's a symbol...
+				return the value as-is, that's the best conversion possible
+		Alright, so it's not a symbol, let's try for number or string...
+			Number...
+				Should only contain numeric digits and not be enclosed in quotes...
+					If so, return the result of casting it to a number
+			String...
+				Should be enclosed in quotes...
+					If so, return the string without the outer quotes
+					
+A proper parser should handle errors, because it's been proven time and time again that the end user cannot be trusted
+to use the program the right way, for various reasons. So, the parser should check for these, and make the user aware
+something went wrong, and ideally, where, and why.
+Some possible errors:
+[[] = mix-matched/missing brackets
+""" = bad string formatting
+#prop[]: = that's an invalid property
+#sym[b] = that's an invalid symbol
+wt# = not even sure what that's supposed to be...
+Not catching errors can, in really bad cases, result in freezes or crashes!
+
+While this explicitly covers the coversion process for JSON, the process is similar, regardless of the format.
+
+==end note==
+With all that said, good luck and have fun with these - Brain151
