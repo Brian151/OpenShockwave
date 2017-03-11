@@ -198,10 +198,22 @@ CAS*
 
 CLUT
 {
-	length
-	data
-	//color palettes? , probably RGB24, still researching...
-	//data is simply an array of 24-bit RGB colors, but more research is needed
+	length (ALWAYS divisible by 6)
+	/*
+	color palettes,
+	each CLUT actually contains 2, and they're combined in a somewhat odd manner...
+	Or, each color value has some extra data attached.
+	Regardless, the reasons for the three extra bytes per entry is a mystery for the time being.
+	Other than that, the data is an array of RGB24 colors
+	*/
+	<length / 6> entries/data {
+		byte red
+		byte red2
+		byte green
+		byte green2
+		byte blue
+		byte blue2
+	}
 }
 
 MCsL
