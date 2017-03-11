@@ -1,4 +1,4 @@
-SHOCKWAVE FORMAT (general internal workings, and most specifically, DIR):
+SHOCKWAVE FORMAT (general internal workings):
 
 RIFX
 {
@@ -98,7 +98,8 @@ ediM
 {
 	length
 	data <length> in size
-	//contains SWA audio
+	//contains SWA audio-
+	//further analysis shows this contains other data/file types as well...further research required
 }
 
 BITD
@@ -125,45 +126,61 @@ CASt
 				0x0B : script
 				0x0F : flash,font,text [why use same number???]
 			)
-		}
-		fields {
-			/*
-			My mistake was in assuming two things:
-			1. All CASt have the same fields
-			2. Fields always appear in the same order
-			This is evidentally, not the case...
-			*/
-			name {
-			byte nameLength
-			<nameLength> bytes name
+			Uint32 [big end] length2 //from 0x14 to specificData
+			Uint32 [big-end] specificDataLen
+			0x14 bytes skipThis {
+			Uint32 [big-end] skipSize? (always 0x14)
+			0x10 bytes unknownData
 			}
-			UTCdate dateCreated
-			UTCdate dateLastModified
-			imageCompression {
-				byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
-				byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
-				Uint16 [big-end] unknown
+			Uint16 [big-end] offsetTableLen
+			<offsetTableLen> Uint32Array offsetTable {
+				Uint32 [big-end] offsetX //this table still needs research...
 			}
-			4 bytes unknown (4e 2f 41 00)
+			Uint32 [big end] finalDataLen
+			<finalDataLen> metaData
+			{
+				//comprised of various fields...
+				fields {
+					/*
+					These contain data like names and creation/edit dates
+					*/
+					name {
+						byte nameLength
+						<nameLength> bytes name
+					}
+					UTCdate dateCreated
+					UTCdate dateLastModified
+					imageCompression {
+						byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
+						byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
+						Uint16 [big-end] unknown
+					}
+					4 bytes unknown (4e 2f 41 00)
+				}
+			}
 		}
-		specificData{
+		<specificDataLength> specificData{
 			/*
 			These vary a lot, but they do seem to have an absolute structure and order
 			*/
+			paletteData {
+				//nothing yet found, every palette observed thus far hasn't had any
+			}
 			bitmapData {
+				//still trying to understand this one...
 				4 bytes unknown
 				2 bytes unknown
 				Uint16 width
 				Uint16 height
-				//not entirely sure from here on out...
-				4 bytes unknown (01 00 00 00)
+				Uint32 constant1 (1) //1 is so far, only observed value...
 				4 bytes unknown
-				4 bytes unknown
-				4 bytes unknown
+				Uint16 regPointX
+				Uint16 regPointY
 				2 bytes unknown
+				4 bytes palleteID //? still needs more research, not even sure how director actually links palettes
 			}
 			scriptData {
-				Uint16 scriptType
+				Uint16 [big-end] scriptType
 				(
 					00 01 : behavior
 					00 03 : movie
@@ -192,7 +209,8 @@ CAS*
 	/*
 		This is a cast, or rather, a cast association table. This contains the neccesarry data to group
 		CASt sections into a complete cast. It does not contain the name, however. The cast name would be found 
-		in the MCsl section. External casts do not have a CAS* table, probaby because they do not need one.
+		in the MCsl section. External casts do not have a CAS* table, probaby because they do not need one with
+		their data being stored in separate files.
 	*/
 }
 
@@ -259,6 +277,10 @@ MCsL
 	the cast names and their member lists(if present) are stored in the same
 	order
 	*/
+	/*
+	External cast files (CST,CCT,CXT) seem to not have these. It makes sense, because external casts only contain ONE
+	cast: themselves.
+	*/
 }
 
 XTRl
@@ -293,12 +315,12 @@ XTRl
 }
 
 shockwave format types:
-DXR : protected/encrypted
+DXR : 'protected'
 DCR : compressed (via zlib)
-DIR : uncompressed + unencrypted RIFX
-CXT : protected/encrypted
+DIR : uncompressed + unprotected
+CXT : 'protected'
 CCT : compressed (via zlib)
-CST : uncompressed + unencrypted RFIX
+CST : uncompressed + unprotected
 
 purposes:
 D*R : movie, runs stand-alone, may load C*T's as dependencies
