@@ -1,0 +1,6 @@
+sources of original data or entire files:
+
+temp,redsquare,redbluesquare,redsquare_gray : a friend
+anything with "spybotics" : Spybotics : The Nightfall Incident
+bitmapCastCompare: redsquare, Spybotics
+3D-Examples-D11.5 : http://dreamsteep.com/downloads/director-movies/92-shockwave-3d-examples.html, originally published by Macromedia
