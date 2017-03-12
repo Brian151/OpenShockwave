@@ -4,13 +4,26 @@ to-do:
 probably could have the notation format updated...
 some instructions need better names
 some instructions need names that aren't placeholders (OP_HH[XX][YY])
+some instructions have yet to be discovered, and thus, their purpose also must be determined
+
+new OPs needing understood:
+format : OP - found in
+67 - Spybotics : The Nightfall Incident
+AE - Spybotics : The Nightfall Incident
+
+speculation:
+The only 'valid' NOP may be code 0x02.
+ActionScript bytecode only has one NOP instruction.
+Everything else, does in fact, do... something.
+Why wouldn't Lingo do the same? It'd be wasteful to
+define a bunch of opcodes that do absolutely nothing
 
 byte value, memonic name, ;comment #more comment
 
 ONE BYTE CODES
 01 RET ; leave current function and return to caller #I perfer ret, since in programming, ret or return is typically used to end functions -Brian151
 02 NOP ; nothing documented for this
-03 PUSHINT0 ; push 0 or false
+03 PUSHFALSE ; push 0 or false
 04 MUL ; multiply two values
 05 ADD ; add two values
 06 SUB ; subtract B from A
@@ -27,7 +40,7 @@ ONE BYTE CODES
 11 GTEQ ; check if A is greaten than or equal to B
 12 AND ; check if A and B are logically true
 13 OR ; check if A or B is logically true
-14 NOT ; check if A is logically false #might do IFTRUE
+14 NOT ; check if A is logically false
 15 CONTAINSSTR ; check if string A contains string B, case insensitive
 16 CONTAINS0STR ; check is string A starts with string B, case insensitive 
 17 SPLITSTR ; string splice/split
@@ -38,12 +51,12 @@ ONE BYTE CODES
 1c STARTOBJ ; read bytecode docu
 1d STOPOBJ ; read bytecode docu, related to code 1c
 1e OP_1E ; writers of documetation are unsure of purpose
-1f UNFLATTENLIST ; unsure, creates property lists
+1f NEWPROPLIST ; unsure, creates property lists
 
 TWO BYTE CODES
-41 XX PUSHINT8 ; push an integer of values 1-127
-42 XX POPARGS8 ; pop values from stack to be used in a function call
-43 XX POPLIST8 ; pop values from the stack to create a list/array
+41 XX PUSHBYTE ; push an integer of values 1-127
+42 XX NEWARGLIST ; pop values from stack to be used in a function call
+43 XX NEWLIST ; pop values from the stack to create a list/array
 44 XX PUSH ; push a value from constants records
 ;may be changed to PUSHCONS
 ;or use the type indicated in the respective constant record
@@ -105,10 +118,12 @@ TWO BYTE CODES
 64 XX OP_64XX ; just read the docu from archiveteam
 65 XX OP_65XX ; clean-up after a loop
 66 XX OP_66XX ; read docu
+67 XX MYST_67XX ; research required
 
 THREE BYTE CODES
-81 XX YY PUSHINT16 ; push an integer from 128-32767 
-82 XX YY POPARGS16 ; like code 42, but for greater than 255 arguments
-83 XX YY POPLIST16 ; like code 43, but for greater than 255 arguments
+81 XX YY PUSHSHORT ; push an integer from 128-32767 
+82 XX YY NEWARGLIST ; like code 42, but for greater than 255 arguments
+83 XX YY NEWLIST ; like code 43, but for greater than 255 arguments
 93 XX YY JMP; unconditional jump, but documentation is less than clear on some things concerning the lingo source code
-95 XX YY LOOPWHILE ; seems to be the begining of a loop
+95 XX YY IFTRUE ; conditional jump if value popped from stack is false
+AE XX YY MYST_AEXXYY ; research required

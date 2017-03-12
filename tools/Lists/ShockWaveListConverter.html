@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<title>Shockwave List/Preference Converter</title>
+		<style type="text/css">
+			textarea {
+				resize: none;
+			}
+		</style>
+	</head>
+	<body>
+		<strong>INPUT:</strong><br/>
+		<textarea rows="15" cols="106" id="in">[#felines:["cat","lion","tiger","cheetah","ocelot"],#rodents:["mouse","rat"]]</textarea>
+		<br/><strong>CONVERTED OUTPUT:</strong><br/>
+		<textarea rows="15" cols="106" id="out"></textarea>
+	<script type="text/javascript" src="shockList.js"></script>
+	<script>
+		var input = document.getElementById("in");
+		var output = document.getElementById("out");
+		var listParser = new ShockwaveListParser();
+		function convertToJSON() {
+			output.value = JSON.stringify(listParser.parseList(input.value));
+		}
+	</script>
+		<br/><button onclick="convertToJSON()">Convert!!</button>
+	</body>
+</html>

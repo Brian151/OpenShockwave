@@ -1,0 +1,91 @@
+Format Overview (lists section ID's an their purpose)
+
+CASt:
+Cast Member (body)
+
+Lscr:
+Lingo Script (compiled)
+
+FXmp:
+Font Mapping Table
+
+mmap:
+Internal Mapping Table
+
+imap:
+Offset of mmap
+
+Fmap:
+??? (possibly something to do with fonts)
+
+Lnam:
+Lingo Names Table 
+
+ccl : 
+???
+
+XTRl:
+Xtra Lib/Linkages
+
+junk:
+null, mapped but does not exist
+
+Cinf:
+???
+
+free:
+null, mapped but does not exist
+
+Sord:
+??? 
+
+snd :
+Embedded Wave or AIFF audio file
+
+LctX:
+Lingo Script Collection
+
+SCVW:
+???
+
+STXT:
+Text Data, exact format unknown, needs research 
+
+CLUT:
+RGB24 Color Palette. each entry has thre extra values not currently known 
+
+ediM:
+Contains various embedded data/files, originally thought only to contain SWA
+
+MCsL:
+Cast List 
+
+VWFI:
+Probably something to do with Xtras
+ 
+DRCF:
+???
+
+BITD:
+Bitmap Data, not yet cracked
+
+XMED:
+Media requiring an Xtra, probably
+
+VWSC:
+???
+
+VWLB:
+??? 
+
+ALFA:
+Alpha Mask, not yet understood 
+
+RIFX:
+Main Section
+
+KEY*:
+Association Table
+
+CAS*:
+Per-cast Association Table, external casts do not have one

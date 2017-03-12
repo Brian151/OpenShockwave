@@ -272,7 +272,7 @@ function OpenShockwaveMovie(file) {
 					opcode = "op_1e";
 					break; //TEMP NAME
 				case 0x1f:
-					opcode = "unflattenlist";
+					opcode = "newproplist"; //something is weird about this one...
 					break;
 				/* Two Byte Instructions */
 				/*
@@ -280,13 +280,13 @@ function OpenShockwaveMovie(file) {
 				or what values it is reading/writing
 				*/
 				case 0x41:
-					opcode = "pushint8";
+					opcode = "pushbyte " + bytecode[1];
 					break;
 				case 0x42:
-					opcode = "popargs";
+					opcode = "newarglist " + bytecode[1];
 					break;
 				case 0x43:
-					opcode = "pushlist";
+					opcode = "newlist " + bytecode[1];
 					break;
 				case 0x44:
 					opcode = "push";
@@ -395,22 +395,29 @@ function OpenShockwaveMovie(file) {
 					break;
 				/* Three Byte Instructions */
 				case 0x81:
-					opcode = "pushint16";
+					opcode = "pushshort " + ((bytecode[1] * 0x100) + bytecode[2]);
 					break;
 				case 0x82:
-					opcode = "popargs";
+					opcode = "newarglist " + ((bytecode[1] * 0x100) + bytecode[2]);
 					break;
 				case 0x83:
-					opcode = "poplist";
+					opcode = "newlist" + ((bytecode[1] * 0x100) + bytecode[2]);
 					break;
 				case 0x93:
 					opcode = "jmp";
 					break;
 				case 0x95:
-					opcode = "whiletrue";
+					opcode = "iftrue";
 					break;
 				default:
-					opcode = "analysis failed";
+					opcode = "MYST_" + bytecode[0].toString(16);
+					/*
+					if we return values prefixed with "MYST_" (e.g. mystery), that means we have encountered
+					an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
+					and/or decompilation. If the decompiler is created before all the opcodes are known 
+					(and this might just happen), it should return source code with comments saying decompilation failed,
+					listing the opcodes and their offsets.
+					*/
 				}
 			return opcode.toUpperCase();
 		}
@@ -442,7 +449,7 @@ function OpenShockwaveMovie(file) {
 					pos.obj = ShockwaveMovieDataStream.readUint8();
 					//} else {
 						// 0x44 is always six bytes long because it's a rebel
-					//}
+					//} //honestly probably won't need this ever again...
 				}
 			}
 			bytecodeArray.push(pos);
