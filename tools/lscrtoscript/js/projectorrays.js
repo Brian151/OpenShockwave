@@ -410,9 +410,9 @@ function OpenShockwaveMovie(file) {
 					opcode = "iftrue";
 					break;
 				default:
-					opcode = "MYST_" + bytecode[0].toString(16);
+					opcode = "UNK_" + bytecode[0].toString(16);
 					/*
-					if we return values prefixed with "MYST_" (e.g. mystery), that means we have encountered
+					if we return values prefixed with "UNK_" (e.g. unknown), that means we have encountered
 					an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
 					and/or decompilation. If the decompiler is created before all the opcodes are known 
 					(and this might just happen), it should return source code with comments saying decompilation failed,
