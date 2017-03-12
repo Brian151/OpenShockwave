@@ -1,0 +1,72 @@
+attempt to crack bitmap specificData field by comparing MULTIPLE samples with each other
+
+// redsquare
+80 20 00 00 // ?
+00 00 // ?
+00 08 // width
+00 08 // height
+01 00 00 00 // ?
+FF BB FF 9A // ?
+00 04 // reg x.
+00 04 // reg. y
+20 20 // ?
+FF FF FF 9B // palette ID
+
+// 0_owned
+80 9C 00 00 // ?
+00 00 // ?
+00 9A // width
+00 9C // height
+01 00 00 00 // ?
+00 00 00 00 // ?
+00 4D // reg. x
+00 4E // reg. y
+C0 08 // ?
+FF FF 00 70 // palette ID
+
+// company_banner_7
+80 F8 00 00 // ?
+00 00 // ?
+00 27 // width
+00 F8 // height
+01 00 00 00 // ?
+00 00 00 00 // ?
+00 13 00 7C // ?
+80 08 // ?
+FF FF 01 6D // palette ID
+
+// company_banner_5
+80 F8 00 00 // ?
+00 00 // ?
+00 27 // width
+00 F8 // height
+01 00 00 00 // ?
+00 00 00 00 // ?
+00 13 // reg. x
+00 7C // reg. y
+80 08 // ?
+FF FF 01 6B // palette ID
+
+// redsquare (original)
+80 20 00 00 // ?
+00 00 // ?
+00 08 // width
+00 08 // height
+01 00 00 00 // ?
+FF BB FF 9A // ?
+00 04 // reg. x
+00 04 // reg. y
+20 20 // ?
+FF FF FF 9B // palette ID
+
+// redsquare (greyscale palette)
+80 20 00 00 // ?
+00 00 // ?
+00 08 // width
+00 08 // height
+01 00 00 00 // ?
+FF 73 FF 77 // ?
+00 04 // reg. x
+00 04 // reg. y
+20 20 // ?
+FF FF FF FE // palette ID

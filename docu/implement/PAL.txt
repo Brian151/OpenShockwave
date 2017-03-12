@@ -1,0 +1,38 @@
+extended PAL file, well...sorta, some changes have been made
+to accomodate our specific needs, but no alterations have been
+made that should cause conflicts with programs that read/write PAL files,
+unless said programs already are doing something they're not supposed to
+
+chosen usage:
+losslessly import/export CLUT section (palette data) to/from Director files
+
+"RIFF" file sig
+uint32 [lit] fileLen
+	"PAL " form sig //this is a RIFF PAL file, part of the 'standard' RIFF format group
+	{
+	"data" data sig
+	Uint32 [lit] datLen
+	Uint16 [lit] datVer 0x0300
+	Uint16 [lit] colCount
+	<colCount> entries 
+		{
+		byte red
+		byte green
+		byte blue
+		// only keeping this to preserve consistency and keep the file 'valid' with other programs 
+		// that support RIFF PAL format!
+		byte flags
+		}
+	}
+	{
+	// this section added to store the extra information from the CLUT section,
+	// just in case it's actually needed for something
+	"dat2" secondary data sig
+	Uint32 [lit] dat2Len
+	<data.colCount> entries
+		{
+			byte redExtra 
+			byte greenExtra 
+			byte blueExtra 
+		}
+	}

@@ -1,0 +1,2 @@
+For file/data formats not explicitly implemented in Director/Shockwave,
+but we have chosen to support for one reason or another
