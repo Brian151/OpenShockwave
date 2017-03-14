@@ -1,0 +1,208 @@
+attempt to cross-compare CASt offset tables and data sections to identify the fields
+contained within the data, and which offsets correspond to them
+
+observations thus far:
+the final offset is always used
+the order of fields most likely is pre-determined
+
+warning:
+This was all done manually, and some results may not be accurate!
+
+//from temp.dir
+
+//offsets
+00 00 00 00  00 00 00 1B  00 00 00 26  00 00 00 26
+00 00 00 26  00 00 00 26  00 00 00 3A  00 00 00 3A 
+00 00 00 3A  00 00 00 3A  00 00 00 3A  00 00 00 3A
+00 00 00 4E  00 00 00 4E  00 00 00 4E  00 00 00 4E
+00 00 00 4E  00 00 00 4E  00 00 00 52  00 00 00 56
+
+//data
+76 61 72 20 68 65 6C 6C 6F 20 3D 20 22 68 65 6C 6C 6F 20 77 6F 72 6C 64 22 3B 20 //script
+0A 73 63 72 69 70 74 54 65 73 74 //name
+00 77 00 41  01 F7 04 81  00 00 00 1B  00 00 00 1B  00 01 00 00 // ?
+00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  00 14 00 2C // ?
+55 F7 0F 7B //create
+55 F7 1A E7 //mod
+4E 2F 41 00 //?
+
+//analyze offsets
+script,name,...,...
+...,unknown1,...,...
+...,...,...,unknown2
+...,...,...,...
+...,datecreate,datemodify,unknown3
+
+//bitmask representing if an offset is 'used' (not actually present in file)
+1100
+0100
+0001
+0000
+0111
+
+//from redsquare_orig.dir
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 0B  00 00 00 0B  
+00 00 00 0B  00 00 00 0B  00 00 00 0B  00 00 00 0B 
+00 00 00 0B  00 00 00 0B  00 00 00 0B  00 00 00 0B 
+00 00 00 0B  00 00 00 0B  00 00 00 0B  00 00 00 0B 
+00 00 00 0B  00 00 00 0B  00 00 00 0F  00 00 00 13 
+00 00 00 17  00 00 00 17
+
+//bitmask
+0100
+0000
+0000
+0111
+??
+
+//data
+0A 72 65 64 5F 73 71 75 61 72 65 //name
+58 17 96 E7 //date create
+58 17 98 8C //date modify
+4E 2F 41 00 //?
+FB 50 00 00 //compression
+
+//analyze offsets
+...,name,datecreate,...
+...,...,...,...
+...,...,...,...
+...,...,...,...
+...,datemod,unknown1,unknown2
+??
+
+//from 3D-Examples-D11.5.dir
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 05  00 00 00 05
+00 00 00 05  00 00 00 05  00 00 00 05  00 00 00 05
+00 00 00 05  00 00 00 05  00 00 00 15  00 00 00 22 
+00 00 00 22  00 00 00 32  00 00 00 32  00 00 00 32 
+00 00 00 32  00 00 00 32  00 00 00 36  00 00 00 3A
+
+//bitmask
+0100
+0000
+0110
+1000
+0111
+
+04 44 69 6E 6F // name
+F8 BF 17 E1  88 D4 11 D3  98 9C 00 A0  C9 90 2D 25 // ?
+53 68 6F 63  6B 77 61 76  65 20 33 44  00 // ?
+FF FF FF 88  FF FF FF 60  00 00 00 78  00 00 00 A0 // ?
+3B 93 9B 64 // ?
+4D 6C B6 25 // ?
+4E 2F 41 00 // ?
+
+//analyze
+...,name,...,...
+...,...,...,...
+...?,?,...
+?,...,...,...
+...,?,?,?
+
+//from spybot_0807_sw.dir (result of dir-opening spybot_0807_sw.dcr , aka Spybotics : The Nightfall Incident)
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 08  00 00 00 08  
+00 00 00 08  00 00 00 08  00 00 00 08  00 00 00 08 
+00 00 00 08  00 00 00 08  00 00 00 08  00 00 00 08 
+00 00 00 08  00 00 00 08  00 00 00 08  00 00 00 08 
+00 00 00 08  00 00 00 08  00 00 00 08  00 00 00 08 
+00 00 00 08  00 00 00 08
+
+//bitmask
+0100
+0000
+0000
+0000
+??
+
+//data
+07 30 5F 6F 77 6E 65 64 //name
+FE 50 00 00 //compression
+
+//analyze
+...,name,...,...
+...,...,...,...
+...,...,...,...
+...,...,...,...
+??
+
+//also from spybotics
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 0D  00 00 00 0D 
+00 00 00 0D
+
+//data
+0C 3D 3D 20 53 45 54 20 4C 4F 43 20 5A //name
+5B 23 6D 79 6C 6F 63 7A 3A 20 5B 23 63 6F 6D 6D 65 6E 74 3A 20 22 4C 6F 63 5A 3A 22 2C 20 23 66 6F 72 6D 61 74 3A 20 23 69 6E 74 65 67 65 72 2C 20 23 64 65 66 61 75 6C 74 3A 20 39 39 39 39 39 5D 5D 00 //comment
+
+//bitfield
+01??
+?
+
+//analyze
+...,name,?,?
+?
+
+//note
+Cannot determine yet which offset corresponds to the comment field!
+Given the length of the offset table, it might be the final entry,
+but there's nothing that as of yet confirms this...
+
+//spybotics again...
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 05  00 00 00 05 
+00 00 00 05  00 00 00 05  00 00 00 05  00 00 00 05 
+00 00 00 05  00 00 00 05  00 00 00 05  00 00 00 05 
+00 00 00 05  00 00 00 05  00 00 00 05  00 00 00 05 
+00 00 00 05
+
+//bitfield
+0100
+0000
+0000
+0000
+1 //we're going to assume for now that the last entry HAS to be used...
+
+//data
+04 6D 2E 76 31 //name
+6B 4D 6F 61 43 66 46 6F 72 6D 61 74 5F 53 57 41 //?fileFormatID (no solid name for it yet)
+
+//analyze
+...,name,...,...
+...,...,...,...
+...,...,...,...
+...,...,...,...
+fileFormatID
+
+//and again...
+
+//offsets
+00 00 00 00  00 00 00 00  00 00 00 10  00 00 00 10 
+00 00 00 10  00 00 00 10  00 00 00 10  00 00 00 10 
+00 00 00 10  00 00 00 10  00 00 00 20  00 00 00 2F 
+00 00 00 2F
+
+//bitfield
+0100
+0000
+0110
+1
+
+//data
+0F 63 6F 6D 70 61 6E 61 79 5F 6C 6F 67 6F 5F 35 // name
+78 E7 E0 D0  0A 7F 11 D1  AD 8D 08 00  07 9F 01 6C // ?
+46 6C 61 73  68 20 4D 6F  76 69 65 2E  2E 2E 00 //?fileID2
+FF FF FF CF FF FF FF 55 00 00 00 32 00 00 00 AB // ?
+
+//analyze
+...,name,...,....
+...,...,...,...
+...,unknown1,fileID2,
+unknown2

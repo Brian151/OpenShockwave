@@ -124,17 +124,29 @@ CASt
 				0X07 : button
 				0x08 : vector shape
 				0x0B : script
-				0x0F : flash,font,text [why use same number???]
+				0x0F : flash,font,text,W3D //The common link between all is the requirement of Xtras to use these
 			)
 			Uint32 [big end] length2 //from 0x14 to specificData
 			Uint32 [big-end] specificDataLen
 			0x14 bytes skipThis {
-			Uint32 [big-end] skipSize? (always 0x14)
-			0x10 bytes unknownData
+				Uint32 [big-end] skipSize? (always 0x14)
+				0x10 bytes unknownData (does vary, but purpose unknown)
 			}
 			Uint16 [big-end] offsetTableLen
 			<offsetTableLen> Uint32Array offsetTable {
 				Uint32 [big-end] offsetX //this table still needs research...
+				/*at present, the offsets are known to correspond to (might not be accurate!):
+					[key]
+					name : identified + understood
+					? : not discovered
+					! : discovered, not understood/identified
+				
+					scriptSrc,name,?,?
+					?,!,?,?,
+					?,!,!,!,
+					!,dateCreate,dateModify,!,
+					!,compression
+				*/
 			}
 			Uint32 [big end] finalDataLen
 			<finalDataLen> metaData
@@ -142,7 +154,7 @@ CASt
 				//comprised of various fields...
 				fields {
 					/*
-					These contain data like names and creation/edit dates
+						These contain data like names and creation/edit dates
 					*/
 					name {
 						byte nameLength
