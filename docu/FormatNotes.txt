@@ -134,41 +134,13 @@ CASt
 			}
 			Uint16 [big-end] offsetTableLen
 			<offsetTableLen> Uint32Array offsetTable {
-				Uint32 [big-end] offsetX //this table still needs research...
-				/*at present, the offsets are known to correspond to (might not be accurate!):
-					[key]
-					name : identified + understood
-					? : not discovered
-					! : discovered, not understood/identified
-				
-					scriptSrc,name,?,?
-					?,!,?,?,
-					?,!,!,!,
-					!,dateCreate,dateModify,!,
-					!,compression
-				*/
+				Uint32 [big-end] offsetX //see formatNotes_CASt_fields
 			}
 			Uint32 [big end] finalDataLen
 			<finalDataLen> metaData
 			{
 				//comprised of various fields...
-				fields {
-					/*
-						These contain data like names and creation/edit dates
-					*/
-					name {
-						byte nameLength
-						<nameLength> bytes name
-					}
-					UTCdate dateCreated
-					UTCdate dateLastModified
-					imageCompression {
-						byte compression [0xFB : movie setting, 0XFE : standard, 0xFD: JPEG]
-						byte compressionQuality [default: 0x50 (80%)] (ONLY used if JPEG, but always present)
-						Uint16 [big-end] unknown
-					}
-					4 bytes unknown (4e 2f 41 00)
-				}
+				//see formatNotes_CASt_fields
 			}
 		}
 		<specificDataLength> specificData{

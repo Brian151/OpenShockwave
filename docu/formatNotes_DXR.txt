@@ -1,3 +1,19 @@
 The following notes are specific to the DXR (protected/projector) format:
 
-pending... 
+Section CASt {
+	??? bytes unknown
+	0x14 bytes skipThis {
+		Uint32 [big] length
+		0x10 bytes unknownData
+	}
+	Uint16 [big] offsetTableLength
+	Uint32Array(offsetTableLength) offsetTable {
+		Uint32 [big] offsetX //see formatNotes_CASt_fields
+	}
+	Uint32 [big] finalLength
+	metaData(finalLength) {
+		//comprised of various fields...
+		//see formatNotes_CASt_fields
+	}
+	//making some assumptions certain data structures/values do remain consistent with DIR
+}

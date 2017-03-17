@@ -65,12 +65,12 @@ script,name,...,...
 FB 50 00 00 //compression
 
 //analyze offsets
-...,name,datecreate,...
+...,name,...,...
 ...,...,...,...
 ...,...,...,...
 ...,...,...,...
-...,datemod,unknown1,unknown2
-??
+...,datecreate,datemod,unknown1
+?,compression
 
 //from 3D-Examples-D11.5.dir
 
@@ -92,8 +92,8 @@ FB 50 00 00 //compression
 F8 BF 17 E1  88 D4 11 D3  98 9C 00 A0  C9 90 2D 25 // ?
 53 68 6F 63  6B 77 61 76  65 20 33 44  00 // ?
 FF FF FF 88  FF FF FF 60  00 00 00 78  00 00 00 A0 // ?
-3B 93 9B 64 // ?
-4D 6C B6 25 // ?
+3B 93 9B 64 // date create
+4D 6C B6 25 // date mod
 4E 2F 41 00 // ?
 
 //analyze
@@ -204,5 +204,5 @@ FF FF FF CF FF FF FF 55 00 00 00 32 00 00 00 AB // ?
 //analyze
 ...,name,...,....
 ...,...,...,...
-...,unknown1,fileID2,
+...,unknown1,fileID2,...
 unknown2

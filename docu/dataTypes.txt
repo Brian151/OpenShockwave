@@ -73,7 +73,7 @@ A string of exactly four characters, used by IFF and RIFF formats as ID codes fo
 
 Tag
 RIFF tag
-RIFF Tag
+RIFF tag, RIFF chunk, Chunk, Section
 These are used to provide the basic stucture of shockwave files, as Shockwave is a variant of
 R.I.F.F. : Resource Interchange File Format
 The basic structure is this:
@@ -94,6 +94,13 @@ UTCDate(4)
 Universal Time Coordinated Date/Time
 Date
 counts milliseconds since January 1, 1970
+
+Block
+Block
+Struct //specifically in languages like C
+Some arbitrarily sized and formatted piece of data, is generally a composite of other data types, and
+is effectively a small format in and of itself. Pretty much any custom format has these in some shape or
+form. There's no universal rule on how to lay these out, and it varies largely between developers.
 
 ==other stuff==
 [<big|little>-end]
