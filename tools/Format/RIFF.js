@@ -1,16 +1,21 @@
 var RIFFParser = function(data) {
 	this.view = new DataView(data);
 	this.formats = ["RIFF","RIFX","XFIR"];
-	//ENDIANESS OF : fourCC , length, data
-	//(not sure if right, probably isn't entirely)
-	//B[ig] L[ittle]
+	/*
+		ENDIANESS OF : fourCC , length
+		(not sure if right, probably isn't entirely)
+		B[ig] L[ittle]
+	*/
 	this.ends = [
-		["L","L","L"],
-		["B","B","B"],
-		["L","L","B"],
+		["B","L"],
+		["B","B"],
+		["L","L"],
 	];
 	this.format = 0;
 	this.returnType = "binary";
+	/*
+		NEEDS SERIOUS WORK...
+	*/
 }
 RIFFParser.prototype.getChunkAt = function(offset,getForm) {
 	var head = this.getFourCCAt(offset);

@@ -1,21 +1,31 @@
+/*
+	this needs a LOT of work...
+*/
 var ShockwaveParser = function(data) {
-	this.structParser = new RIFFParser(data);
-	this.length = 0;
-	this.map = [];
-	this.castLib = [];
-	this.castMemberLib = [];
-	this.scriptLib = [];
+	this.structParser = new RIFFParser(data); //create the RIFF parser from RIFF.js
+	this.length = 0; //we don't know this yet
+	this.map = []; //store the processed contents of mmap
+	this.castLib = []; //store the casts
+	this.castMemberLib = []; //temporary place to store the cast members
+	this.scriptLib = []; //store the scripts
 }
 ShockwaveParser.prototype.parse = function() {
 	var head = this.structParser.getFourCCAt(0x00); //get main chunk
 	this.structParser.setFormat(2); //XFIR
 	this.length = this.structParser.getLengthAt(0x04);
-	var mapIndexHead = this.structParser.getFourCCAt(0x0c);
+	var mapIndexHead = this.structParser.getFourCCAt(0x0c); //find the imap (mmap offset)
 	var mapOffset = 0;
 	if (mapIndexHead == "imap") {
+		/*
+			We found the mmap's offset
+			Let's parse the mmap section, now!
+		*/
 		mapOffset = this.structParser.getLengthAt(0x18);
 		console.log("map @" + mapOffset.toString(16));
 		this.parseMappingTable(mapOffset);
+		/*
+			Now let's scan for the KEY* section
+		*/
 		var foundKeys = false;
 		var keyOffset = 0;
 		for (var i=0; i < this.map.length; i++) {
@@ -27,29 +37,49 @@ ShockwaveParser.prototype.parse = function() {
 			}
 				
 		}
+		//lets get the compiled bytecode linked together so it's ready for us use(decompile, interpret,etc...)
 		this.linkScripts();
 		this.parseNameTables();
 		if (foundKeys) {
+			/*
+				If we found the KEY* section, we need to parse it
+				This is currently disabled because it's not working yet,
+				and it's a fairly intensive process
+			*/
 			//this.parseKeyTable(keyOffset);
 		} else {
-			console.error("cannot locate the key table");
+			console.error("cannot locate the key table"); //well crap, we NEED KEY*, throw error
 		}
 	} else {
-		console.error("cannot locate the mapping table!");
+		console.error("cannot locate the mapping table!"); //well crap, we NEED mmap, throw error
 	}
 }
 ShockwaveParser.prototype.parseMappingTable = function(offset) {
-	var head = this.structParser.getFourCCAt(offset);
-	var length = this.structParser.getLengthAt(offset + 4);
+	var head = this.structParser.getFourCCAt(offset); //double-check the section header
+	var length = this.structParser.getLengthAt(offset + 4); //length of mmap
 	if (head == "mmap") {
 		var i0 = 0; //full range num ID
 		var i1 = 0; //limited range (ignore free) num ID
+		/*
+			a temporary string array with FourCCs,
+			used to check if we already found chunks with
+			this ID
+		*/
 		var lookup = [];
+		/*
+			entries start at offset + 0x20 bytes, 
+			entries are 20 bytes in size,
+			Let's read them till we've met or exceeded the length of mmap!
+		*/
 		for (var i= (offset + 0x20); i < length; i+=20) {
-			var id = this.structParser.getFourCCAt(i);
-			var len = this.structParser.getLengthAt(i + 4);
-			var off = this.structParser.getLengthAt(i + 8);
+			var id = this.structParser.getFourCCAt(i); //this is the ID of a mapped chunk
+			var len = this.structParser.getLengthAt(i + 4); //this is the length of a mapped chunk
+			var off = this.structParser.getLengthAt(i + 8); //this is the offset of a mapped chunk
+			//we may or may not find this ID in the lookup table, so we default Boolean found to false
 			var found = false;
+			/*
+				We run lookup on lookup
+			*/
 			for (var i2 = 0; i2 < lookup.length; i2++) {
 				var curr = lookup[i2];
 				if (curr == id) {
@@ -58,6 +88,7 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 				}
 			}
 			if (!found) {
+				//We didn't find this ID in lookup, let's create an entry in our [parsed] mapping table
 				this.map.push({
 					tagName : id,
 					instances : []
@@ -65,12 +96,14 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 				lookup.push(id);
 			}
 			for (var i2=0; i2 < this.map.length; i2++) {
+				//We need to add the mapped section to our table
 				var curr = this.map[i2];
 				if (curr.tagName == id) {
 					this.map[i2].instances.push([len,off,i0,i1]);
 					break;
 				}
 			}
+			//increment our counters... i1 ignores free
 			i0++;
 			if (id != "free")
 				i1++;
@@ -78,6 +111,9 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 	}
 }
 ShockwaveParser.prototype.parseKeyTable = function(offset) {
+	/*
+		this function isn't working right yet...so I won't doument it properly for now...
+	*/
 	var head = this.structParser.getFourCCAt(offset)
 	var length = this.structParser.getLengthAt(offset + 4);
 	var max = offset + length;
@@ -113,6 +149,16 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 	}
 }
 ShockwaveParser.prototype.doMapLookup = function(mode,id) {
+	/*
+		A utitlity function for feteching data from the mapping table generated from mmap
+		Its use isn't yet standardized
+		It can do the following searches:
+			lookup by ID ignoring free (0,id)
+			lookup by ID including free (1,id)
+			lookup by chunkID (2,FourCCDID)
+		If it fails, we return [@ERR,[0,0,0,0]] , e.g. null/error
+	*/
+	//some quick checks the mode ID isn't set too high or too low
 	if (mode > 2) {
 		mode = 2;
 	} else if (mode < 0) {
@@ -157,16 +203,24 @@ ShockwaveParser.prototype.doMapLookup = function(mode,id) {
 	return ["@ERR",[0,0,0,0]];
 }
 ShockwaveParser.prototype.addCastMember = function(mapping) {
+	/*
+		let's create the empty shell of a cast member
+	*/
 	var out = this.castMemberLib.length;
 	this.castMemberLib.push({
-		name : "",
-		type : "Cast_Member",
-		parts : [],
-		mapping : mapping,
+		name : "", //we don't yet know its name, it sometimes won't have one
+		type : "Cast_Member", //we don't yet know its type
+		parts : [], //we haven't associated the CASt with the sections containg the "meat" yet
+		mapping : mapping //we copy the mapping table entry for this CASt
 	});
 	return out;
 }
 ShockwaveParser.prototype.doCastMemberLookup = function(id) {
+	/*
+		This utility function is specifically for finding entries in the
+		cast members table, it looks them up by their ID, and returns
+		-1 if failed
+	*/
 	var out = -1;
 	for (var i=0; i < this.castMemberLib.length; i++) {
 		var curr = this.castMemberLib[i];
@@ -178,75 +232,148 @@ ShockwaveParser.prototype.doCastMemberLookup = function(id) {
 	return out;
 }
 ShockwaveParser.prototype.linkScripts = function() {
-	var scrCollects = this.doMapLookup(2,"LctX");
-	var scrNames = this.doMapLookup(2,"Lnam");
+	/*
+		Before we can do anything with the bytecode sections (Lscr), 
+		we have to link each with a name table (Lnam) , and a script collection (LctX)
+	*/
+	var scrCollects = this.doMapLookup(2,"LctX"); //let's fetch the LctX mappings, first
+	var scrNames = this.doMapLookup(2,"Lnam"); //let's also fetch the Lnam mappings
 	for (var i=0; i < scrCollects[1].length; i++) {
 		var curr = scrCollects[1][i];
-		var off = curr[1];
+		var off = curr[1]; //lets get the offset of the current LctX
+		/*
+			LctX contain a lot more data, but right now I'm focused on
+			linking the scripts, so we're focued on the ID,
+			found at offset 0x28 from the start of the section (includes section header)
+		*/
 		var id = this.structParser.view.getUint32(off + 0x28);
+		/*
+			Now we iterate the names table list and try to find an Lnam
+			that was ID's with ID, we're using the free-inclusive IDs
+		*/
 		for (var i2 =0; i2 < scrNames[1].length; i2++) {
 			var curr2 = scrNames[1][i2];
 			var id2 = curr2[2];
 			if (id == id2) {
+				/*
+					if we managed to find a Lnam (better!), 
+					we add a script collection to our
+					script library, feeding it not only the offset of the
+					LctX section, but the offset of the Lnam
+				*/	
 				this.addScriptCollection(off,curr2[1])
 				break;
 			}
 		}
 	}
+	//now we need to link the Lscr sections to the LctX!
 	this.linkByteCode();
 }
 ShockwaveParser.prototype.addScriptCollection = function(off,off2) {
 	this.scriptLib.push ({
-		offset : off,
-		offsetName : off2,
+		offset : off, //offset of LctX
+		offsetName : off2, //offset of Lnam
+		/*
+			will contain the data from Lscr,
+			they start as empty shells like everything else, however
+		*/
 		scripts : [],
-		names : [],
+		names : [], //will contain every name from the Lnam section, starts empty
+		/*
+			debugging information, currently just offsets as hex so developers can find the data in the file with
+			a hex editor
+		*/
 		dbg : [off.toString(16),off2.toString(16)]
 	});
 }
 ShockwaveParser.prototype.parseNameTables = function() {
+	/*
+		This function parses the Lnam section into an array of strings
+	*/
+	/*
+		typical array iteration...
+		We're iterating the script library
+	*/
 	for (var i=0; i < this.scriptLib.length; i++) {
 		var curr = this.scriptLib[i];
 		var off = curr.offsetName;
+		/*
+			lengths, why this format has a thing for sepcifying them multiple times
+			is beyond me...
+		*/
 		var l = this.structParser.view.getUint32(off + 0x10);
 		var l2 = this.structParser.view.getUint32(off + 0x14);
-		var o2 = this.structParser.view.getUint16(off + 0x18);
-		var nameCount = this.structParser.view.getUint16(off + 0x1A);
-		var pointer = off + 8 + o2;
+		var o2 = this.structParser.view.getUint16(off + 0x18); //offset within section to th actual names table
+		var nameCount = this.structParser.view.getUint16(off + 0x1A); //how many names?
+		var pointer = off + 8 + o2; //a base offset since we're working with the file's full address space
+		/*
+			for each name, parse the name from the table
+		*/
 		for (var i2 = 0; i2 < nameCount; i2++) {
 			var nameLen = this.structParser.view.getUint8(pointer);
 			/*if (i == 0 && i2 < 10) {
 				console.log("nameLen : " + nameLen.toString(16));
 				console.log(pointer.toString(16));
 			}*/
+			/*
+				call a utility function to parse the name
+				push the result to the current script collection's [parsed] name table/array
+			*/
 			var name = this.parseStringASCII(pointer + 1,nameLen);
 			this.scriptLib[i].names.push(name);
+			//I don't like the math here, but this increments our pointer to the next nameLength byte
 			pointer += nameLen + 1;
 		}
 	}
 }
 ShockwaveParser.prototype.parseStringASCII = function(offset,length) {
+	/*
+		parse an ASCII/ANSI encoded string
+		This function requires the length to be specified
+	*/
 	var out = "";
 	for (var i=0; i < length; i++) {
+		//could use some error checking for invalid values
 		out += String.fromCharCode(this.structParser.view.getUint8(offset + i));
 	}
 	return out;
 }
 ShockwaveParser.prototype.linkByteCode = function() {
+	/*
+		We need to link the bytecode sections (Lscr)
+		to our script library
+	*/
+	/*
+		First, let's fetch the Lscr mappings from the mapping table
+	*/
 	var bytecodes = this.doMapLookup(2,"Lscr")
+	/*
+		these were used for debugging some stuff,
+		this function didn't go together easy
+	*/
 	console.log(bytecodes.length);
 	var hasfound = false;
+	/*
+		Iterate the script library
+	*/
 	for (var i=0; i < this.scriptLib.length; i++) {
-		var off = this.scriptLib[i].offset;
-		var entryCount = this.structParser.view.getUint32(off + 0x10);
+		var off = this.scriptLib[i].offset; //offset of the current LctX
+		var entryCount = this.structParser.view.getUint32(off + 0x10); //how many script entries?
 		var entryCount2 = this.structParser.view.getUint32(off + 0x14);
-		var off2 = this.structParser.view.getUint16(off + 0x18);
+		var off2 = this.structParser.view.getUint16(off + 0x18); //offset of the script entries
+		/*
+			Let's parse the script entries
+		*/
 		for (var i2=0; i2 < entryCount; i2++) {
-			var baseOffset = off + 8 + off2 + (i2 * 12);
-			var used = this.structParser.view.getUint16(baseOffset + 8);
+			var baseOffset = off + 8 + off2 + (i2 * 12); //another pointer to stay aligned in full file address space
+			var used = this.structParser.view.getUint16(baseOffset + 8); //used entries have a Uint16 = 04
 			if (used == 4) {
-				var id = this.structParser.view.getUint32(baseOffset + 4);
+				var id = this.structParser.view.getUint32(baseOffset + 4); //this is the mapping ID (including free) of the Lscr
 				if (!hasfound) {
+					/*
+						the debugger for this, because spamming web console by running this on EVERY
+						entry could prove to be a mistake...
+					*/
 					hasfound = true;
 					console.log(i);
 					console.log("LctX offset : " + off.toString(16));
@@ -260,8 +387,17 @@ ShockwaveParser.prototype.linkByteCode = function() {
 						this.structParser.view.getUint8(baseOffset + 7).toString(16)
 					);
 				}
+				/*
+					Iterate the bytecode table, and try to find the right Lscr
+					
+				*/
 				for (var i3=0; i3 < bytecodes[1].length; i3++) {
 					var curr = bytecodes[1][i3];
+					/*
+						We found the correct Lscr, so let's push the
+						empty shell of a script object to the current collection's
+						script table
+					*/
 					if (curr[2] == id) {
 						this.scriptLib[i].scripts.push({
 							offset : curr[1]
