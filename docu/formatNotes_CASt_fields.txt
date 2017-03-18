@@ -39,9 +39,11 @@ comment {
 14
 15
 16 {
-	string audioFormatID (
+	string fileFormatID (
 		"kMoaCfFormat_SWA" : SWA
 		"kMoaCfFormat_snd" : PCM
+		"kMoaCfFormat_JPEG" : JPEG
+		"kMoaCfFormat_PNG" : PNG //needs research, PNG data not yet found
 	)
 }
 UTCDate created

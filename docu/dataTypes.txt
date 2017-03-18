@@ -103,10 +103,14 @@ is effectively a small format in and of itself. Pretty much any custom format ha
 form. There's no universal rule on how to lay these out, and it varies largely between developers.
 
 ==other stuff==
-[<big|little>-end]
+[<big|little>-end] , [<big|little|lit>]
 {
 	used to indicate if a value's byte order is big-ended or little-ended
 	By default, shockwave tends to use little-endian byte order, including the FourCC
+}
+[ghost]
+{
+	The actual data does not exist for this entry, but it's been pointed to for an unknown reason
 }
 /* */
 {
@@ -121,6 +125,11 @@ form. There's no universal rule on how to lay these out, and it varies largely b
 ()
 {
 	primarily used to indicate possible values and meanings of certain data
+	indicates a size if appended directly to a name like section(len)
+}
+@
+{
+	specific to a certain type of data
 }
 
 ==RIFF/RIFX==

@@ -1,36 +1,36 @@
 SHOCKWAVE FORMAT (general internal workings):
 
-RIFX
+Section RIFX
 {
 	Uint32 chunklength
 	FourCC formtype 
 	(
-	"MV93" for DXR and DIR 
-	"FGDM" for DCR
-	"LPPA" for Projector RIFX container (see Projector Notes)
+		"MV93" for DXR and DIR 
+		"FGDM" for DCR
+		"LPPA" for Projector RIFX container (see Projector Notes)
 	)
-	data (entire file, minus chunkID & chunklength), chunklength bytes long
+	data //entire file, (minus chunkID & chunklength), chunklength bytes long
 }
 
 sub-chunks:
 
-imap
+Section imap
 {
-	chunklength
 	8 bytes unknown
 	4 bytes mapOffset 
-	*points to the currently valid mapp chunk
-	as it turns-out, re-saving a .dir just appends data, including
-	a new mmap chunk (o...k...)*/
+	/* 
+		points to the currently valid mapp chunk
+		as it turns-out, re-saving a .dir just appends data, including
+		a new mmap chunk (o...k...) 
+	*/
 }
 
-mmap
+Section mmap
 {
-	length
 	data (first 0x18 bytes are unknown)
 	/*
-	following those bytes is a list of chunks
-	this is the mapping table
+		following those bytes is a list of chunks
+		this is the mapping table
 	*/
 	entry
 	{
@@ -43,9 +43,8 @@ mmap
 
 }
 
-KEY*
+Section KEY*
 {
-	length
 	data
 	{
 		Uint16 unknown (only 0x0C observed, possibly the length of each entry or the chunk header?)
@@ -70,124 +69,151 @@ KEY*
 	}
 }
 
-free
-(
-	length always 0
-	//but entire entry is always 0x14 in size
-	//these are basically just free space, and seem to serve no real purpose
-	//this part of docu is now outdated
-)
-
-XMED
-(
-	length
-	followed immediatly by data <length> in size
-	// contains Xtra Media, any media requiring an Xtra to play, such as SWA requiring the SWA Decompression Xtra or SWF requiring the FLash Asset Xtra etc.
-)
-
-snd 
+Section [ghost] junk
 {
-	length (sometimes 0)
-	// sometimes the length is 0 and it trails SWA audio.
-	// in that scenario the XMED and snd are linked to the same CASt in the KEY* section so the cast member is classed as a sound even though it requires an Xtra to play
-	// other times it contains raw PCM streams which GoldWave can import, and probably Audacity as well.
-	// observed: Raw PCM unsigned 8 bit, 11025 Hz, 88 kbps, mono (for the door opening sound in MYLK)
+	//these do not seem to actually exist, but are indexed in mmap for some reason
 }
 
-ediM
+Section [ghost] free
 {
-	length
-	data <length> in size
-	//contains SWA audio-
-	//further analysis shows this contains other data/file types as well...further research required
-}
+	//these do not seem to actually exist, but are indexed in mmap for some reason
+{
 
-BITD
+Section XMED
 {
-	length
-	data
-	//bitmap data, but i am unsure how to parse them
-	// Can be Standard (probably uncompressed) or JPEG
-}
-
-CASt
-{
-	length
-	<length> bytes data
-		header{
-			Uint32 [big-end] castMemberType
-			(
-				0x01 : bitmap
-				0x02 : film loop
-				0x04 : palette
-				0x06 : audio
-				0X07 : button
-				0x08 : vector shape
-				0x0B : script
-				0x0F : flash,font,text,W3D //The common link between all is the requirement of Xtras to use these
-			)
-			Uint32 [big end] length2 //from 0x14 to specificData
-			Uint32 [big-end] specificDataLen
-			0x14 bytes skipThis {
-				Uint32 [big-end] skipSize? (always 0x14)
-				0x10 bytes unknownData (does vary, but purpose unknown)
-			}
-			Uint16 [big-end] offsetTableLen
-			<offsetTableLen> Uint32Array offsetTable {
-				Uint32 [big-end] offsetX //see formatNotes_CASt_fields
-			}
-			Uint32 [big end] finalDataLen
-			<finalDataLen> metaData
-			{
-				//comprised of various fields...
-				//see formatNotes_CASt_fields
-			}
+	data {
+		//format varies depending on the type of media
+		@ Flash {
+			Uint32 [big] length1
+			Uint32 [big] version?
+			Uint32 [big] length2 //seems to be the real length of the file
+			data //embedded Flash SWF file
 		}
-		<specificDataLength> specificData{
-			/*
-			These vary a lot, but they do seem to have an absolute structure and order
-			*/
-			paletteData {
-				//nothing yet found, every palette observed thus far hasn't had any
-			}
-			bitmapData {
-				//still trying to understand this one...
-				4 bytes unknown
-				2 bytes unknown
-				Uint16 width
-				Uint16 height
-				Uint32 constant1 (1) //1 is so far, only observed value...
-				4 bytes unknown
-				Uint16 regPointX
-				Uint16 regPointY
-				2 bytes unknown
-				4 bytes palleteID //? still needs more research, not even sure how director actually links palettes
-			}
-			scriptData {
-				Uint16 [big-end] scriptType
-				(
-					00 01 : behavior
-					00 03 : movie
-					00 07 : parent
-				)
-			}
+		@ Text {
+			data //some weird way of storing formatted text...
 		}
-	
-	/*cast member header/metadata
-	this chunk is proving particularly difficult to fully decypher, and recent efforts have 
-	shown the available fields vary quite largely depending on any number of factors.
-	This can be attributed to both the type of cast member, and even if a file has been
-	Dir-Opened vs. being the genuine DIR source movie/document
+		@ W3D {
+			subHeader {
+				String/FourCC? "3DEM"
+				Uint32 [big] length1 //same as the section length
+				Uint32 [big] version?
+				Uint32 [big] length2 //seems to be the real length of the file
+			}
+			data //embedded W3D Model/Scene file
+		}
+	}
+	// contains [certain] Xtra Media (any media requiring an Xtra to play)
+	// observed so far : text [field] , Flash SWF , W3D Model/Scene
+}
+
+Section snd 
+{
+	/* 
+		sometimes the length is 0 and it trails SWA audio.
+		in that scenario the XMED and snd are linked to the same CASt in the KEY* section so the cast member is classed as a sound even though it requires an Xtra to play
+		other times it contains raw PCM streams which GoldWave can import, and probably Audacity as well.
+		observed: Raw PCM unsigned 8 bit, 11025 Hz, 88 kbps, mono (for the door opening sound in MYLK)
 	*/
 }
 
-CAS*
+Section ediM
+{
+	data
+	/*
+		contains SWA audio-
+		further analysis shows this contains other data/file types as well...further research required
+	*/
+	//known formats : JPEG Image file, SWA Audio file
+}
+
+Section BITD
 {
 	length
-	data {
+	data
+	/*
+		bitmap data, all attempts to parse/understand have failed thus far
+		Can be Standard (probably uncompressed) or JPEG
+	*/
+}
+
+Section CASt
+{
+	header
+	{
+		Uint32 [big-end] castMemberType
+		(
+			0x01 : bitmap
+			0x02 : film loop
+			0x04 : palette
+			0x06 : audio
+			0X07 : button
+			0x08 : vector shape
+			0x0B : script
+			0x0F : flash,font,text,W3D //The common link between all is the requirement of Xtras to use these
+		)
+		Uint32 [big end] length2 //from 0x14 to specificData
+		Uint32 [big-end] specificDataLen
+		0x14 bytes skipThis {
+			Uint32 [big-end] skipSize? (always 0x14)
+			0x10 bytes unknownData (does vary, but purpose unknown)
+		}
+		Uint16 [big-end] offsetTableLen
+			Uint32Array(offsetTableLen) offsetTable {
+			Uint32 [big-end] offsetX //see formatNotes_CASt_fields
+		}
+		Uint32 [big end] finalDataLen
+		metaData(finalDataLen)
+		{
+			//comprised of various fields...
+			//see formatNotes_CASt_fields
+		}
+	}
+	specificData(specificDataLength) 
+	{
 		/*
-		a Unit32 array, each value is an indice according to the mapping table...
-		The indeces should all point to CASt sections
+			These vary a lot, but they do seem to have an absolute structure and order
+		*/
+		paletteData {
+			//nothing yet found, every palette observed thus far hasn't had any
+		}
+		bitmapData {
+			//still trying to understand this one...
+			4 bytes unknown
+			2 bytes unknown
+			Uint16 width
+			Uint16 height
+			Uint32 constant1 (1) //1 is so far, only observed value...
+			4 bytes unknown
+			Uint16 regPointX
+			Uint16 regPointY
+			2 bytes unknown
+			4 bytes palleteID //? still needs more research, not even sure how director actually links palettes
+		}
+		scriptData {
+			Uint16 [big-end] scriptType
+			(
+				00 01 : behavior
+				00 03 : movie
+				00 07 : parent
+			)
+		}
+	}
+	/*
+		cast member metadata
+		this chunk is proving particularly difficult to fully decypher, and recent efforts have 
+		shown the available fields vary quite largely depending on any number of factors.
+		This can be attributed to both the type of cast member, and even if a file has been
+		Dir-Opened vs. being the genuine DIR source movie/document
+	*/
+}
+
+Section CAS*
+{
+	Uint32Array(length) CAStIDs
+	{
+		/*
+			a Unit32 array, each value is an indice according to the mapping table...
+			The indeces should all point to CASt sections
 		*/
 	}
 	/*
@@ -198,17 +224,17 @@ CAS*
 	*/
 }
 
-CLUT
+Section CLUT
 {
-	length (ALWAYS divisible by 6)
+	// length is ALWAYS divisible by 6
 	/*
-	color palettes,
-	each CLUT actually contains 2, and they're combined in a somewhat odd manner...
-	Or, each color value has some extra data attached.
-	Regardless, the reasons for the three extra bytes per entry is a mystery for the time being.
-	Other than that, the data is an array of RGB24 colors
+		color palettes,
+		each CLUT actually contains 2, and they're combined in a somewhat odd manner...
+		Or, each color value has some extra data attached.
+		Regardless, the reasons for the three extra bytes per entry is a mystery for the time being.
+		Other than that, the data is an array of RGB24 colors
 	*/
-	<length / 6> entries/data {
+	Array entries/data(length/6) {
 		byte red
 		byte red2
 		byte green
@@ -218,83 +244,83 @@ CLUT
 	}
 }
 
-MCsL
+Section MCsL
 {
-	length
-	4 bytes unknown (0x0c)
-	4 bytes castCount
-	2 bytes short unknown (4)
-	4 bytes arraySize
-	<arraySize * 4> bytes unknownDataEntries (one entry per cast) {
-		4 bytes unknown
-		4 bytes unknown
-		4 bytes unknown
-		4 bytes unknown
+	Uint32 [big] unknown (0x0c)
+	Uint32 [big] castCount
+	Uint32 [big] unknown (4)
+	Uint32 [big] arraySize
+	Uint32Array(arraySize * 4) offsetTable (one entry per cast) {
+		entry // four indices in the table make one entry
+		{
+			Uint32 [big] unknown0
+			Uint32 [big] unknown1
+			Uint32 [big] unknown2
+			Uint32 [big] unknown3
+		}
 		/*
-			This could be similar to the length tables found in CASt sections...
-			Unlike the CASt length tables, the absolute length of this has been
-			determined, it's (arraySize * 4)
+			This could be similar to the offset tables found in CASt sections...
 		*/
 	}
-	4 bytes castEntriesLength
-	<castCount> entries
+	Uint32 [big] castEntriesLength
+	entries(castCount)
 	{
 		byte nameLength
-		<nameLength> bytes name
+		String(nameLength) name
 		1 byte null
-		2 bytes short preloadSettings (0:when needed, 1: after frame one, before frame one)
-		2 bytes short storageType (0:external,1:internal)
+		Uint16 [big] preloadSettings (0:when needed, 1: after frame one, before frame one)
+		Uint16 [big] storageType (0:external,1:internal)
 		[1 byte unknown] (if external cast)
-		2 bytes short membersCount
-		2 bytes short numID
+		Uint16 [big] membersCount
+		Uint16 [big] numID
 		byte unknown (4)
 		byte unknown (0)
 		/*
-		This might be slightly innaccurate...
-		It's also somehow missing a value for preload settings
+			This might be slightly innaccurate...
+			It's also somehow missing a value for preload settings
 		*/
 	}
 	/*
-	cast list
-	all attempts to figure-out how these actually link to a cast have been fruitless
-	only remaining option thus far is that this happens automatically, meaning
-	the cast names and their member lists(if present) are stored in the same
-	order
+		cast list
+		all attempts to figure-out how these actually link to a cast have been fruitless
+		only remaining option thus far is that this happens automatically, meaning
+		the cast names and their member lists(if present) are stored in the same
+		order
 	*/
 	/*
-	External cast files (CST,CCT,CXT) seem to not have these. It makes sense, because external casts only contain ONE
-	cast: themselves.
+		External cast files (CST,CCT,CXT) seem to not have these. It makes sense, because external casts only contain ONE
+		cast: themselves.
 	*/
 }
 
-XTRl
+Section XTRl
 {
 	Uint32 length
 	4 bytes unknown
 	Uint32 [big-end] xtraCount
-	<xTraCount> entries {
+	Array entries(xtraCount) {
 		Uint32 [big end] length
-		<length> bytes data
+		Block(length) data
 		{
 			//needs more research
 			0x22 bytes unknown (values seem fairly consistent)
 			Uint32 [big-end] length2
-			<length2> bytes data
+			Block(length2) data
 			{
 				2 bytes unknown
 				Uint8 nameLength
-				<nameLength> bytes name
+				String(nameLength) name
 				3 bytes unknown
 				Uint8 pathLength
-				<pathLength> bytes path/url
+				String(pathLength) path/url
 				byte unknown (0x00)
 			}
 		}
 	}
 	[one extra padding byte if odd length]
 	/*
-	Xtra library/linkage...
-	Lists required Xtras to play the movie
+		Xtra library/linkage...
+		Lists required Xtras to play the movie
 	*/
 }
 
@@ -309,14 +335,16 @@ CST : uncompressed + unprotected
 purposes:
 D*R : movie, runs stand-alone, may load C*T's as dependencies
 C*T : 
-(
-external "cast" , basically an external library of stuff. 
-D*R's are made of multiple internal casts, and will attempt to
-load external casts if any have been linked.
-Some movies can play without the external casts
-External casts are essentially the same structure as a movie,
-except they only contain one cast, and cannot run as a stand-alone application.
-)
+{
+	external "cast" , basically an external library of stuff. 
+	D*R's are made of multiple internal casts, and will attempt to
+	load external casts if any have been linked.
+	Some movies can play without the external casts
+	External casts are of a similar structure a movie,
+	except they only contain one cast, and cannot run as a stand-alone application.
+	There are subtle differences in their internal layout, more research is required to
+	determine what all of these are.
+}
 
 extra notes:
 Spybotics, does not actually require its external casts to run.

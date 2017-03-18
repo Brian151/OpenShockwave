@@ -21,7 +21,7 @@ define a bunch of opcodes that do absolutely nothing
 byte value, memonic name, ;comment #more comment
 
 ONE BYTE CODES
-01 RET ; leave current function and return to caller #I perfer ret, since in programming, ret or return is typically used to end functions -Brian151
+01 RET ; leave current function and return to caller #I prefer ret, since in programming, ret or return is typically used to end functions -Brian151
 02 NOP ; nothing documented for this
 03 PUSHFALSE ; push 0 or false
 04 MUL ; multiply two values
@@ -51,7 +51,7 @@ ONE BYTE CODES
 1c STARTOBJ ; read bytecode docu
 1d STOPOBJ ; read bytecode docu, related to code 1c
 1e OP_1E ; writers of documetation are unsure of purpose
-1f NEWPROPLIST ; unsure, creates property lists
+1f NEWPROPLIST ;creates property lists
 
 TWO BYTE CODES
 41 XX PUSHBYTE ; push an integer of values 1-127
@@ -118,7 +118,7 @@ TWO BYTE CODES
 64 XX OP_64XX ; just read the docu from archiveteam
 65 XX OP_65XX ; clean-up after a loop
 66 XX OP_66XX ; read docu
-67 XX MYST_67XX ; research required
+67 XX UNK_67XX ; research required
 
 THREE BYTE CODES
 81 XX YY PUSHSHORT ; push an integer from 128-32767 
@@ -126,4 +126,4 @@ THREE BYTE CODES
 83 XX YY NEWLIST ; like code 43, but for greater than 255 arguments
 93 XX YY JMP; unconditional jump, but documentation is less than clear on some things concerning the lingo source code
 95 XX YY IFTRUE ; conditional jump if value popped from stack is false
-AE XX YY MYST_AEXXYY ; research required
+AE XX YY UNK_AEXXYY ; research required
