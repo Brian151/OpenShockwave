@@ -1,10 +1,10 @@
-based on lingo bytecode documetation, but given more human-readable names
+based on lingo bytecode documentation from fileformats.archiveteam.org, but given more human-readable names
 subject to change!
 to-do: 
-probably could have the notation format updated...
 some instructions need better names
 some instructions need names that aren't placeholders (OP_HH[XX][YY])
 some instructions have yet to be discovered, and thus, their purpose also must be determined
+	--some of these have been discovered during testing of the disassembler
 
 new OPs needing understood:
 format : OP - found in
@@ -18,112 +18,344 @@ Everything else, does in fact, do... something.
 Why wouldn't Lingo do the same? It'd be wasteful to
 define a bunch of opcodes that do absolutely nothing
 
-byte value, memonic name, ;comment #more comment
+
+HEX VALUE {
+	name
+	description
+}
 
 ONE BYTE CODES
-01 RET ; leave current function and return to caller #I prefer ret, since in programming, ret or return is typically used to end functions -Brian151
-02 NOP ; nothing documented for this
-03 PUSHFALSE ; push 0 or false
-04 MUL ; multiply two values
-05 ADD ; add two values
-06 SUB ; subtract B from A
-07 DIV ; divide A by B
-08 MOD ; mod A by B
-09 INV ; negate A
-0a JOINSTR ; concat strings A and B #need better token
-0b JOINPADSTR ; concat strings A and B with a space in-between #need better token
-0c LT ; check if A is less than B
-0d LTEQ ; check if A is less than or equal to B
-0e NTEQ ; check if A and B are unequal
-0f EQ ; check if A and B are equal
-10 GT ; check if A is greater than B
-11 GTEQ ; check if A is greaten than or equal to B
-12 AND ; check if A and B are logically true
-13 OR ; check if A or B is logically true
-14 NOT ; check if A is logically false
-15 CONTAINSSTR ; check if string A contains string B, case insensitive
-16 CONTAINS0STR ; check is string A starts with string B, case insensitive 
-17 SPLITSTR ; string splice/split
-18 LIGHTSTR ; highlight some text
-19 ONTOSPR ; sprite A is colliding with B
-1a INTOSPR ; sprite A is inside B
-1b CASTSTR ; unsure what to call it
-1c STARTOBJ ; read bytecode docu
-1d STOPOBJ ; read bytecode docu, related to code 1c
-1e OP_1E ; writers of documetation are unsure of purpose
-1f NEWPROPLIST ;creates property lists
+01 {
+	RET 
+	leave current function and return to caller
+}
+02 {
+	NOP 
+	nothing documented for this
+}
+03 {
+	PUSHFALSE
+	push 0 or false
+}
+04 {
+	MUL 
+	multiply two values
+}
+05 {
+	ADD 
+	add two values
+}
+06 {
+	SUB 
+	subtract B from A
+}
+07 {
+	DIV 
+	divide A by B
+}
+08 {
+	MOD 
+	mod A by B
+}
+09 {
+	INV 
+	negate A
+}
+0a {
+	JOINSTR 
+	concat strings A and B
+}
+0b {
+	JOINPADSTR 
+	concat strings A and B with a space in-between
+}
+0c {
+	LT 
+	check if A is less than B
+}
+0d {
+	LTEQ 
+	check if A is less than or equal to B
+}
+0e {
+	NTEQ 
+	check if A and B are unequal
+}
+0f {
+	EQ 
+	check if A and B are equal
+}
+10 {
+	GT 
+	check if A is greater than B
+}
+11 {
+	GTEQ 
+	check if A is greaten than or equal to B
+}
+12 {
+	AND 
+	check if A and B are logically true
+}
+13 {
+	OR 
+	check if A or B is logically true
+}
+14 {
+	NOT 
+	check if A is logically false
+}
+15 {
+	CONTAINSSTR 
+	check if string A contains string B, case insensitive
+}
+16 {
+	CONTAINS0STR 
+	check is string A starts with string B, case insensitive
+} 
+17 {
+	SPLITSTR 
+	string splice/split
+}
+18 {
+	LIGHTSTR 
+	highlight some text
+}
+19 {
+	ONTOSPR 
+	sprite A is colliding with B
+}
+1a {
+	INTOSPR 
+	sprite A is inside B
+}
+1b {
+	CASTSTR 
+	unsure what to call it
+}
+1c {
+	STARTOBJ 
+	read bytecode docu
+}
+1d {
+	STOPOBJ 
+	read bytecode docu, related to code 1c
+}
+1e {
+	OP_1E 
+	writers of documetation are unsure of purpose
+}
+1f {
+	NEWPROPLIST 
+	creates a property list from a linear list,
+	that must be in format [#symbol,value]
+}
 
 TWO BYTE CODES
-41 XX PUSHBYTE ; push an integer of values 1-127
-42 XX NEWARGLIST ; pop values from stack to be used in a function call
-43 XX NEWLIST ; pop values from the stack to create a list/array
-44 XX PUSH ; push a value from constants records
-;may be changed to PUSHCONS
-;or use the type indicated in the respective constant record
-;ex. PUSHSTRING
-45 XX PUSHSYMB ; push a symbol from the namelst into the stack
-46 XX NOP ; NO INFO
-47 XX NOP ; NO INFO
-48 XX NOP ; NO INFO
-49 XX PUSHG ; push value of a global variable with a name from the namelist
-4a XX NOP ; NO INFO
-4b XX PUSHPARAMS ; push value of a function call parameter
-4c XX PUSHL ; push the value of a local variable
-4d XX NOP ; NO INFO
-4e XX NOP ; NO INFO
-4f XX POPG ; pop a value to set as the value of a global variable with a name from the namelist
-50 XX NOP ; NO INFO
-51 XX NOP ; NO INFO
-52 XX POPL ; pop a value to set as a local variable
-53 XX NOP ; NO INFO
-54 XX ENDREPEAT ; unconditonal backwards jump
-55 XX NOP ; NO INFO
-56 XX CALLL ; call a local function
-57 XX CALLE ; call an external function
-58 XX CALLOBJ ; call an object method
-59 16 OP_5916 ; unsure how target value is specified
-59 25 OP_5925 ; same...
-59 35 OP_5935 ; same...
-5a XX NOP ; NO INFO
-5b 05 OP_5B05 ; unsure how target is specified 
-5c 00 GET ; the 5C opcodes are somewhat ambiguous, 
-; their context is established based on a value that's 
-; pulled from the stack, so creating a memonic token/name for
-; the codes using purely the 5c instructions is impossible. 
-; values popped from stack must be used to establish the exact
-; instruction. see OPs_special.txt
-5c 01
-5c 02 
-5c 03 
-5c 04 
-5c 06 
-5c 07 
-5c 08 
-5c 09 
-5c 0c 
-5d 00 SET ; same as 5c family/group, but sets values. see OPs_special.txt
-5d 03
-5d 04
-5d 06
-5d 07
-5d 09
-5d 0c
-5d 0d
-5e XX NOP ; NO INFO 
-5f XX GETPROP ; push the value of a contextual property
-60 XX SETPROP ; set the value of a contextual property
-61 XX GETOBJPROP ; push the value of a property from an object
-62 XX SETOBJPROP ; set the value of the proprty from an object
-63 XX OP_63XX ; tell some object to go to frame 1
-64 XX OP_64XX ; just read the docu from archiveteam
-65 XX OP_65XX ; clean-up after a loop
-66 XX OP_66XX ; read docu
-67 XX UNK_67XX ; research required
+41 XX {
+	PUSHBYTE 
+	push an integer of values 1-127
+}
+42 XX {
+	NEWARGLIST 
+	pop values from stack to be used in a function call
+}
+43 XX {
+	NEWLIST 
+	pop values from the stack to create a list/array
+}
+44 XX {
+	PUSH 
+	push a value from constants records
+	/*
+		may be changed to PUSHCONS
+		or use the type indicated in the respective constant record
+		ex. PUSHSTRING
+	*/
+}
+45 XX {
+	PUSHSYMB 
+	push a symbol from the namelst into the stack
+}
+46 XX {
+	NOP 
+	NO INFO
+}
+47 XX {
+	NOP 
+	NO INFO
+}
+48 XX {
+	NOP 
+	NO INFO
+}
+49 XX {
+	PUSHG 
+	push value of a global variable with a name from the namelist
+}
+4a XX {
+	NOP 
+	NO INFO
+}
+4b XX {
+	PUSHPARAMS 
+	push value of a function call parameter
+}
+4c XX {
+	PUSHL 
+	push the value of a local variable
+}
+4d XX {
+	NOP 
+	NO INFO
+}
+4e XX {
+	NOP 
+	NO INFO
+}
+4f XX {
+	POPG 
+	pop a value to set as the value of a global variable with a name from the namelist
+}
+50 XX {
+	NOP 
+	NO INFO
+}
+51 XX {
+	NOP 
+	NO INFO
+}
+52 XX {
+	POPL 
+	pop a value to set as a local variable
+}
+53 XX {
+	NOP 
+	NO INFO
+}
+54 XX {
+	ENDREPEAT 
+	unconditonal backwards jump
+}
+55 XX {
+	NOP 
+	NO INFO
+}
+56 XX {
+	CALLL 
+	call a local function
+}
+57 XX {
+	CALLE 
+	call an external function
+}
+58 XX {
+	CALLOBJ 
+	call an object method
+}
+59 16 {
+	OP_5916 
+	unsure how target value is specified
+}
+59 25 {
+	OP_5925 
+	same...
+}
+59 35 {
+	OP_5935 
+	same...
+}
+5a XX {
+	NOP 
+	NO INFO
+}
+5b 05 {
+	OP_5B05 
+	unsure how target is specified
+} 
+5c XX {
+	GET 
+	the 5C opcodes are somewhat ambiguous, 
+	their context is established based on a value that's 
+	pulled from the stack, so creating a memonic token/name for
+	the codes using purely the 5c instructions is impossible. 
+	values popped from stack must be used to establish the exact
+	instruction. see OPs_special.txt
+}
+5d XX {
+	SET 
+	same as 5c family/group, but sets values. see OPs_special.txt
+}
+5e XX {
+	NOP 
+	NO INFO
+}
+5f XX {
+	GETPROP 
+	push the value of a contextual property
+}
+60 XX {
+	SETPROP 
+	set the value of a contextual property
+}
+61 XX {
+	GETOBJPROP 
+	push the value of a property from an object
+}
+62 XX {
+	SETOBJPROP 
+	set the value of the proprty from an object
+}
+63 XX {
+	OP_63XX 
+	tell some object to go to frame 1
+}
+64 XX {
+	OP_64XX 
+	just read the docu from archiveteam
+}
+65 XX {
+	OP_65XX 
+	clean-up after a loop
+}
+66 XX {
+	OP_66XX 
+	read docu
+}
+67 XX {
+	UNK_67XX 
+	research required, newly discovered
+}
 
 THREE BYTE CODES
-81 XX YY PUSHSHORT ; push an integer from 128-32767 
-82 XX YY NEWARGLIST ; like code 42, but for greater than 255 arguments
-83 XX YY NEWLIST ; like code 43, but for greater than 255 arguments
-93 XX YY JMP; unconditional jump, but documentation is less than clear on some things concerning the lingo source code
-95 XX YY IFTRUE ; conditional jump if value popped from stack is false
-AE XX YY UNK_AEXXYY ; research required
+81 XX YY {
+	PUSHSHORT 
+	push an integer from 128-32767
+}
+82 XX YY {
+	NEWARGLIST 
+	like code 42, but for greater than 255 arguments
+}
+83 XX YY {
+	NEWLIST 
+	like code 43, but for greater than 255 arguments
+}
+93 XX YY {
+	JMP
+	unconditional jump
+}
+95 XX YY {
+	IFTRUE
+	conditional jump if a value popped from stack is false
+	/*
+		in x86 Assembly, it's called jz, meaning "jump if zero"
+		In other words, if the result is false, we skip by the
+		specified number of bytes. Otherwise, we proceed to the next instruction.
+		Putting this here because it did somewhat confuse me at first
+		-Brian151
+	*/
+}
+AE XX YY {
+	UNK_AEXXYY
+	research required, newly discovered
+}
