@@ -30,6 +30,8 @@ comment {
 	string type (
 		"Flash Movie" : SWF
 		"Shockwave 3D" : W3D
+		"QuickTime" : MOV
+		"Font" : font, format not yet identified
 	)
 	??? //size inconsistent
 }

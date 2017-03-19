@@ -58,7 +58,7 @@ these can sometimes be stored in Bitfields.
 
 Bitfield(?)
 Bitfield
-Flags
+Flags, Bitmask
 Effectively, a super-compact array of Booleans
 It's not always efficient to store entire booleans to
 files, this was especially true of older systems, which
@@ -87,7 +87,7 @@ FourCC formID
 
 DCRTag
 DCRTag
-DCRTag
+DCRTag, DCRchunk, DCRsection
 Similar to a RIFF tag, but these use Varints to encode their lengths
 
 UTCDate(4)
