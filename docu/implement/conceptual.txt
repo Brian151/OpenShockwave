@@ -1,0 +1,14 @@
+May or may not get worked on at a later day:
+
+Director Open Format { 
+	possibly .cot, .dor
+	RIFX based, but more consistent and possibly with less weird lookup stuff to do
+}
+Director JavaScript?/JSON?/Web? Format {
+	zip file, similar to Flash XFL, but
+	using JSON instead of XML
+	designed to be loaded by JS or Web Assembly
+	modules yet to be created (if ever). 
+	Also serves as a more human-friendly version
+	of the format that practically anyone could edit.	
+}

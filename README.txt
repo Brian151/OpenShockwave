@@ -18,9 +18,18 @@ goals completed:
 parse list/preference format
 
 goals WIP:
-Lingo bytecode decompiler/dissembler
+Lingo bytecode decompiler/disassembler
 format documentation
 
 goals pending:
 W3D format documentation
 W3D viewer/converter[/editor?]
+JS/WASM player/API !FAR_FUTURE
+design completely open formats and create converter for them !FAR_FUTURE
+Lingo Bytecode > WASM/JS transpiler !FAR_FUTURE
+Lingo Source Code > WASM/JS compiler !FAR_FUTURE
+
+news:
+Adobe finally throwing in the towel with Director,Shockwave Player,Contribute!
+-- Unlikely they'll release source code or format specs, so it's now all the 
+-- more dire to finish this project ASAP!

@@ -1,0 +1,14 @@
+This document explains how certain sections can be linked together to create certain types of cast members
+
+@all {
+	CASt
+	[Thum]
+}
+
+@bitmap {
+	BITD
+	ALPHA
+}
+
+
+
