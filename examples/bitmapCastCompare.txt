@@ -7,7 +7,7 @@ attempt to crack bitmap specificData field by comparing MULTIPLE samples with ea
 00 08 // height
 01 00 00 00 // ?
 FF BB FF 9A // ?
-00 04 // reg x.
+00 04 // reg. x
 00 04 // reg. y
 20 20 // ?
 FF FF FF 9B // palette ID

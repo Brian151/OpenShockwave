@@ -2,13 +2,60 @@ This document explains how certain sections can be linked together to create cer
 
 @all {
 	CASt
-	[Thum]
+	[Thum] // not always found, reasons unclear
+	@bitmap {
+		[BITD] // not in JPEG unless original DIR
+		[ALFA] // not in JPEG unless original DIR
+		[ediM] // JPEG - final image
+	}
+
+	@sound {
+		[snd] // PCM formats (AIFF,WAV)
+		[ediM] // SWA format
+	}
+
+	@flash {
+		XMED // contains SWF file
+	}
+
+	@3D {
+		XMED // contains W3D file
+	}
+
+	@font {
+		// data not yet identified
+	}
+
+	@text {
+		// prob STXT, need verify
+	}
+
+	@text field {
+		XMED // contains specially formatted text, format not yet cracked
+	}
+
+	@palette {
+		clut // pallete data
+	}
+
+	@shape/vector {
+		// data not yet identified
+	}
+
+	@script {
+		// source code in CASt, till compilation
+		// unknown yet if bytecode links to the CASt section
+	}
+
+	@filmLoop {
+		// research required, but based on how created, likely linked to bitmap cast members
+	}
+
+	@button {
+		// needs research
+	}
+
+	@quicktime {
+		XMED? // still verifying this, only observed quicktime MOV files were found to be external
+	}
 }
-
-@bitmap {
-	BITD
-	ALPHA
-}
-
-
-

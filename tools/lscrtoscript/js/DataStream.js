@@ -747,6 +747,30 @@ DataStream.prototype.readUint32 = function(e) {
   return v;
 };
 
+/*
+	ADDED BY BRIAN151
+*/
+/**
+	Reads a 24-bit unsigned int from the DataStream with the desired endianness.
+	This has been added to deal with the four byte opcodes in Lingo Bytecode for Macromedia/Adobe Shockwave.
+	The actual instruction has three bytes of operands, and in most cases, these are read as one value.
+	(e.g. the only logical thing to call it is an Unsigned 24-bit Integer)
+	
+	@param {?boolean} e Endianness of the number
+	@return {number} The read number
+*/
+DataStream.prototype.readUint24 = function(e) {
+	var a = this._dataView.getUint8(this.position);
+	var b = this._dataView.getUint8(this.position + 1);
+	var c = this._dataView.getUint8(this.position + 2);
+	var out = (a * 0x10000) + (b * 0x100) + (c);
+	if (e) {
+		out = (c * 0x10000) + (b * 0x100) + (a);
+	}
+	this.position += 3;
+	return out;
+}
+
 /**
   Reads a 16-bit unsigned int from the DataStream with the desired endianness.
 

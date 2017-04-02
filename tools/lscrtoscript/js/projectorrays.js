@@ -441,15 +441,15 @@ function OpenShockwaveMovie(file) {
 			// read the first byte to convert to an opcode
 			pos = new this.bytecode(ShockwaveMovieDataStream.readUint8());
 			// instructions can be one, two or three bytes
-			if (pos.val > 128) {
+			if (pos.val >= 128) {
 			pos.obj = ShockwaveMovieDataStream.readUint16();
 			} else {
-				if (pos.val > 64) {
-					//if (pos != 68) {
+				if (pos.val >= 64) {
 					pos.obj = ShockwaveMovieDataStream.readUint8();
-					//} else {
-						// 0x44 is always six bytes long because it's a rebel
-					//} //honestly probably won't need this ever again...
+				} else {
+					if (pos.val >= 192) {
+						pos.obj = ShockwaveMovieDataStream.readUint24();
+					}
 				}
 			}
 			bytecodeArray.push(pos);

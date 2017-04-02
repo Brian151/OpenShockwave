@@ -1,0 +1,39 @@
+This document convers the rough composition of a shockwave movie or cast
+
+@DIR {
+	XFIR {
+		imap // points to mmap, has other data not yet identified
+		mmap // indexes EVERY chunk in the file, and even some that don't exist
+		KEY* // an association table, supposedly for CASt, but may in fact be a bit more
+		DRCF // 
+		Sord //
+		FXmp // font mapping table, embedded text file with data format similar to MS INI
+		XTRl // lists required Xtras
+		MCsL // cast table
+		VERS // version
+		FCOL // stage color-related?
+		PUBL // publish settings
+		GRID // purpose not yet indentified
+		castLib {
+			/*
+				not a chunk, not really even a struct. this is probably only arranged the way it is
+				to make saving easier.
+			*/
+			CAS* // association table, lists CASt sections, one per cast, excluding externals
+			CASt // one for each cast member
+			bytecode chunks (LctX,Lscr,Lnam)
+			Fmap // another font mapping table, needs research
+		}
+		// all to do with frames
+		VWFI // ?
+		VWSC // ?
+		VWTC // ?
+		VWLB // names
+		castMemberData {
+			/*
+				not a chunk or a struct, rather an artifact of how the files are saved.
+				Contains the actual data for the cat members.
+			*/
+		}
+	}
+}
