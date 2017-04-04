@@ -269,154 +269,236 @@ function OpenShockwaveMovie(file) {
 					opcode = "stopobj";
 					break;
 				case 0x1e:
-					opcode = "op_1e";
-					break; //TEMP NAME
+					opcode = "wraplist";
+					break; // NAME NOT CERTAINLY SET IN STONE JUST YET...
 				case 0x1f:
-					opcode = "newproplist"; //something is weird about this one...
+					opcode = "newproplist";
 					break;
-				/* Two Byte Instructions */
+				/* Multi - Byte Instructions */
 				/*
-				To-do: handle special cases that determine context of the opcode,
-				or what values it is reading/writing
+					To-do: 
+					handle special cases like getting names from name table,
+					or opcodes that determine context through other means
+					than their operands.
 				*/
 				case 0x41:
-					opcode = "pushbyte " + bytecode[1];
+					opcode = "pushbyte " + this.obj;
+					break;
+				case 0x81:
+					opcode = "pushshort " + this.obj;
+					break;
+				case 0xc1:
+					opcode = "pushint24 " + this.obj;
 					break;
 				case 0x42:
-					opcode = "newarglist " + bytecode[1];
+				case 0x82:
+				case 0xc2:
+					opcode = "newarglist " + this.obj;
 					break;
 				case 0x43:
-					opcode = "newlist " + bytecode[1];
+				case 0x83:
+				case 0xc3:
+					opcode = "newlist " + this.obj;
 					break;
 				case 0x44:
+				case 0x84:
+				case 0xc4:
 					opcode = "push";
-					break;
+					break; 
+					/* 
+						likely to be re-named to:
+						pushstring
+						pushint
+						pushfloat,
+						based on the type of constant record referenced by this instruction
+					*/
 				case 0x45:
+				case 0x85:
+				case 0xc5:
 					opcode = "pushsymb";
 					break;
+				/*
 				case 0x46:
-					opcode = "nop";
+				case 0x86:
+				case 0xc6:
+					opcode = "nop"; // POSSIBLY RELATED TO NEWARGLIST
 					break;
 				case 0x47:
+				case 0x87:
+				case 0xc7:
 					opcode = "nop";
 					break;
 				case 0x48:
+				case 0x88:
+				case 0xc8:
 					opcode = "nop";
 					break;
+				*/
 				case 0x49:
-					opcode = "pushg";
+					opcode = "pushglob";
 					break;
+				/*
 				case 0x4a:
+				case 0x8a:
+				case 0xca:
 					opcode = "nop";
 					break;
+				*/
 				case 0x4b:
+				case 0x8b:
+				case 0xcb:
 					opcode = "pushparams";
 					break;
 				case 0x4c:
-					opcode = "pushl";
+				case 0x8c:
+				case 0xcc:
+					opcode = "pushloc";
 					break;
+				/*
 				case 0x4d:
+				case 0x8d:
+				case 0xcd:
 					opcode = "nop";
 					break;
 				case 0x4e:
+				case 0x8e:
+				case 0xce:
 					opcode = "nop";
 					break;
+				*/
 				case 0x4f:
-					opcode = "popg";
+				case 0x8f:
+				case 0xcf:
+					opcode = "popglob";
 					break;
+				/*
 				case 0x50:
+				case 0x90
+				case 0xd0
 					opcode = "nop";
 					break;
 				case 0x51:
+				case 0x91:
+				case 0xd1:
 					opcode = "nop";
 					break;
+				*/
 				case 0x52:
-					opcode = "popl";
+				case 0x92:
+				case 0xd2:
+					opcode = "poploc";
 					break;
 				case 0x53:
-					opcode = "nop";
+				case 0x93:
+				case 0xd3:
+					opcode = "jmp";
 					break;
 				case 0x54:
+				case 0x94:
+				case 0xd4:
 					opcode = "endrepeat";
 					break;
 				case 0x55:
-					opcode = "nop";
+				case 0x95:
+				case 0xd5:
+					opcode = "iftrue";
 					break;
 				case 0x56:
-					opcode = "calll";
+				case 0x96:
+				case 0xd6:
+					opcode = "call_loc";
 					break;
 				case 0x57:
+				case 0x97:
+				case 0xd7:
 					opcode = "calle";
 					break;
 				case 0x58:
+				case 0x98:
+				case 0xd8:
 					opcode = "callobj";
 					break;
 				case 0x59:
 					opcode = "op_59xx";
 					break; //TEMP NAME
+				/*
 				case 0x5a:
+				case 0x9a:
+				case 0xda:
 					opcode = "nop";
 					break;
+				*/
+				/*
 				case 0x5b:
+				case 0x9b:
+				case 0xdb:
 					opcode = "op_5bxx";
 					break; //TEMP NAME
+				*/
 				case 0x5c:
+				case 0x9c:
+				case 0xdc:
 					opcode = "get";
-					break; //needs values from stack to determine what it's getting
-					//that said, dissassembly of this instruction is not yet complete
+					break; // needs values from stack to determine what it's getting
+						   // that said, dissassembly of this instruction is not yet complete
 				case 0x5d:
+				case 0x9d:
+				case 0xdd:
 					opcode = "set";
-					break; //needs values from stack to determine what it's setting
-					//that said, dissassembly of this instruction is not yet complete
+					break; // needs values from stack to determine what it's setting
+						   // that said, dissassembly of this instruction is not yet complete
+				/*
 				case 0x5e:
+				case 0x9e:
+				case 0xde:
 					opcode = "nop";
 					break;
+				*/
 				case 0x5f:
+				case 0x9f:
+				case 0xdf:
 					opcode = "getprop";
 					break;
-				
 				case 0x60:
+				case 0xa0:
+				case 0xe0:
 					opcode = "setprop";
 					break;
 				case 0x61:
+				case 0xa1:
+				case 0xe1:
 					opcode = "getobjprop";
 					break;
 				case 0x63:
+				case 0xa3:
+				case 0xe3:
 					opcode = "setobjprop";
 					break;
 				case 0x64:
-					opcode = "op_64xx";
-					break;
+				case 0xa4:
+				case 0xe4:
+					//opcode = "op_64xx";
+					//break;
 				case 0x65:
-					opcode = "op_65xx";
-					break;
+				case 0xa5:
+				case 0xe5:
+					//opcode = "op_65xx";
+					//break;
 				case 0x66:
-					opcode = "op_66xx";
+				case 0xa6:
+				case 0xe6:
+					//opcode = "op_66xx";
+					opcode = "op_" + this.val.toString(16);
 					break;
-				/* Three Byte Instructions */
-				case 0x81:
-					opcode = "pushshort " + ((bytecode[1] * 0x100) + bytecode[2]);
-					break;
-				case 0x82:
-					opcode = "newarglist " + ((bytecode[1] * 0x100) + bytecode[2]);
-					break;
-				case 0x83:
-					opcode = "newlist" + ((bytecode[1] * 0x100) + bytecode[2]);
-					break;
-				case 0x93:
-					opcode = "jmp";
-					break;
-				case 0x95:
-					opcode = "iftrue";
-					break;
+				/* anything not yet indentitifed/discovered goes here */
 				default:
-					opcode = "UNK_" + bytecode[0].toString(16);
+					opcode = "UNK_" + this.val.toString(16);
 					/*
-					if we return values prefixed with "UNK_" (e.g. unknown), that means we have encountered
-					an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
-					and/or decompilation. If the decompiler is created before all the opcodes are known 
-					(and this might just happen), it should return source code with comments saying decompilation failed,
-					listing the opcodes and their offsets.
+						if we return values prefixed with "UNK_" (e.g. unknown), that means we have encountered
+						an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
+						and/or decompilation. If the decompiler is created before all the opcodes are known 
+						(and this might just happen), it should return source code with comments saying decompilation failed,
+						listing the opcodes and their offsets.
 					*/
 				}
 			return opcode.toUpperCase();
