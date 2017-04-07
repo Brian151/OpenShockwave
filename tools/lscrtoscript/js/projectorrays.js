@@ -37,6 +37,7 @@ function OpenShockwaveMovie(file) {
 			//}
 			if (validName == "XFIR") {
 				MainDataStream.endianness = true;
+				validName = "RIFX";
 			}
 		}
 		// check if it has the length the mmap table specifies
