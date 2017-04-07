@@ -213,6 +213,7 @@ function OpenShockwaveMovie(file) {
 		// add handlers, variables...
 		
 		this.handler = function() {
+			this.bytecodeArray = new Array();
 		}
 		
 		this.handler.prototype.bytecode = function(val, obj) {
@@ -561,9 +562,11 @@ function OpenShockwaveMovie(file) {
 		// needs serious work within new model
 		!loggingEnabled||console.log("Constructing Lingo Script");
 		this.handler.prototype.write = function() {
+			var towrite = "<tr><th>bytecode</th><th>opcode</th></tr>";
 			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
-				parent.right.document.getElementById("Lscrtable").innerHTML += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].toOpcode() + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td></tr>";
+				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].toOpcode() + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td></tr>";
 			}
+			return towrite;
 		}
 	}
 	
@@ -602,61 +605,62 @@ function OpenShockwaveMovie(file) {
 				DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
 			}
 		}
-		// until I figure out how I want the infrastructure to work
+		// uncomment for a demo
 		if (!this.chunkArray["Lscr"]) {
 		} else {
-			this.chunkArray["Lscr"][0].handlers[0].write();
+			parent.right.document.getElementById("Lscrtable").innerHTML = this.chunkArray["Lscr"][0].handlers[0].write();
 		}
 	}
 	
-	!loggingEnabled||console.log("Constructing Open Shockwave Movie");
-	this.chunkArray = new Array();
-	this.chunkArray["RIFX"] = new Array();
-	this.chunkArray["imap"] = new Array();
-	this.chunkArray["mmap"] = new Array();
+	if (typeof file !== 'undefined') {
+		!loggingEnabled||console.log("Constructing Open Shockwave Movie");
+		this.chunkArray = new Array();
+		this.chunkArray["RIFX"] = new Array();
+		this.chunkArray["imap"] = new Array();
+		this.chunkArray["mmap"] = new Array();
 
-	var ShockwaveMovieReader = new FileReader();
-	// the file takes a while to upload so you have to do this.
-	// files[i] which exists because of the for loop, looping through each uploaded file, is passed into this onload function
-	// as well as the save variable, as the actual desicion is made later
-	ShockwaveMovieReader.onload = (function(OpenShockwaveMovie, file) {
-		return function(e) {
-			e=e||event;
-			!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
-			// we'll be displaying content in the right frame
-			window.parent.right.document.getElementById("Lscrtable").innerHTML = "<tr><th>bytecode</th><th>opcode</th></tr>";
-			// with DataStream.js
-			var DirectorFileDataStream = new DataStream(e.target.result);
-			// we set this properly when we create the RIFX chunk
-			DirectorFileDataStream.endianness = false;
-			// for some reason this is passed as a reference, I guess my brain is melting
-			OpenShockwaveMovie.lookupMmap(DirectorFileDataStream);
-			// OpenShockwaveMovie should be the offset for mmap
-			//if (typeof chunkArray[name] === 'undefined') {
-			//chunkArray[name] = new Array();
-			//}
-			/*
-			if (save) {
-				var link = document.createElement('a');
-				link.href = cvs.toDataURL("image/jpeg");
-				link.setAttribute('download', file.name + ".JPG");
-				document.getElementsByTagName("body")[0].appendChild(link);
-				// Firefox
-				if (document.createEvent) {
-					var event = document.createEvent("MouseEvents");
-					event.initEvent("click", true, true);
-					link.dispatchEvent(event);
+		var ShockwaveMovieReader = new FileReader();
+		// the file takes a while to upload so you have to do this.
+		// files[i] which exists because of the for loop, looping through each uploaded file, is passed into this onload function
+		// as well as the save variable, as the actual desicion is made later
+		ShockwaveMovieReader.onload = (function(OpenShockwaveMovie, file) {
+			return function(e) {
+				e=e||event;
+				!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
+				// we'll be displaying content in the right frame
+				// with DataStream.js
+				var DirectorFileDataStream = new DataStream(e.target.result);
+				// we set this properly when we create the RIFX chunk
+				DirectorFileDataStream.endianness = false;
+				// for some reason this is passed as a reference, I guess my brain is melting
+				OpenShockwaveMovie.lookupMmap(DirectorFileDataStream);
+				// OpenShockwaveMovie should be the offset for mmap
+				//if (typeof chunkArray[name] === 'undefined') {
+				//chunkArray[name] = new Array();
+				//}
+				/*
+				if (save) {
+					var link = document.createElement('a');
+					link.href = cvs.toDataURL("image/jpeg");
+					link.setAttribute('download', file.name + ".JPG");
+					document.getElementsByTagName("body")[0].appendChild(link);
+					// Firefox
+					if (document.createEvent) {
+						var event = document.createEvent("MouseEvents");
+						event.initEvent("click", true, true);
+						link.dispatchEvent(event);
+					}
+					// IE
+					else if (link.click) {
+						link.click();
+					}
+					link.parentNode.removeChild(link);
 				}
-				// IE
-				else if (link.click) {
-					link.click();
-				}
-				link.parentNode.removeChild(link);
-			}
-			*/
-		};
-	})(this, file);
-	ShockwaveMovieReader.readAsArrayBuffer(file);
+				*/
+			};
+		})(this, file);
+		ShockwaveMovieReader.readAsArrayBuffer(file);
+	}
 	// in the case that multiple files are chosen we can't draw more than one
 	// however, if the user wants to convert files we can do more than one at once
 }
