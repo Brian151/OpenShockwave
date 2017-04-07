@@ -151,19 +151,22 @@ function OpenShockwaveMovie(file) {
 				case "Lscr":
 					result = new Main.LingoScript();
 					this.ChunkDataStream.seek(74);
-					result.HandlersOffset = this.ChunkDataStream.readUint32();
-					this.ChunkDataStream.seek(result.HandlersOffset + 4);
+					result.map = new Array();
+					result.map["handlers"] = this.ChunkDataStream.readUint32();
+					this.ChunkDataStream.seek(result.map["handlers"] + 4);
 					// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
-					result.HandlerLength = this.ChunkDataStream.readUint32();
-					result.HandlerOffset = this.ChunkDataStream.readUint32();
-					this.ChunkDataStream.seek(result.HandlerOffset);
-					result.bytecodeArray = new Array();
+					result.handlers = new Array();
+					result.handlers[0] = new result.handler();
+					result.handlers[0].len = this.ChunkDataStream.readUint32();
+					result.handlers[0].offset = this.ChunkDataStream.readUint32();
+					this.ChunkDataStream.seek(result.handlers[0].offset);
+					result.handlers[0].bytecodeArray = new Array();
 					// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
 					// loop while there's still more code left
 					var pos = null;
-					while (this.ChunkDataStream.position < result.HandlerOffset + result.HandlerLength) {
+					while (this.ChunkDataStream.position < result.handlers[0].offset + result.handlers[0].len) {
 						// read the first byte to convert to an opcode
-						pos = new result.bytecode(this.ChunkDataStream.readUint8());
+						pos = new result.handlers[0].bytecode(this.ChunkDataStream.readUint8());
 						// instructions can be one, two or three bytes
 						if (pos.val >= 192) {
 						pos.obj = this.ChunkDataStream.readUint24();
@@ -176,7 +179,7 @@ function OpenShockwaveMovie(file) {
 								}
 							}
 						}
-						result.bytecodeArray.push(pos);
+						result.handlers[0].bytecodeArray.push(pos);
 					}
 					break;
 			}
@@ -209,7 +212,10 @@ function OpenShockwaveMovie(file) {
 	this.LingoScript = function() {
 		// add handlers, variables...
 		
-		this.bytecode = function(val, obj) {
+		this.handler = function() {
+		}
+		
+		this.handler.prototype.bytecode = function(val, obj) {
 			if (typeof val !== 'undefined') {
 				this.val = val;
 			} else {
@@ -222,7 +228,7 @@ function OpenShockwaveMovie(file) {
 			}
 		}
 		
-		this.bytecode.prototype.toOpcode = function() {
+		this.handler.prototype.bytecode.prototype.toOpcode = function() {
 			!loggingEnabled||console.log("Bytecode to Opcode: " + bytecode);
 			var opcode = "";
 			// see the documentation for notes on these opcodes
@@ -554,7 +560,7 @@ function OpenShockwaveMovie(file) {
 		
 		// needs serious work within new model
 		!loggingEnabled||console.log("Constructing Lingo Script");
-		this.write = function() {
+		this.handler.prototype.write = function() {
 			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
 				parent.right.document.getElementById("Lscrtable").innerHTML += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].toOpcode() + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td></tr>";
 			}
@@ -599,7 +605,7 @@ function OpenShockwaveMovie(file) {
 		// until I figure out how I want the infrastructure to work
 		if (!this.chunkArray["Lscr"]) {
 		} else {
-			this.chunkArray["Lscr"][0].write();
+			this.chunkArray["Lscr"][0].handlers[0].write();
 		}
 	}
 	
