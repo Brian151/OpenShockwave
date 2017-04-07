@@ -2,7 +2,7 @@
 	this needs a LOT of work...
 */
 var ShockwaveParser = function(data) {
-	this.structParser = new RIFFParser(data); //create the RIFF parser from RIFF.js
+	this.structParser = new RIFF(data); //create the RIFF object from RIFF.js
 	this.length = 0; //we don't know this yet
 	this.map = []; //store the processed contents of mmap
 	this.castLib = []; //store the casts
@@ -10,9 +10,9 @@ var ShockwaveParser = function(data) {
 	this.scriptLib = []; //store the scripts
 }
 ShockwaveParser.prototype.parse = function() {
-	var head = this.structParser.getFourCCAt(0x00); //get main chunk
-	this.structParser.setFormat(2); //XFIR
-	this.length = this.structParser.getLengthAt(0x04);
+	var head = this.structParser.getFourCCAt(0x00); //get main chunkID
+	this.structParser.setFormat(head); // get the format, should be RIFX or XFIR for now
+	this.length = this.structParser.getUIntAt(0x04,0);
 	var mapIndexHead = this.structParser.getFourCCAt(0x0c); //find the imap (mmap offset)
 	var mapOffset = 0;
 	if (mapIndexHead == "imap") {
@@ -20,7 +20,7 @@ ShockwaveParser.prototype.parse = function() {
 			We found the mmap's offset
 			Let's parse the mmap section, now!
 		*/
-		mapOffset = this.structParser.getLengthAt(0x18);
+		mapOffset = this.structParser.getUIntAt(0x18,0);
 		console.log("map @" + mapOffset.toString(16));
 		this.parseMappingTable(mapOffset);
 		/*
@@ -56,7 +56,7 @@ ShockwaveParser.prototype.parse = function() {
 }
 ShockwaveParser.prototype.parseMappingTable = function(offset) {
 	var head = this.structParser.getFourCCAt(offset); //double-check the section header
-	var length = this.structParser.getLengthAt(offset + 4); //length of mmap
+	var length = this.structParser.getUIntAt(offset + 4,0); //length of mmap
 	if (head == "mmap") {
 		var i0 = 0; //full range num ID
 		var i1 = 0; //limited range (ignore free) num ID
@@ -73,8 +73,8 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 		*/
 		for (var i= (offset + 0x20); i < length; i+=20) {
 			var id = this.structParser.getFourCCAt(i); //this is the ID of a mapped chunk
-			var len = this.structParser.getLengthAt(i + 4); //this is the length of a mapped chunk
-			var off = this.structParser.getLengthAt(i + 8); //this is the offset of a mapped chunk
+			var len = this.structParser.getUIntAt(i + 4,0); //this is the length of a mapped chunk
+			var off = this.structParser.getUIntAt(i + 8,0); //this is the offset of a mapped chunk
 			//we may or may not find this ID in the lookup table, so we default Boolean found to false
 			var found = false;
 			/*
@@ -87,7 +87,7 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 					break;
 				}
 			}
-			if (!found) {
+			if (!found && id != "ERR ") {
 				//We didn't find this ID in lookup, let's create an entry in our [parsed] mapping table
 				this.map.push({
 					tagName : id,
@@ -107,6 +107,8 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 			i0++;
 			if (id != "free")
 				i1++;
+			if (id == "ERR ")
+				break;
 		}
 	}
 }
@@ -115,9 +117,9 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 		this function isn't working right yet...so I won't doument it properly for now...
 	*/
 	var head = this.structParser.getFourCCAt(offset)
-	var length = this.structParser.getLengthAt(offset + 4);
+	var length = this.structParser.getUIntAt(offset + 4,0);
 	var max = offset + length;
-	var total = this.structParser.getLengthAt(offset + 0xc);
+	var total = this.structParser.getUIntAt(offset + 0xc,0);
 	console.log("keys @" + offset.toString(16));
 	var dataOffset = (offset + 8 + 0xc);
 	var i0 = 0;
@@ -125,8 +127,8 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 	var i3 = 0;
 	var foundTags = [];
 	for (var i = dataOffset; i < max; i += 0xc) {
-		var childID = this.structParser.getLengthAt(i);
-		var parentID = this.structParser.getLengthAt(i + 4);
+		var childID = this.structParser.getUIntAt(i,0);
+		var parentID = this.structParser.getUIntAt(i + 4,0);
 		var childSecID = this.structParser.getFourCCAt(i + 8);
 		if (i == dataOffset) {
 			console.log("--=first key entry=--");
@@ -246,7 +248,7 @@ ShockwaveParser.prototype.linkScripts = function() {
 			linking the scripts, so we're focued on the ID,
 			found at offset 0x28 from the start of the section (includes section header)
 		*/
-		var id = this.structParser.view.getUint32(off + 0x28);
+		var id = this.structParser.getUIntAt(off + 0x28,1);
 		/*
 			Now we iterate the names table list and try to find an Lnam
 			that was ID's with ID, we're using the free-inclusive IDs
@@ -301,16 +303,16 @@ ShockwaveParser.prototype.parseNameTables = function() {
 			lengths, why this format has a thing for sepcifying them multiple times
 			is beyond me...
 		*/
-		var l = this.structParser.view.getUint32(off + 0x10);
-		var l2 = this.structParser.view.getUint32(off + 0x14);
-		var o2 = this.structParser.view.getUint16(off + 0x18); //offset within section to th actual names table
-		var nameCount = this.structParser.view.getUint16(off + 0x1A); //how many names?
+		var l = this.structParser.getUIntAt(off + 0x10,1);
+		var l2 = this.structParser.getUIntAt(off + 0x14,1);
+		var o2 = this.structParser.getUShortAt(off + 0x18,false); //offset within section to th actual names table
+		var nameCount = this.structParser.getUShortAt(off + 0x1A,false); //how many names?
 		var pointer = off + 8 + o2; //a base offset since we're working with the file's full address space
 		/*
 			for each name, parse the name from the table
 		*/
 		for (var i2 = 0; i2 < nameCount; i2++) {
-			var nameLen = this.structParser.view.getUint8(pointer);
+			var nameLen = this.structParser.getUByteAt(pointer);
 			/*if (i == 0 && i2 < 10) {
 				console.log("nameLen : " + nameLen.toString(16));
 				console.log(pointer.toString(16));
@@ -334,7 +336,7 @@ ShockwaveParser.prototype.parseStringASCII = function(offset,length) {
 	var out = "";
 	for (var i=0; i < length; i++) {
 		//could use some error checking for invalid values
-		out += String.fromCharCode(this.structParser.view.getUint8(offset + i));
+		out += String.fromCharCode(this.structParser.getUByteAt(offset + i));
 	}
 	return out;
 }
@@ -358,17 +360,17 @@ ShockwaveParser.prototype.linkByteCode = function() {
 	*/
 	for (var i=0; i < this.scriptLib.length; i++) {
 		var off = this.scriptLib[i].offset; //offset of the current LctX
-		var entryCount = this.structParser.view.getUint32(off + 0x10); //how many script entries?
-		var entryCount2 = this.structParser.view.getUint32(off + 0x14);
-		var off2 = this.structParser.view.getUint16(off + 0x18); //offset of the script entries
+		var entryCount = this.structParser.getUIntAt(off + 0x10,1); //how many script entries?
+		var entryCount2 = this.structParser.getUIntAt(off + 0x14,1);
+		var off2 = this.structParser.getUShortAt(off + 0x18,false); //offset of the script entries
 		/*
 			Let's parse the script entries
 		*/
 		for (var i2=0; i2 < entryCount; i2++) {
 			var baseOffset = off + 8 + off2 + (i2 * 12); //another pointer to stay aligned in full file address space
-			var used = this.structParser.view.getUint16(baseOffset + 8); //used entries have a Uint16 = 04
+			var used = this.structParser.getUShortAt(baseOffset + 8,false); //used entries have a Uint16 = 04
 			if (used == 4) {
-				var id = this.structParser.view.getUint32(baseOffset + 4); //this is the mapping ID (including free) of the Lscr
+				var id = this.structParser.getUIntAt(baseOffset + 4,1); //this is the mapping ID (including free) of the Lscr
 				if (!hasfound) {
 					/*
 						the debugger for this, because spamming web console by running this on EVERY
@@ -381,10 +383,7 @@ ShockwaveParser.prototype.linkByteCode = function() {
 					console.log("script entry offset : " + off2.toString(16));
 					console.log(
 						"raw id hex : " + " " +
-						this.structParser.view.getUint8(baseOffset + 4).toString(16) + " " +
-						this.structParser.view.getUint8(baseOffset + 5).toString(16) + " " +
-						this.structParser.view.getUint8(baseOffset + 6).toString(16) + " " +
-						this.structParser.view.getUint8(baseOffset + 7).toString(16)
+						this.structParser.toHex(id,"U32")
 					);
 				}
 				/*
