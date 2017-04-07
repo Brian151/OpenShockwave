@@ -24,9 +24,9 @@ PathTooNewError.prototype = new Error;
 
 function OpenShockwaveMovie(file) {
 	// you know you want to
-	//var self = this;
+	var Main = this;
 	
-	this.chunk = function(Main, MainDataStream, name, len, offset, padding, unknown0, link) {
+	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, link) {
 		!loggingEnabled||console.log("Constructing Chunk: " + name);
 		// check if this is the chunk we are expecting
 		// we're using this instead of readString because we need to respect endianness
@@ -568,7 +568,7 @@ function OpenShockwaveMovie(file) {
 		!loggingEnabled||console.log("Looking Up mmap");
 		// valid length is undefined because we have not yet reached mmap
 		// however, it will be filled automatically in chunk's constructor
-		this.chunkArray["RIFX"][0] = new this.chunk(this, DirectorFileDataStream, "RIFX");
+		this.chunkArray["RIFX"][0] = new this.chunk(DirectorFileDataStream, "RIFX");
 		// we can only open DIR or DXR
 		// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
 		if (this.chunkArray["RIFX"][0].codec != "MV93") {
@@ -577,11 +577,11 @@ function OpenShockwaveMovie(file) {
 		// the next chunk should be imap
 		// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
 		// we will continue to use it because in this implementation RIFX doesn't contain it
-		this.chunkArray["imap"][0] = new this.chunk(this, DirectorFileDataStream, "imap", undefined, 12);
+		this.chunkArray["imap"][0] = new this.chunk(DirectorFileDataStream, "imap", undefined, 12);
 		// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
 		DirectorFileDataStream.seek(this.chunkArray["imap"][0].mmapArray[0]);
 		// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-		this.chunkArray["mmap"].push(new this.chunk(this, DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].mmapArray[0]));
+		this.chunkArray["mmap"].push(new this.chunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].mmapArray[0]));
 		// add chunks in the mmap to the chunkArray HERE
 		// make sure to account for chunks with existing names, lengths and offsets
 		DirectorFileDataStream.position = 0;
@@ -591,7 +591,7 @@ function OpenShockwaveMovie(file) {
 				if (!!!this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]) {
 					this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]] = new Array();
 				}
-				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(new this.chunk(this, DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
+				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(new this.chunk(DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
 			} else {
 				DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
 			}
