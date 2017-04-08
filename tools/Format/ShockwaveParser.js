@@ -46,7 +46,7 @@ ShockwaveParser.prototype.parse = function() {
 				This is currently disabled because it's not working yet,
 				and it's a fairly intensive process
 			*/
-			//this.parseKeyTable(keyOffset);
+			this.parseKeyTable(keyOffset);
 		} else {
 			console.error("cannot locate the key table"); //well crap, we NEED KEY*, throw error
 		}
@@ -56,10 +56,30 @@ ShockwaveParser.prototype.parse = function() {
 }
 ShockwaveParser.prototype.parseMappingTable = function(offset) {
 	var head = this.structParser.getFourCCAt(offset); //double-check the section header
-	var length = this.structParser.getUIntAt(offset + 4,0); //length of mmap
+	var length = this.structParser.getUIntAt(offset + 4,0) + offset; //length of mmap
+	// [v1,v2,nElems,nUsed,junkPtr,v3,freePtr] from Schocklabsorber, v1 and v2 are shorts
+	var count = this.structParser.getUIntAt(offset + 12,2);
+	var usedCount = this.structParser.getUIntAt(offset + 16,2);
+	/*
+		create:
+		ArrayBuffer to store enough bytes for 4 pointer arrays (2 U32 and 2 U8)
+		Uint8Array indexing a certain chunk type entry in the map table for ALL entries
+		Uint8Array indexing a certain chunk type entry in the map table for used entries (e.g. not free)
+		Uint32Array indexing the entry for ALL entries
+		Uint32Array indexing the entry for used entries
+		
+		TO-DO: explain it better
+		(and apparently make it even WORK...)
+	*/
+	/*this.Buffptrs = new ArrayBuffer(usedCount + count + (usedCount * 4) + (count * 4));
+	this.ptrMapT = new Uint8Array(this.Buffptrs,0,count);
+	this.ptrMapU = new Uint8Array(this.Buffptrs,count,usedCount);
+	this.ptrT = new Uint32Array(this.Buffptrs,(count + usedCount),count);
+	this.ptrU = new Uint32Array(this.Buffptrs,(count + usedCount) + (count * 4),usedCount);
+	console.log(length.toString(16));*/
 	if (head == "mmap") {
-		var i0 = 0; //full range num ID
-		var i1 = 0; //limited range (ignore free) num ID
+		var i0 = 0; // num ID (total)
+		var i1 = 0; // num ID (used)
 		/*
 			a temporary string array with FourCCs,
 			used to check if we already found chunks with
@@ -70,13 +90,24 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 			entries start at offset + 0x20 bytes, 
 			entries are 20 bytes in size,
 			Let's read them till we've met or exceeded the length of mmap!
+			
+			TO-DO : 
+				use counts...
+				implement pointer arrays
 		*/
 		for (var i= (offset + 0x20); i < length; i+=20) {
 			var id = this.structParser.getFourCCAt(i); //this is the ID of a mapped chunk
 			var len = this.structParser.getUIntAt(i + 4,0); //this is the length of a mapped chunk
 			var off = this.structParser.getUIntAt(i + 8,0); //this is the offset of a mapped chunk
-			//we may or may not find this ID in the lookup table, so we default Boolean found to false
+			//we may or may not find this ID in the lookup table, so we default Boolean 'found' to false
 			var found = false;
+			
+			var done = (length - i) < 20; // needs work...
+			if (/*id == "ERR "*/done) {
+				console.log(i0  + " | " + i1);
+				break;
+			}
+			
 			/*
 				We run lookup on lookup
 			*/
@@ -105,10 +136,9 @@ ShockwaveParser.prototype.parseMappingTable = function(offset) {
 			}
 			//increment our counters... i1 ignores free
 			i0++;
-			if (id != "free")
+			if (id != "free") {
 				i1++;
-			if (id == "ERR ")
-				break;
+			}
 		}
 	}
 }
@@ -116,6 +146,7 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 	/*
 		this function isn't working right yet...so I won't doument it properly for now...
 	*/
+	var dbgNonCast = false; 
 	var head = this.structParser.getFourCCAt(offset)
 	var length = this.structParser.getUIntAt(offset + 4,0);
 	var max = offset + length;
@@ -130,7 +161,9 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 		var childID = this.structParser.getUIntAt(i,0);
 		var parentID = this.structParser.getUIntAt(i + 4,0);
 		var childSecID = this.structParser.getFourCCAt(i + 8);
-		if (i == dataOffset) {
+		var flag = (this.structParser.getUShortAt(i + 4,true) == 1024);
+		
+		/* if (i == dataOffset) {
 			console.log("--=first key entry=--");
 			console.log(parentID.toString(16));
 			console.log(childID.toString(16));
@@ -138,15 +171,22 @@ ShockwaveParser.prototype.parseKeyTable = function(offset) {
 			console.log(this.doMapLookup(0,parentID))
 			console.log(this.doMapLookup(1,childID))
 			console.log("-end trace-");
-		}
-		//not always CASt...WHY?
-		//also, still doesn't work fully
-		var pIDStr = this.doMapLookup(0,parentID)[0];
-		if (pIDStr == "CASt") {
+		} */
+		// still doesn't work fully
+		if (!flag) {
 			var temp = this.doCastMemberLookup(parentID);
 			if (temp == -1)
 				temp = this.addCastMember(this.doMapLookup(0,parentID));
 			this.castMemberLib[temp].parts.push(this.doMapLookup(1,childID));
+		} else {
+			/*
+				TODO...
+			*/
+			var i4 = this.structParser.getUShortAt(i + 6,true)
+			// larger files could cause lag/crashes by spamming web console... 
+			if (dbgNonCast) {
+				console.log("found section not associated with a CASt! : " + childSecID + " | " + i4);
+			}
 		}
 	}
 }

@@ -71,9 +71,10 @@ RIFF.prototype.getFourCCAt = function(offset) {
 			break;
 		}
 	}
-	if (end && !e) 
+	if (end && !e) {
 		str.reverse();
-	out = str.join("");
+	}
+	var out = str.join("");
 	return out;
 }
 RIFF.prototype.setFourCCAt = function(offset,fourCC) {
