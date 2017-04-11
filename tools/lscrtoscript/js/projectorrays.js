@@ -210,10 +210,10 @@ function OpenShockwaveMovie(file) {
 	this.cast = function() {
 	}
 	
-	Main.LingoScript = function() {
+	this.LingoScript = function() {
 		// add handlers, variables...
 		
-		Main.LingoScript.nameValuePair = function(val, name) {
+		this.prototype.nameValuePair = function(val, name) {
 			if (typeof val !== 'undefined') {
 				this.val = val;
 			} else {
@@ -241,6 +241,117 @@ function OpenShockwaveMovie(file) {
 			} else {
 				this.obj = null;
 			}
+		}
+		
+		this.handler.prototype.bytecode.prototype.operate11 = function(val) {
+			var opcode, operator, result;
+			var x = Main.LingoScript.prototype.stack.pop();
+			switch (val) {
+				case 0x9:
+					opcode = "inv";
+					operator = "-";
+					result = -towritetemp[0].val;
+					break;
+				case 0x14:
+					opcode = "not";
+					operator = "!";
+					result = !towritetemp[0].val;
+			}
+			pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
+			Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
+		}
+		
+		this.handler.prototype.bytecode.prototype.operate21 = function(val) {
+			var opcode, operator, result;
+			var x = Main.LingoScript.prototype.stack.pop();
+			var y = Main.LingoScript.prototype.stack.pop();
+			switch (val) {
+				case 0x4:
+					opcode = "mul";
+					operator = "*";
+					result = x.val * y.val;
+					break;
+				case 0x5:
+					opcode = "add";
+					operator = "+";
+					result = (x.val * 1) + (y.val * 1);
+					break;
+				case 0x6:
+					opcode = "sub";
+					operator = "-";
+					result = x.val - y.val;
+					break;
+				case 0x7:
+					opcode = "div";
+					operator = "/";
+					result = x.val / y.val;
+					break;
+				case 0x8:
+					opcode = "mod";
+					operator = "mod";
+					result = x.val % y.val;
+				case 0xa:
+					opcode = "joinstr";
+					operator = "&";
+					result = x.val.toString() + y.val.toString();
+					break;
+				case 0xb:
+					opcode = "joinpadstr";
+					operator = "&&";
+					result = x.val.toString() + " " + y.val.toString();
+					break;
+				case 0xc:
+					opcode = "lt";
+					operator = "<";
+					result = x.val < y.val;
+					break;
+				case 0xd:
+					opcode = "lteq";
+					operator = "<=";
+					result = x.val <= y.val;
+					break;
+				case 0xe:
+					opcode = "nteq";
+					operator = "!=";
+					result = x.val != y.val;
+					break;
+				case 0xf:
+					opcode = "eq";
+					operator = "==";
+					result = x.val == y.val;
+					break;
+				case 0x10:
+					opcode = "gt";
+					operator = ">";
+					result = x.val > y.val;
+					break;
+				case 0x11:
+					opcode = "gteq";
+					operator = ">=";
+					result = x.val >= y.val;
+					break;
+				case 0x12:
+					opcode = "and";
+					operator = "and";
+					result = x.val && y.val;
+					break;
+				case 0x13:
+					opcode = "or";
+					operator = "or";
+					result = x.val || y.val;
+					break;
+				case 0x15:
+					opcode = "containsstr";
+					operator = "contains";
+					result = ~x.val.indexOf(y.val);
+					break;
+				case 0x16:
+					opcode = "contains0str";
+					operator = "starts";
+					result = !x.val.indexOf(y.val);
+			}
+			pseudocode = "projectorrraystemp_" + x.name + "" + operator + "" + y.name + " = (" + x.name + " " + operator + " " + y.name + ")";
+			Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
 		}
 		
 		this.handler.prototype.bytecode.prototype.translate = function() {
@@ -279,113 +390,11 @@ function OpenShockwaveMovie(file) {
 				case 0x14:
 				case 0x15:
 				case 0x16:
-					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
-					towritetemp[1] = Main.LingoScript.prototype.stack.pop();
-					switch (this.val) {
-						case 0x4:
-							opcode = "mul";
-							towritetemp[2] = "*";
-							towritetemp[3] = towritetemp[0].val * towritetemp[1].val;
-							break;
-						case 0x5:
-							opcode = "add";
-							towritetemp[2] = "+";
-							towritetemp[3] = (towritetemp[0].val * 1) + (towritetemp[1].val * 1);
-							break;
-						case 0x6:
-							opcode = "sub";
-							towritetemp[2] = "-";
-							towritetemp[3] = towritetemp[0].val - towritetemp[1].val;
-							break;
-						case 0x7:
-							opcode = "div";
-							towritetemp[2] = "/";
-							towritetemp[3] = towritetemp[0].val / towritetemp[1].val;
-							break;
-						case 0x8:
-							opcode = "mod";
-							towritetemp[2] = "mod";
-							towritetemp[3] = towritetemp[0].val % towritetemp[1].val;
-						case 0xa:
-							opcode = "joinstr";
-							towritetemp[2] = "&";
-							towritetemp[3] = towritetemp[0].val.toString() + towritetemp[1].val.toString();
-						break;
-						case 0xb:
-							opcode = "joinpadstr";
-							towritetemp[2] = "&&";
-							towritetemp[3] = towritetemp[0].val.toString() + " " + towritetemp[1].val.toString();
-						break;
-						case 0xc:
-							opcode = "lt";
-							towritetemp[2] = "<";
-							towritetemp[3] = towritetemp[0].val < towritetemp[1].val;
-						break;
-						case 0xd:
-							opcode = "lteq";
-							towritetemp[2] = "<=";
-							towritetemp[3] = towritetemp[0].val <= towritetemp[1].val;
-						break;
-						case 0xe:
-							opcode = "nteq";
-							towritetemp[2] = "!=";
-							towritetemp[3] = towritetemp[0].val != towritetemp[1].val;
-						break;
-						case 0xf:
-							opcode = "eq";
-							towritetemp[2] = "==";
-							towritetemp[3] = towritetemp[0].val == towritetemp[1].val;
-						break;
-						case 0x10:
-							opcode = "gt";
-							towritetemp[2] = ">";
-							towritetemp[3] = towritetemp[0].val > towritetemp[1].val;
-						break;
-						case 0x11:
-							opcode = "gteq";
-							towritetemp[2] = ">=";
-							towritetemp[3] = towritetemp[0].val >= towritetemp[1].val;
-						break;
-						case 0x12:
-							opcode = "and";
-							towritetemp[2] = "and";
-							towritetemp[3] = towritetemp[0].val && towritetemp[1].val;
-						break;
-						case 0x13:
-							opcode = "or";
-							towritetemp[2] = "or";
-							towritetemp[3] = towritetemp[0].val || towritetemp[1].val;
-						break;
-						case 0x15:
-							opcode = "containsstr";
-							towritetemp[2] = "contains";
-							towritetemp[3] = ~towritetemp[0].val.indexOf(towritetemp[1].val);
-						break;
-						case 0x16:
-							opcode = "contains0str";
-							towritetemp[2] = "starts";
-							towritetemp[3] = !towritetemp[0].val.indexOf(towritetemp[1].val);
-						break;
-					}
-					pseudocode = "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + " = (" + towritetemp[0].name + " " + towritetemp[2] + " " + towritetemp[1].name + ")";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[3], "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + ""));
+					this.operate21(this.val);
 					break;
 				case 0x9:
 				case 0x14:
-					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
-					switch (this.val) {
-						case 0x9:
-							opcode = "inv";
-							towritetemp[2] = "-";
-							towritetemp[3] = -towritetemp[0].val;
-						break;
-						case 0x14:
-							opcode = "not";
-							towritetemp[2] = "!";
-							towritetemp[3] = !towritetemp[0].val;
-					}
-					pseudocode = "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + " = (" + towritetemp[2] + "" + towritetemp[0].name + ")";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[3]), "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + "");
+					this.operate11(this.val);
 					break;
 				case 0x17:
 					opcode = "splitstr";
