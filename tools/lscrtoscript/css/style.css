@@ -6,6 +6,7 @@ a {
 	font-weight: bold;
 }
 
-#Lscrtable {
+table {
+	margin-top:1em;
 	font-family: monospace;
 }

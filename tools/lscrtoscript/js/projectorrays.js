@@ -210,8 +210,21 @@ function OpenShockwaveMovie(file) {
 	this.cast = function() {
 	}
 	
-	this.LingoScript = function() {
+	Main.LingoScript = function() {
 		// add handlers, variables...
+		
+		this.nameValuePair = function(val, name) {
+			if (typeof val !== 'undefined') {
+				this.val = val;
+			} else {
+				this.val = 0;
+			}
+			if (typeof name !== 'undefined') {
+				this.name = name;
+			} else {
+				this.name = this.val;
+			}
+		}
 		
 		this.handler = function() {
 			this.bytecodeArray = new Array();
@@ -230,78 +243,149 @@ function OpenShockwaveMovie(file) {
 			}
 		}
 		
-		this.handler.prototype.bytecode.prototype.toOpcode = function() {
-			!loggingEnabled||console.log("Bytecode to Opcode: " + bytecode);
+		this.handler.prototype.bytecode.prototype.translate = function() {
+			!loggingEnabled||console.log("Translate Bytecode: " + bytecode);
+			var towritetemp = new Array();
 			var opcode = "";
+			var pseudocode = "";
 			// see the documentation for notes on these opcodes
 			switch (this.val) {
 				// TODO: copy the comments from OP.txt into the code for a quicker reference
 				/* Single Byte Instructions */
 				case 0x1:
 					opcode = "ret";
-					break;
-				case 0x2:
-					opcode = "nop";
+					pseudocode = "exit";
 					break;
 				case 0x3:
 					opcode = "pushint0";
+					pseudocode = "0";
+					Main.LingoScript.prototype.stack.push(new this.nameValuePair(0));
 					break;
 				case 0x4:
-					opcode = "mul";
-					break;
 				case 0x5:
-					opcode = "add";
-					break;
 				case 0x6:
-					opcode = "sub";
-					break;
 				case 0x7:
-					opcode = "div";
-					break;
 				case 0x8:
-					opcode = "mod";
+				case 0xa:
+				case 0xb:
+				case 0xc:
+				case 0xd:
+				case 0xe:
+				case 0xf:
+				case 0x10:
+				case 0x11:
+				case 0x12:
+				case 0x13:
+				case 0x14:
+				case 0x15:
+				case 0x16:
+					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
+					towritetemp[1] = Main.LingoScript.prototype.stack.pop();
+					switch (this.val) {
+						case 0x4:
+							opcode = "mul";
+							towritetemp[2] = "*";
+							towritetemp[3] = towritetemp[0].val * towritetemp[1].val;
+							break;
+						case 0x5:
+							opcode = "add";
+							towritetemp[2] = "+";
+							towritetemp[3] = (towritetemp[0].val * 1) + (towritetemp[1].val * 1);
+							break;
+						case 0x6:
+							opcode = "sub";
+							towritetemp[2] = "-";
+							towritetemp[3] = towritetemp[0].val - towritetemp[1].val;
+							break;
+						case 0x7:
+							opcode = "div";
+							towritetemp[2] = "/";
+							towritetemp[3] = towritetemp[0].val / towritetemp[1].val;
+							break;
+						case 0x8:
+							opcode = "mod";
+							towritetemp[2] = "mod";
+							towritetemp[3] = towritetemp[0].val % towritetemp[1].val;
+						case 0xa:
+							opcode = "joinstr";
+							towritetemp[2] = "&";
+							towritetemp[3] = towritetemp[0].val.toString() + towritetemp[1].val.toString();
+						break;
+						case 0xb:
+							opcode = "joinpadstr";
+							towritetemp[2] = "&&";
+							towritetemp[3] = towritetemp[0].val.toString() + " " + towritetemp[1].val.toString();
+						break;
+						case 0xc:
+							opcode = "lt";
+							towritetemp[2] = "<";
+							towritetemp[3] = towritetemp[0].val < towritetemp[1].val;
+						break;
+						case 0xd:
+							opcode = "lteq";
+							towritetemp[2] = "<=";
+							towritetemp[3] = towritetemp[0].val <= towritetemp[1].val;
+						break;
+						case 0xe:
+							opcode = "nteq";
+							towritetemp[2] = "!=";
+							towritetemp[3] = towritetemp[0].val != towritetemp[1].val;
+						break;
+						case 0xf:
+							opcode = "eq";
+							towritetemp[2] = "==";
+							towritetemp[3] = towritetemp[0].val == towritetemp[1].val;
+						break;
+						case 0x10:
+							opcode = "gt";
+							towritetemp[2] = ">";
+							towritetemp[3] = towritetemp[0].val > towritetemp[1].val;
+						break;
+						case 0x11:
+							opcode = "gteq";
+							towritetemp[2] = ">=";
+							towritetemp[3] = towritetemp[0].val >= towritetemp[1].val;
+						break;
+						case 0x12:
+							opcode = "and";
+							towritetemp[2] = "and";
+							towritetemp[3] = towritetemp[0].val && towritetemp[1].val;
+						break;
+						case 0x13:
+							opcode = "or";
+							towritetemp[2] = "or";
+							towritetemp[3] = towritetemp[0].val || towritetemp[1].val;
+						break;
+						case 0x15:
+							opcode = "containsstr";
+							towritetemp[2] = "contains";
+							towritetemp[3] = ~towritetemp[0].val.indexOf(towritetemp[1].val);
+						break;
+						case 0x16:
+							opcode = "contains0str";
+							towritetemp[2] = "starts";
+							towritetemp[3] = !towritetemp[0].val.indexOf(towritetemp[1].val);
+						break;
+					}
+					pseudocode = "(" + towritetemp[0].name + " " + towritetemp[2] + " " + towritetemp[1].name + ")";
+					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]));
 					break;
 				case 0x9:
-					opcode = "inv";
-					break;
-				case 0xa:
-					opcode = "joinstr";
-					break;
-				case 0xb:
-					opcode = "joinpadstr";
-					break;
-				case 0xc:
-					opcode = "lt";
-					break;
-				case 0xd:
-					opcode = "lteq";
-					break;
-				case 0xe:
-					opcode = "nteq";
-					break;
-				case 0xf:
-					opcode = "eq";
-					break;
-				case 0x10:
-					opcode = "gt";
-					break;
-				case 0x11:
-					opcode = "gteq";
-					break;
-				case 0x12:
-					opcode = "and";
-					break;
-				case 0x13:
-					opcode = "or";
-					break;
 				case 0x14:
-					opcode = "not";
-					break;
-				case 0x15:
-					opcode = "containsstr";
-					break;
-				case 0x16:
-					opcode = "contains0str";
+					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
+					switch (this.val) {
+						case 0x9:
+							opcode = "inv";
+							towritetemp[2] = "-";
+							towritetemp[3] = -towritetemp[0].val;
+						break;
+						case 0x14:
+							opcode = "not";
+							towritetemp[2] = "!";
+							towritetemp[3] = !towritetemp[0].val;
+					}
+					pseudocode = "(" + towritetemp[2] + "" + towritetemp[0].name + ")";
+					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]));
 					break;
 				case 0x17:
 					opcode = "splitstr";
@@ -338,18 +422,24 @@ function OpenShockwaveMovie(file) {
 					than their operands.
 				*/
 				case 0x41:
+					Main.LingoScript.prototype.stack.push(this.obj);
 					opcode = "pushbyte";
 					break;
 				case 0x81:
+					Main.LingoScript.prototype.stack.push(this.obj);
 					opcode = "pushshort";
 					break;
 				case 0xc1:
+					Main.LingoScript.prototype.stack.push(this.obj);
 					opcode = "pushint24";
 					break;
 				case 0x42:
 				case 0x82:
 				case 0xc2:
+					towritetemp[0] = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj);
+					Main.LingoScript.prototype.stack.push(towritetemp[0]);
 					opcode = "newarglist";
+					// pseudocode is "silent," this is just to sort out the stack
 					break;
 				case 0x43:
 				case 0x83:
@@ -391,7 +481,7 @@ function OpenShockwaveMovie(file) {
 					break;
 				*/
 				case 0x49:
-					opcode = "pushglob";
+					opcode = "push_global";
 					break;
 				/*
 				case 0x4a:
@@ -408,7 +498,7 @@ function OpenShockwaveMovie(file) {
 				case 0x4c:
 				case 0x8c:
 				case 0xcc:
-					opcode = "pushloc";
+					opcode = "push_local";
 					break;
 				/*
 				case 0x4d:
@@ -425,7 +515,7 @@ function OpenShockwaveMovie(file) {
 				case 0x4f:
 				case 0x8f:
 				case 0xcf:
-					opcode = "popglob";
+					opcode = "pop_global";
 					break;
 				/*
 				case 0x50:
@@ -442,7 +532,7 @@ function OpenShockwaveMovie(file) {
 				case 0x52:
 				case 0x92:
 				case 0xd2:
-					opcode = "poploc";
+					opcode = "pop_local";
 					break;
 				case 0x53:
 				case 0x93:
@@ -462,12 +552,14 @@ function OpenShockwaveMovie(file) {
 				case 0x56:
 				case 0x96:
 				case 0xd6:
-					opcode = "call_loc";
+					opcode = "call_local";
 					break;
 				case 0x57:
 				case 0x97:
 				case 0xd7:
-					opcode = "calle";
+					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
+					opcode = "call_external";
+					pseudocode = this.obj + "(" + towritetemp[0].join() + ")";
 					break;
 				case 0x58:
 				case 0x98:
@@ -557,27 +649,34 @@ function OpenShockwaveMovie(file) {
 						listing the opcodes and their offsets.
 					*/
 				}
-			return opcode.toUpperCase();
+				opcode += " " + (this.obj!==null?" "+this.obj:"");
+			return [opcode.toUpperCase(), pseudocode];
 		}
 		
 		// needs serious work within new model
 		!loggingEnabled||console.log("Constructing Lingo Script");
 		this.handler.prototype.write = function() {
-			var towrite = "<tr><th>bytecode</th><th>opcode</th></tr>";
+			var towrite = "<table border='1'><tr><th>bytecode</th><th>opcode</th></tr>";
 			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
-				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].toOpcode() + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td></tr>";
+				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].translate()[1] + "</td></tr>";
 			}
+			towrite += "</table>";
 			return towrite;
 		}
 	}
 	
-	this.LingoScript.prototype = this.cast;
+	Main.LingoScript.prototype = this.cast;
+	
+	Main.LingoScript.prototype.stack = new Array();
+	//this.Main.LingoScript.prototype.stack.push(this.val);
+	//this.val = this.Main.LingoScript.prototype.stack.pop();
 	
 	// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
 	this.lookupMmap = function(DirectorFileDataStream) {
 		!loggingEnabled||console.log("Looking Up mmap");
 		// valid length is undefined because we have not yet reached mmap
 		// however, it will be filled automatically in chunk's constructor
+		this.chunkPointers = new Array();
 		this.chunkArray["RIFX"][0] = new this.chunk(DirectorFileDataStream, "RIFX");
 		// we can only open DIR or DXR
 		// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
@@ -602,6 +701,7 @@ function OpenShockwaveMovie(file) {
 					this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]] = new Array();
 				}
 				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(new this.chunk(DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
+				this.chunkPointers.push(this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]);
 			} else {
 				DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
 			}
@@ -609,7 +709,9 @@ function OpenShockwaveMovie(file) {
 		// uncomment for a demo
 		if (!this.chunkArray["Lscr"]) {
 		} else {
-			parent.right.document.getElementById("Lscrtable").innerHTML = this.chunkArray["Lscr"][0].handlers[0].write();
+			for (var i=0,len=this.chunkArray["Lscr"].length;i<len;i++) {
+				parent.right.document.getElementById("Lscrtables").innerHTML += this.chunkArray["Lscr"][i].handlers[0].write();
+			}
 		}
 	}
 	
