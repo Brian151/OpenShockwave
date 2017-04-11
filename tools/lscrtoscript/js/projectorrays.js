@@ -367,8 +367,8 @@ function OpenShockwaveMovie(file) {
 							towritetemp[3] = !towritetemp[0].val.indexOf(towritetemp[1].val);
 						break;
 					}
-					pseudocode = "(" + towritetemp[0].name + " " + towritetemp[2] + " " + towritetemp[1].name + ")";
-					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]));
+					pseudocode = "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + " = (" + towritetemp[0].name + " " + towritetemp[2] + " " + towritetemp[1].name + ")";
+					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3], "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + ""));
 					break;
 				case 0x9:
 				case 0x14:
@@ -384,8 +384,8 @@ function OpenShockwaveMovie(file) {
 							towritetemp[2] = "!";
 							towritetemp[3] = !towritetemp[0].val;
 					}
-					pseudocode = "(" + towritetemp[2] + "" + towritetemp[0].name + ")";
-					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]));
+					pseudocode = "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + " = (" + towritetemp[2] + "" + towritetemp[0].name + ")";
+					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]), "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + "");
 					break;
 				case 0x17:
 					opcode = "splitstr";
@@ -656,9 +656,11 @@ function OpenShockwaveMovie(file) {
 		// needs serious work within new model
 		!loggingEnabled||console.log("Constructing Lingo Script");
 		this.handler.prototype.write = function() {
-			var towrite = "<table border='1'><tr><th>bytecode</th><th>opcode</th></tr>";
+			var towrite = "<table border='1'><tr><th>bytecode</th><th>opcode</th><th>pseudocode</th></tr>";
+			var translation;
 			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
-				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + this.bytecodeArray[i].translate()[1] + "</td></tr>";
+				translation = this.bytecodeArray[i].translate();
+				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + translation[0] + "</td><td>" + translation[1] + "</td></tr>";
 			}
 			towrite += "</table>";
 			return towrite;
