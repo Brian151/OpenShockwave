@@ -243,12 +243,12 @@ function OpenShockwaveMovie(file) {
 				case 0x9:
 					opcode = "inv";
 					operator = "-";
-					result = -towritetemp[0].val;
+					result = -x.val;
 					break;
 				case 0x14:
 					opcode = "not";
 					operator = "!";
-					result = !towritetemp[0].val;
+					result = !x.val;
 			}
 			pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
 			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
@@ -349,7 +349,6 @@ function OpenShockwaveMovie(file) {
 		
 		this.handler.prototype.bytecode.prototype.translate = function() {
 			!loggingEnabled||console.log("Translate Bytecode: " + bytecode);
-			var towritetemp = new Array();
 			var opcode = "";
 			var pseudocode = "";
 			// see the documentation for notes on these opcodes
@@ -438,9 +437,9 @@ function OpenShockwaveMovie(file) {
 				case 0x42:
 				case 0x82:
 				case 0xc2:
-					towritetemp[0] = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj);
+					var args = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj).reverse();
 					// we now have nameValuePair inside of
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(towritetemp[0]));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(args));
 					opcode = "newarglist";
 					// pseudocode is "silent," this is just to sort out the stack
 					break;
@@ -561,16 +560,16 @@ function OpenShockwaveMovie(file) {
 				case 0x57:
 				case 0x97:
 				case 0xd7:
-					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
-					towritetemp[1] = "";
+					var argslist = Main.LingoScript.prototype.stack.pop();
+					var argsliststring = "";
 					opcode = "call_external";
-					for (var i=0,len=towritetemp[0].val.length;i<len;i++) {
-						towritetemp[1] += towritetemp[0].val[i].val;
+					for (var i=0,len=argslist.val.length;i<len;i++) {
+						argsliststring += argslist.val[i].val;
 						if (i < len - 1) {
-							towritetemp[1] += ", ";
+							argsliststring += ", ";
 						}
 					}
-					pseudocode = this.obj + "(" + towritetemp[1] + ")";
+					pseudocode = this.obj + "(" + argsliststring + ")";
 					break;
 				case 0x58:
 				case 0x98:
