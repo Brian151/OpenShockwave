@@ -22,6 +22,12 @@ PathTooNewError = function(message) {
 }
 PathTooNewError.prototype = new Error;
 
+DataStream.prototype.readStringEndianness = function() {
+	var result = this.readString(4);
+	!this.endianness||(result=result.split("").reverse().join(""));
+	return result;
+}
+
 function OpenShockwaveMovie(file) {
 	// you know you want to
 	var Main = this;
@@ -30,7 +36,7 @@ function OpenShockwaveMovie(file) {
 		!loggingEnabled||console.log("Constructing Chunk: " + name);
 		// check if this is the chunk we are expecting
 		// we're using this instead of readString because we need to respect endianness
-		var validName = DataStream.createStringFromArray(MainDataStream.readUint8Array(4));
+		var validName = MainDataStream.readStringEndianness(4);
 		if (name == "RIFX") {
 			//if (validName.substring(0, 2) == "MZ") {
 				// handle Projector HERE
@@ -96,7 +102,6 @@ function OpenShockwaveMovie(file) {
 		// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
 		this.ChunkDataStream = new DataStream();
 		this.ChunkDataStream.endianness = MainDataStream.endianness;
-		//alert(this.ChunkDataStream.endianness);
 		this.ChunkDataStream.writeUint8Array(MainDataStream.mapUint8Array(this.len/* - 8*/));
 		this.ChunkDataStream.seek(0);
 		
@@ -108,7 +113,7 @@ function OpenShockwaveMovie(file) {
 			switch (this.name) {
 				case "RIFX":
 					result = new Main.Meta();
-					result.codec = DataStream.createStringFromArray(this.ChunkDataStream.readUint8Array(4));
+					result.codec = this.ChunkDataStream.readStringEndianness(4);
 					break;
 				case "imap":
 					result = new Main.iMap();
@@ -133,7 +138,7 @@ function OpenShockwaveMovie(file) {
 					for(var i=0,len=result.chunkCountUsed;i<len;i++) {
 						// don't actually generate new chunk objects here, just read in data
 						result.mapArray[i] = [];
-						result.mapArray[i]["name"] = DataStream.createStringFromArray(this.ChunkDataStream.readUint8Array(4));
+						result.mapArray[i]["name"] = this.ChunkDataStream.readStringEndianness(4);
 						//alert(i + " " + len + " " + this.mapArray[i]["name"]);
 						result.mapArray[i]["len"] = this.ChunkDataStream.readUint32();
 						result.mapArray[i]["offset"] = this.ChunkDataStream.readUint32();
