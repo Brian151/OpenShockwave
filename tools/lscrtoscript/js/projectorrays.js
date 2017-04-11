@@ -96,6 +96,7 @@ function OpenShockwaveMovie(file) {
 		// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
 		this.ChunkDataStream = new DataStream();
 		this.ChunkDataStream.endianness = MainDataStream.endianness;
+		//alert(this.ChunkDataStream.endianness);
 		this.ChunkDataStream.writeUint8Array(MainDataStream.mapUint8Array(this.len/* - 8*/));
 		this.ChunkDataStream.seek(0);
 		
@@ -213,19 +214,6 @@ function OpenShockwaveMovie(file) {
 	this.LingoScript = function() {
 		// add handlers, variables...
 		
-		this.prototype.nameValuePair = function(val, name) {
-			if (typeof val !== 'undefined') {
-				this.val = val;
-			} else {
-				this.val = 0;
-			}
-			if (typeof name !== 'undefined') {
-				this.name = name;
-			} else {
-				this.name = this.val;
-			}
-		}
-		
 		this.handler = function() {
 			this.bytecodeArray = new Array();
 		}
@@ -258,7 +246,7 @@ function OpenShockwaveMovie(file) {
 					result = !towritetemp[0].val;
 			}
 			pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
-			Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
+			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
 		}
 		
 		this.handler.prototype.bytecode.prototype.operate21 = function(val) {
@@ -351,7 +339,7 @@ function OpenShockwaveMovie(file) {
 					result = !x.val.indexOf(y.val);
 			}
 			pseudocode = "projectorrraystemp_" + x.name + "" + operator + "" + y.name + " = (" + x.name + " " + operator + " " + y.name + ")";
-			Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
+			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
 		}
 		
 		this.handler.prototype.bytecode.prototype.translate = function() {
@@ -370,7 +358,7 @@ function OpenShockwaveMovie(file) {
 				case 0x3:
 					opcode = "pushint0";
 					pseudocode = "0";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(0));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
 					break;
 				case 0x4:
 				case 0x5:
@@ -431,15 +419,15 @@ function OpenShockwaveMovie(file) {
 					than their operands.
 				*/
 				case 0x41:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushbyte";
 					break;
 				case 0x81:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushshort";
 					break;
 				case 0xc1:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushint24";
 					break;
 				case 0x42:
@@ -447,7 +435,7 @@ function OpenShockwaveMovie(file) {
 				case 0xc2:
 					towritetemp[0] = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj);
 					// we now have nameValuePair inside of
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[0]));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(towritetemp[0]));
 					opcode = "newarglist";
 					// pseudocode is "silent," this is just to sort out the stack
 					break;
@@ -459,7 +447,7 @@ function OpenShockwaveMovie(file) {
 				case 0x44:
 				case 0x84:
 				case 0xc4:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "push";
 					break; 
 					/* 
@@ -685,11 +673,24 @@ function OpenShockwaveMovie(file) {
 		}
 	}
 	
-	Main.LingoScript.prototype = this.cast;
+	this.LingoScript.prototype = this.cast;
 	
-	Main.LingoScript.prototype.stack = new Array();
+	this.LingoScript.prototype.stack = new Array();
 	//this.Main.LingoScript.prototype.stack.push(this.val);
 	//this.val = this.Main.LingoScript.prototype.stack.pop();
+		
+	this.LingoScript.prototype.nameValuePair = function(val, name) {
+		if (typeof val !== 'undefined') {
+			this.val = val;
+		} else {
+			this.val = 0;
+		}
+		if (typeof name !== 'undefined') {
+			this.name = name;
+		} else {
+			this.name = this.val;
+		}
+	}
 	
 	// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
 	this.lookupMmap = function(DirectorFileDataStream) {
