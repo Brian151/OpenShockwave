@@ -213,7 +213,7 @@ function OpenShockwaveMovie(file) {
 	Main.LingoScript = function() {
 		// add handlers, variables...
 		
-		this.nameValuePair = function(val, name) {
+		Main.LingoScript.nameValuePair = function(val, name) {
 			if (typeof val !== 'undefined') {
 				this.val = val;
 			} else {
@@ -259,7 +259,7 @@ function OpenShockwaveMovie(file) {
 				case 0x3:
 					opcode = "pushint0";
 					pseudocode = "0";
-					Main.LingoScript.prototype.stack.push(new this.nameValuePair(0));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(0));
 					break;
 				case 0x4:
 				case 0x5:
@@ -368,7 +368,7 @@ function OpenShockwaveMovie(file) {
 						break;
 					}
 					pseudocode = "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + " = (" + towritetemp[0].name + " " + towritetemp[2] + " " + towritetemp[1].name + ")";
-					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3], "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + ""));
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[3], "projectorrraystemp_" + towritetemp[0].name + "" + towritetemp[2] + "" + towritetemp[1].name + ""));
 					break;
 				case 0x9:
 				case 0x14:
@@ -385,7 +385,7 @@ function OpenShockwaveMovie(file) {
 							towritetemp[3] = !towritetemp[0].val;
 					}
 					pseudocode = "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + " = (" + towritetemp[2] + "" + towritetemp[0].name + ")";
-					Main.LingoScript.prototype.stack.push(new this.nameValuePair(towritetemp[3]), "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + "");
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[3]), "projectorrraystemp_" + towritetemp[2] + "" + towritetemp[0].name + "");
 					break;
 				case 0x17:
 					opcode = "splitstr";
@@ -422,22 +422,23 @@ function OpenShockwaveMovie(file) {
 					than their operands.
 				*/
 				case 0x41:
-					Main.LingoScript.prototype.stack.push(this.obj);
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
 					opcode = "pushbyte";
 					break;
 				case 0x81:
-					Main.LingoScript.prototype.stack.push(this.obj);
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
 					opcode = "pushshort";
 					break;
 				case 0xc1:
-					Main.LingoScript.prototype.stack.push(this.obj);
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
 					opcode = "pushint24";
 					break;
 				case 0x42:
 				case 0x82:
 				case 0xc2:
 					towritetemp[0] = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj);
-					Main.LingoScript.prototype.stack.push(towritetemp[0]);
+					// we now have nameValuePair inside of
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(towritetemp[0]));
 					opcode = "newarglist";
 					// pseudocode is "silent," this is just to sort out the stack
 					break;
@@ -449,6 +450,7 @@ function OpenShockwaveMovie(file) {
 				case 0x44:
 				case 0x84:
 				case 0xc4:
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.nameValuePair(this.obj));
 					opcode = "push";
 					break; 
 					/* 
@@ -558,8 +560,15 @@ function OpenShockwaveMovie(file) {
 				case 0x97:
 				case 0xd7:
 					towritetemp[0] = Main.LingoScript.prototype.stack.pop();
+					towritetemp[1] = "";
 					opcode = "call_external";
-					pseudocode = this.obj + "(" + towritetemp[0].join() + ")";
+					for (var i=0,len=towritetemp[0].val.length;i<len;i++) {
+						towritetemp[1] += towritetemp[0].val[i].val;
+						if (i < len - 1) {
+							towritetemp[1] += ", ";
+						}
+					}
+					pseudocode = this.obj + "(" + towritetemp[1] + ")";
 					break;
 				case 0x58:
 				case 0x98:
