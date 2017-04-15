@@ -423,24 +423,24 @@ function OpenShockwaveMovie(file) {
 					than their operands.
 				*/
 				case 0x41:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushbyte";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				case 0x81:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushshort";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				case 0xc1:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "pushint24";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				case 0x42:
 				case 0x82:
 				case 0xc2:
+					opcode = "newarglist";
 					var args = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj).reverse();
 					// we now have nameValuePair inside of
 					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(args));
-					opcode = "newarglist";
 					// pseudocode is "silent," this is just to sort out the stack
 					break;
 				case 0x43:
@@ -451,8 +451,8 @@ function OpenShockwaveMovie(file) {
 				case 0x44:
 				case 0x84:
 				case 0xc4:
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					opcode = "push";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break; 
 					/* 
 						likely to be re-named to:
@@ -560,9 +560,9 @@ function OpenShockwaveMovie(file) {
 				case 0x57:
 				case 0x97:
 				case 0xd7:
+					opcode = "call_external";
 					var argslist = Main.LingoScript.prototype.stack.pop();
 					var argsliststring = "";
-					opcode = "call_external";
 					for (var i=0,len=argslist.val.length;i<len;i++) {
 						argsliststring += argslist.val[i].val;
 						if (i < len - 1) {
