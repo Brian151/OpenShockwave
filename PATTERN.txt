@@ -1,0 +1,8 @@
+Contains entire set of patterns for Director 11.5
+Custom
+Grays
+Standard
+QuickDraw
+
+All occur in this exact order and with a padding magenta tile between.
+The layout and file format of these most likely will change in the future.
