@@ -157,36 +157,72 @@ function OpenShockwaveMovie(file) {
 					break;
 				case "Lscr":
 					result = new Main.LingoScript();
-					this.ChunkDataStream.seek(74);
+					this.ChunkDataStream.seek(8);
+					// Lingo scripts are always big endian regardless of file endianness
+					this.ChunkDataStream.endianness = false;
+					result.totalLength = this.ChunkDataStream.readUint32();
+					result.totalLength2 = this.ChunkDataStream.readUint32();
+					result.headerLength = this.ChunkDataStream.readUint16();
+					result.scriptNumber = this.ChunkDataStream.readUint16();
+					this.ChunkDataStream.seek(38);
+					result.scriptBehaviour = this.ChunkDataStream.readUint32();
+					this.ChunkDataStream.seek(50);
 					result.map = new Array();
-					result.map["handlers"] = this.ChunkDataStream.readUint32();
-					this.ChunkDataStream.seek(result.map["handlers"] + 4);
+					result.map["handlervectors"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
+					result.map["properties"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
+					console.log(result.map["properties"].offset);
+					result.map["globals"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
+					console.log(result.map["globals"].offset);
+					// 74
+					result.map["handlers"] = new result.LscrChunk(this.ChunkDataStream.readUint16(),  this.ChunkDataStream.readUint32());
+					console.log(result.map["handlers"].offset);
+					result.map["literals"] = new result.LscrChunk(this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
+					this.ChunkDataStream.seek(result.map["handlers"].offset);
 					// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
 					result.handlers = new Array();
-					result.handlers[0] = new result.handler();
-					result.handlers[0].len = this.ChunkDataStream.readUint32();
-					result.handlers[0].offset = this.ChunkDataStream.readUint32();
-					this.ChunkDataStream.seek(result.handlers[0].offset);
-					result.handlers[0].bytecodeArray = new Array();
-					// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
-					// loop while there's still more code left
-					var pos = null;
-					while (this.ChunkDataStream.position < result.handlers[0].offset + result.handlers[0].len) {
-						// read the first byte to convert to an opcode
-						pos = new result.handlers[0].bytecode(this.ChunkDataStream.readUint8());
-						// instructions can be one, two or three bytes
-						if (pos.val >= 192) {
-						pos.obj = this.ChunkDataStream.readUint24();
-						} else {
-							if (pos.val >= 128) {
-								pos.obj = this.ChunkDataStream.readUint16();
+					for(var i=0,len=result.map["handlers"].len;i<len;i++) {
+						result.handlers[i] = new result.handler();
+						result.handlers[i].name = this.ChunkDataStream.readUint16();
+						result.handlers[i].handlervectorpos = this.ChunkDataStream.readUint16();
+						result.handlers[i].compiledlen = this.ChunkDataStream.readUint32();
+						result.handlers[i].compiledoffset = this.ChunkDataStream.readUint32();
+						result.handlers[i].argumentcount = this.ChunkDataStream.readUint16();
+						result.handlers[i].argumentoffset = this.ChunkDataStream.readUint32();
+						result.handlers[i].localscount = this.ChunkDataStream.readUint16();
+						result.handlers[i].localsoffset = this.ChunkDataStream.readUint32();
+						result.handlers[i].unknown0count = this.ChunkDataStream.readUint16();
+						result.handlers[i].unknown0offset = this.ChunkDataStream.readUint32();
+						result.handlers[i].unknown1 = this.ChunkDataStream.readUint32();
+						result.handlers[i].unknown2 = this.ChunkDataStream.readUint16();
+						result.handlers[i].unknown3 = this.ChunkDataStream.readUint16();
+						result.handlers[i].linecount = this.ChunkDataStream.readUint16();
+						result.handlers[i].lineoffset = this.ChunkDataStream.readUint32();
+						// yet to implement
+						result.handlers[i].stackheight = this.ChunkDataStream.readUint32();
+					}
+					if (result.map["handlers"].len) {
+						this.ChunkDataStream.seek(result.handlers[0].compiledoffset);
+						result.handlers[0].bytecodeArray = new Array();
+						// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
+						// loop while there's still more code left
+						var pos = null;
+						while (this.ChunkDataStream.position < result.handlers[0].compiledoffset + result.handlers[0].compiledlen) {
+							// read the first byte to convert to an opcode
+							pos = new result.handlers[0].bytecode(this.ChunkDataStream.readUint8());
+							// instructions can be one, two or three bytes
+							if (pos.val >= 192) {
+							pos.obj = this.ChunkDataStream.readUint24();
 							} else {
-								if (pos.val >= 64) {
-									pos.obj = this.ChunkDataStream.readUint8();
+								if (pos.val >= 128) {
+									pos.obj = this.ChunkDataStream.readUint16();
+								} else {
+									if (pos.val >= 64) {
+										pos.obj = this.ChunkDataStream.readUint8();
+									}
 								}
 							}
+							result.handlers[0].bytecodeArray.push(pos);
 						}
-						result.handlers[0].bytecodeArray.push(pos);
 					}
 					break;
 			}
@@ -347,7 +383,13 @@ function OpenShockwaveMovie(file) {
 			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
 		}
 		
+		var oldpop = Array.prototype.pop;
+		Array.prototype.pop = function() {
+			return this.length?oldpop():new Main.LingoScript.prototype.nameValuePair("", "");
+		}
+		
 		this.handler.prototype.bytecode.prototype.translate = function() {
+			Main.LingoScript.prototype.stack = [];
 			!loggingEnabled||console.log("Translate Bytecode: " + bytecode);
 			var opcode = "";
 			var pseudocode = "";
@@ -361,7 +403,6 @@ function OpenShockwaveMovie(file) {
 					break;
 				case 0x3:
 					opcode = "pushint0";
-					pseudocode = "0";
 					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
 					break;
 				case 0x4:
@@ -390,30 +431,81 @@ function OpenShockwaveMovie(file) {
 					break;
 				case 0x17:
 					opcode = "splitstr";
+					(function() {
+						var firstchar = Main.LingoScript.prototype.stack.pop();
+						var lastchar = Main.LingoScript.prototype.stack.pop();
+						var firstchar = Main.LingoScript.prototype.stack.pop();
+						var firstword = Main.LingoScript.prototype.stack.pop();
+						var lastword = Main.LingoScript.prototype.stack.pop();
+						var firstitem = Main.LingoScript.prototype.stack.pop();
+						var lastitem = Main.LingoScript.prototype.stack.pop();
+						var firstline = Main.LingoScript.prototype.stack.pop();
+						var lastline = Main.LingoScript.prototype.stack.pop();
+						var strsplit = Main.LingoScript.prototype.stack.pop();
+						// lazy
+						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(strsplit));
+						pseudocode = "char " + firstchar + " of " + lastchar;
+					})();
 					break;
 				case 0x18:
 					opcode = "lightstr";
+					(function() {
+						var firstchar = Main.LingoScript.prototype.stack.pop();
+						var lastchar = Main.LingoScript.prototype.stack.pop();
+						var firstchar = Main.LingoScript.prototype.stack.pop();
+						var firstword = Main.LingoScript.prototype.stack.pop();
+						var lastword = Main.LingoScript.prototype.stack.pop();
+						var firstitem = Main.LingoScript.prototype.stack.pop();
+						var lastitem = Main.LingoScript.prototype.stack.pop();
+						var firstline = Main.LingoScript.prototype.stack.pop();
+						var lastline = Main.LingoScript.prototype.stack.pop();
+						var strsplit = Main.LingoScript.prototype.stack.pop();
+						// lazy
+						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(strsplit));
+						pseudocode = "hilite " + firstchar + " of " + lastchar;
+					})();
 					break;
 				case 0x19:
 					opcode = "ontospr";
+					(function() {
+						var firstspr = Main.LingoScript.prototype.stack.pop();
+						var secondspr = Main.LingoScript.prototype.stack.pop();
+						// lazy
+						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
+						pseudocode = "sprite " + firstspr + " intersects " + secondspr;
+					})();
 					break;
 				case 0x1a:
 					opcode = "intospr";
+					(function() {
+						var firstspr = Main.LingoScript.prototype.stack.pop();
+						var secondspr = Main.LingoScript.prototype.stack.pop();
+						// lazy
+						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
+						pseudocode = "sprite " + firstspr + " within " + secondspr;
+					})();
 					break;
 				case 0x1b:
 					opcode = "caststr";
+					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
+					pseudocode = "(field 1)";
 					break;
 				case 0x1c:
 					opcode = "startobj";
+					Main.LingoScript.prototype.stack.pop();
+					pseudocode = "tell obj to go to frame x";
 					break;
 				case 0x1d:
 					opcode = "stopobj";
+					pseudocode = "tell obj to go to frame x";
 					break;
 				case 0x1e:
 					opcode = "wraplist";
+					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
 					break; // NAME NOT CERTAINLY SET IN STONE JUST YET...
 				case 0x1f:
 					opcode = "newproplist";
+					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
 					break;
 				/* Multi - Byte Instructions */
 				/*
@@ -438,10 +530,12 @@ function OpenShockwaveMovie(file) {
 				case 0x82:
 				case 0xc2:
 					opcode = "newarglist";
-					var args = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - this.obj, this.obj).reverse();
-					// we now have nameValuePair inside of
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(args));
-					// pseudocode is "silent," this is just to sort out the stack
+					(function(obj) {
+						var args = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - obj, obj).reverse();
+						// we now have nameValuePair inside of
+						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(args));
+						// pseudocode is "silent," this is just to sort out the stack
+					})(this.obj);
 					break;
 				case 0x43:
 				case 0x83:
@@ -465,6 +559,7 @@ function OpenShockwaveMovie(file) {
 				case 0x85:
 				case 0xc5:
 					opcode = "pushsymb";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				/*
 				case 0x46:
@@ -485,6 +580,7 @@ function OpenShockwaveMovie(file) {
 				*/
 				case 0x49:
 					opcode = "push_global";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				/*
 				case 0x4a:
@@ -497,11 +593,13 @@ function OpenShockwaveMovie(file) {
 				case 0x8b:
 				case 0xcb:
 					opcode = "pushparams";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				case 0x4c:
 				case 0x8c:
 				case 0xcc:
 					opcode = "push_local";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
 					break;
 				/*
 				case 0x4d:
@@ -519,6 +617,12 @@ function OpenShockwaveMovie(file) {
 				case 0x8f:
 				case 0xcf:
 					opcode = "pop_global";
+					(function(obj) {
+						var popped = Main.LingoScript.prototype.stack.pop();
+						var poppedstring = popped.val;
+						// go to Lnam and set that global
+						pseudocode = poppedstring + " = " + obj;
+					})(this.obj);
 					break;
 				/*
 				case 0x50:
@@ -536,48 +640,82 @@ function OpenShockwaveMovie(file) {
 				case 0x92:
 				case 0xd2:
 					opcode = "pop_local";
+					(function(obj) {
+						var popped = Main.LingoScript.prototype.stack.pop();
+						var poppedstring = popped.val;
+						pseudocode = poppedstring + " = " + obj;
+					})(this.obj);
 					break;
 				case 0x53:
 				case 0x93:
 				case 0xd3:
 					opcode = "jmp";
+					// do something
 					break;
 				case 0x54:
 				case 0x94:
 				case 0xd4:
 					opcode = "endrepeat";
+					pseudocode = "end repeat";
 					break;
 				case 0x55:
 				case 0x95:
 				case 0xd5:
 					opcode = "iftrue";
+					pseudocode = "if (" + this.obj + ")";
 					break;
 				case 0x56:
 				case 0x96:
 				case 0xd6:
 					opcode = "call_local";
+					(function(obj) {
+						var argslist = Main.LingoScript.prototype.stack.pop();
+						var argsliststring = "";
+						for (var i=0,len=argslist.val.length;i<len;i++) {
+							argsliststring += argslist.val[i].val;
+							if (i < len - 1) {
+								argsliststring += ", ";
+							}
+						}
+						pseudocode = obj + "(" + argsliststring + ")";
+					})(this.obj);
 					break;
 				case 0x57:
 				case 0x97:
 				case 0xd7:
 					opcode = "call_external";
-					var argslist = Main.LingoScript.prototype.stack.pop();
-					var argsliststring = "";
-					for (var i=0,len=argslist.val.length;i<len;i++) {
-						argsliststring += argslist.val[i].val;
-						if (i < len - 1) {
-							argsliststring += ", ";
+					(function(obj) {
+						var argslist = Main.LingoScript.prototype.stack.pop();
+						var argsliststring = "";
+						for (var i=0,len=argslist.val.length;i<len;i++) {
+							argsliststring += argslist.val[i].val;
+							if (i < len - 1) {
+								argsliststring += ", ";
+							}
 						}
-					}
-					pseudocode = this.obj + "(" + argsliststring + ")";
+						pseudocode = obj + "(" + argsliststring + ")";
+					})(this.obj);
 					break;
 				case 0x58:
 				case 0x98:
 				case 0xd8:
 					opcode = "callobj";
+					(function() {
+						var argslist = Main.LingoScript.prototype.stack.pop();
+						var poppedobject = Main.LingoScript.prototype.stack.pop();
+						var argsliststring = "";
+						for (var i=0,len=argslist.val.length;i<len;i++) {
+							argsliststring += argslist.val[i].val;
+							if (i < len - 1) {
+								argsliststring += ", ";
+							}
+						}
+						pseudocode = poppedobject.obj + "(" + argsliststring + ")";
+					})();
 					break;
 				case 0x59:
 					opcode = "op_59xx";
+					Main.LingoScript.prototype.stack.pop();
 					break; //TEMP NAME
 				/*
 				case 0x5a:
@@ -586,23 +724,39 @@ function OpenShockwaveMovie(file) {
 					opcode = "nop";
 					break;
 				*/
-				/*
 				case 0x5b:
 				case 0x9b:
 				case 0xdb:
 					opcode = "op_5bxx";
+					Main.LingoScript.prototype.stack.pop();
 					break; //TEMP NAME
-				*/
 				case 0x5c:
 				case 0x9c:
 				case 0xdc:
 					opcode = "get";
+					Main.LingoScript.prototype.stack.pop();
+					if (this.val >= 0x0C) {
+						Main.LingoScript.prototype.stack.pop();
+					}
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
 					break; // needs values from stack to determine what it's getting
 						   // that said, dissassembly of this instruction is not yet complete
 				case 0x5d:
 				case 0x9d:
 				case 0xdd:
 					opcode = "set";
+					(function(val) {
+						// make a switch later
+						Main.LingoScript.prototype.stack.pop();
+						Main.LingoScript.prototype.stack.pop();
+						if (val == 3) {
+							Main.LingoScript.prototype.stack.pop();
+							Main.LingoScript.prototype.stack.pop();
+						}
+						if (val != 0 && val != 3 && val != 7) {
+							Main.LingoScript.prototype.stack.pop();
+						}
+					})(this.val);
 					break; // needs values from stack to determine what it's setting
 						   // that said, dissassembly of this instruction is not yet complete
 				/*
@@ -616,21 +770,31 @@ function OpenShockwaveMovie(file) {
 				case 0x9f:
 				case 0xdf:
 					opcode = "getprop";
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
+					pseudocode = "(the prop)";
 					break;
 				case 0x60:
 				case 0xa0:
 				case 0xe0:
 					opcode = "setprop";
+					Main.LingoScript.prototype.stack.pop();
+					pseudocode = "set the prop to x";
 					break;
 				case 0x61:
 				case 0xa1:
 				case 0xe1:
 					opcode = "getobjprop";
+					Main.LingoScript.prototype.stack.pop();
+					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
+					pseudocode = "(the prop of x)";
 					break;
-				case 0x63:
-				case 0xa3:
-				case 0xe3:
+				case 0x62:
+				case 0xa2:
+				case 0xe2:
 					opcode = "setobjprop";
+					Main.LingoScript.prototype.stack.pop();
+					Main.LingoScript.prototype.stack.pop();
+					pseudocode = "set the prop of x to y";
 					break;
 				case 0x64:
 				case 0xa4:
@@ -682,6 +846,14 @@ function OpenShockwaveMovie(file) {
 	this.LingoScript.prototype.stack = new Array();
 	//this.Main.LingoScript.prototype.stack.push(this.val);
 	//this.val = this.Main.LingoScript.prototype.stack.pop();
+			
+	this.LingoScript.prototype.LscrChunk = function(len, offset, flags) {
+		this.len = len;
+		this.offset = offset;
+		if (typeof flags !== 'undefined') {
+			this.flags = flags;
+		}
+	}
 		
 	this.LingoScript.prototype.nameValuePair = function(val, name) {
 		if (typeof val !== 'undefined') {
@@ -735,7 +907,9 @@ function OpenShockwaveMovie(file) {
 		if (!this.chunkArray["Lscr"]) {
 		} else {
 			for (var i=0,len=this.chunkArray["Lscr"].length;i<len;i++) {
-				parent.right.document.getElementById("Lscrtables").innerHTML += this.chunkArray["Lscr"][i].handlers[0].write();
+				for (var j=0,len2=this.chunkArray["Lscr"][i].handlers.length;j<len2;j++) {
+					parent.right.document.getElementById("Lscrtables").innerHTML += this.chunkArray["Lscr"][i].handlers[j].write();
+				}
 			}
 		}
 	}
