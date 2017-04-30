@@ -1,0 +1,5 @@
+License only applies to the following items:
+
+tools/Format
+tools/List
+tools/lscrtoscript
