@@ -1,6 +1,6 @@
 // Bitmap NUU to PNG
 // Scripted by TOMYSSHADOW
-// Version 1.0.0
+// Version 1.0.1
 var loggingEnabled = false;
 
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
@@ -44,7 +44,7 @@ this.drawNUU = function(save) {
 							cvs.style.visibility = "hidden";
 						}
 						// width
-						var width = document.getElementById("width").value;
+						var width = parseInt(document.getElementById("width").value);
 						var hasalpha = document.getElementById("bitdepth").selectedIndex;
 						// it would seem alpha values are reversed if every alpha value is transparent
 						var reversealpha = true;
@@ -103,7 +103,7 @@ this.drawNUU = function(save) {
 						//!loggingEnabled||console.log(rgbColours);
 						cvs.width = width;
 						// any channel - they should be the same length
-						cvs.height = Math.ceil(rgbColours[1].length / width);
+						cvs.height = Math.ceil(rgbColours[0].length / width);
 						for(var j=0,len2=rgbColours[0].length;j<len2;j++) {
 							// sometimes I think alpha is reversed where 0 means opaque and 255 means transparent?
 							if (reversealpha) {
