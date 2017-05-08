@@ -1,0 +1,9 @@
+-cp lib
+-cp src
+#-debug
+#-D source-map-content
+-dce full
+--macro Stub.modules()
+
+-js bin/Shockwave.js
+-main brian151.Main

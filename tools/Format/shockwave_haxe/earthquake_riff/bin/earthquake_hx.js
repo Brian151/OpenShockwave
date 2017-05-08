@@ -1,0 +1,124 @@
+(function (console, $hx_exports) { "use strict";
+var brian151 = $hx_exports.brian151 = $hx_exports.brian151 || {};
+$hx_exports.brian151.riff = $hx_exports.brian151.riff || {};
+;$hx_exports.brian151.earthquake = $hx_exports.brian151.earthquake || {};
+$hx_exports.brian151.earthquake.filesystem = $hx_exports.brian151.earthquake.filesystem || {};
+function $extend(from, fields) {
+	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
+	for (var name in fields) proto[name] = fields[name];
+	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
+	return proto;
+}
+var brian151_earthquake_Cast = $hx_exports.brian151.earthquake.Cast = function() {
+};
+var brian151_earthquake_CastMember = $hx_exports.brian151.earthquake.CastMember = function() {
+};
+var brian151_earthquake_Movie = $hx_exports.brian151.earthquake.Movie = function(src) {
+	var header = new DataView(src,0,12);
+	this.getType(header);
+	if(this.isValid) {
+		if(this.isCompressed) this.dataFile = new brian151_earthquake_filesystem_CompressedFile(src); else if(this.isProtected || this.isProjector) {
+			this.dataFile = new brian151_earthquake_filesystem_ProtectedFile(src);
+			if(this.isProjector) this.dataFile.setProjector();
+		} else this.dataFile = new brian151_earthquake_filesystem_DirectorFile(src);
+		this.isExternalCast = this.dataFile.checkCast();
+		if(this.isExternalCast && this.isProjector) this.isValid = false;
+	}
+};
+brian151_earthquake_Movie.prototype = {
+	getType: function(hint) {
+		var head = hint.getUint32(0);
+		var formType = hint.getUint32(8);
+		var len = 0;
+		this.isValid = true;
+		switch(head) {
+		case 1481001298:
+			this.riffType = "XFIR";
+			len = hint.getUint32(4,true);
+			break;
+		case 1380533848:
+			this.riffType = "RIFX";
+			len = hint.getUint32(4,false);
+			break;
+		default:
+			this.isValid = false;
+		}
+		if(hint.buffer.byteLength - 8 != len) this.isValid = false;
+		this.isCompressed = false;
+		this.isProtected = false;
+		this.isProjector = false;
+		switch(formType) {
+		case 859395661:
+			if(this.riffType != "XFIR") this.isValid = false;
+			break;
+		case 1297496371:
+			if(this.riffType != "RIFX") this.isValid = false;
+			break;
+		case 1296320326:
+			if(this.riffType != "XFIR") this.isValid = false;
+			this.isCompressed = true;
+			break;
+		case 1179075661:
+			if(this.riffType != "RIFX") this.isValid = false;
+			this.isCompressed = true;
+			break;
+		case 1280331841:
+			if(this.riffType != "XFIR") this.isValid = false;
+			this.isProjector = true;
+			break;
+		case 1095782476:
+			if(this.riffType != "RIFX") this.isValid = false;
+			this.isProjector = true;
+			break;
+		default:
+			this.isValid = false;
+		}
+	}
+};
+var brian151_riff_File = $hx_exports.brian151.riff.File = function(datasrc) {
+	this.view = new DataView(datasrc);
+	this.length = this.view.byteLength;
+	this.formats = ["RIFF","RIFX","XFIR"];
+	this.formatByteOrder = [["B","L"],["B","B"],["L","L"]];
+	this.currentFormat = 0;
+};
+var brian151_earthquake_filesystem_CompressedFile = $hx_exports.brian151.earthquake.filesystem.CompressedFile = function(src) {
+	brian151_riff_File.call(this,src);
+	this.isProjector = false;
+};
+brian151_earthquake_filesystem_CompressedFile.__super__ = brian151_riff_File;
+brian151_earthquake_filesystem_CompressedFile.prototype = $extend(brian151_riff_File.prototype,{
+	checkCast: function() {
+		return false;
+	}
+	,setProjector: function() {
+		this.isProjector = true;
+	}
+});
+var brian151_earthquake_filesystem_DirectorFile = $hx_exports.brian151.earthquake.filesystem.DirectorFile = function(src) {
+	brian151_riff_File.call(this,src);
+	this.isProjector = false;
+};
+brian151_earthquake_filesystem_DirectorFile.__super__ = brian151_riff_File;
+brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151_riff_File.prototype,{
+	checkCast: function() {
+		return false;
+	}
+	,setProjector: function() {
+		this.isProjector = true;
+	}
+});
+var brian151_earthquake_filesystem_ProtectedFile = $hx_exports.brian151.earthquake.filesystem.ProtectedFile = function(src) {
+	brian151_riff_File.call(this,src);
+	this.isProjector = false;
+};
+brian151_earthquake_filesystem_ProtectedFile.__super__ = brian151_riff_File;
+brian151_earthquake_filesystem_ProtectedFile.prototype = $extend(brian151_riff_File.prototype,{
+	checkCast: function() {
+		return false;
+	}
+	,setProjector: function() {
+		this.isProjector = true;
+	}
+});
+})(typeof console != "undefined" ? console : {log:function(){}}, typeof $hx_scope != "undefined" ? $hx_scope : $hx_scope = {});
