@@ -4,14 +4,6 @@
 -dce full
 --macro Stub.modules()
 
---each
--D compileLvl=libRIFF
--js bin/RIFF_hx.js
-brian151.riff.File
-brian151.riff.Section
-brian151.riff.SectionHandler
-
---next
 -D compileLvl=libShockwave
 -js bin/earthquake_hx.js
 brian151.earthquake.Movie

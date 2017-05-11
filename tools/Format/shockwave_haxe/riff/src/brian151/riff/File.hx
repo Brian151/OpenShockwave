@@ -107,7 +107,7 @@ class File
 				byteOrder = false;
 			case 2:
 				byteOrder = true;
-			untyped __js__("case 0:") //haxe switch cases do not fall through!
+			// case 0: //haxe switch cases do not fall through!
 			default:
 				byteOrder = formatByteOrder[currentFormat][0] == "L";
 		}
@@ -120,7 +120,7 @@ class File
 				byteOrder = false;
 			case 2:
 				byteOrder = true;
-			untyped __js__("case 0:") //haxe switch cases do not fall through!
+			// case 0: //haxe switch cases do not fall through!
 			default:
 				byteOrder = formatByteOrder[currentFormat][0] == "L";
 		}
@@ -150,7 +150,7 @@ class File
 	public function setShortAt(offset:Int, value:Int, byteOrder:Bool):Void {
 		view.setInt16(offset, value, byteOrder);
 	}
-	public function getByteAt(offset:Int) {
+	public function getByteAt(offset:Int):Int {
 		return view.getInt8(offset);
 	}
 	public function setByteAt(offset:Int, value:Int):Void {
@@ -177,9 +177,10 @@ class File
 			switch(type) {
 				case "U16":
 					len = untyped __js__("16 / 4");
-				case "U8":
+				case "U8": {
 					len = untyped __js__("8 / 4");
-				untyped __js__("case \"U32\":") //haxe switch cases do not fall through!
+				}
+				// case "U32": //haxe switch cases do not fall through!
 				default:
 					len = untyped __js__("32 / 4");
 			}

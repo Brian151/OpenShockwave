@@ -23,8 +23,10 @@ var brian151_riff_File = $hx_exports.brian151.riff.File = function(datasrc) {
 };
 brian151_riff_File.__name__ = true;
 brian151_riff_File.prototype = {
-	getChunkAt: function(offset) {
-		return [];
+	getSectionAt: function(offset) {
+		var id = this.getFourCCAt(offset);
+		var len = this.getUIntAt(offset,0);
+		return new brian151_riff_Section(this.view.buffer,offset,len,id);
 	}
 	,getFourCCAt: function(offset) {
 		var off = offset;
@@ -178,10 +180,29 @@ brian151_riff_File.prototype = {
 		}
 	}
 };
-var brian151_riff_Section = $hx_exports.brian151.riff.Section = function() {
+var brian151_riff_Section = $hx_exports.brian151.riff.Section = function(src,offset,len,id) {
+	this.view = new DataView(src,offset + 8,len);
+	this.length = this.view.byteLength;
+	this.realLength = this.length + 8;
 };
 brian151_riff_Section.__name__ = true;
-var brian151_riff_SectionHandler = $hx_exports.brian151.riff.SectionHandler = function() {
+brian151_riff_Section.prototype = {
+	get_length: function() {
+		return this.length;
+	}
+	,get_realLength: function() {
+		return this.realLength;
+	}
+	,get_view: function() {
+		return this.view;
+	}
+	,get_ID: function() {
+		return this.secID;
+	}
+};
+var brian151_riff_SectionHandler = $hx_exports.brian151.riff.SectionHandler = function(src) {
+	this.target = src;
+	this.view = this.target.get_view();
 };
 brian151_riff_SectionHandler.__name__ = true;
 var js_Boot = function() { };
