@@ -4,6 +4,7 @@ import brian151.riff.LinkedSectionHandler;
 import brian151.riff.Section;
 import js.html.ArrayBuffer;
 import js.html.Uint32Array;
+import js.Browser;
 
 /**
  * ...
@@ -49,10 +50,13 @@ class DirectorFile extends File
 			for (i in 0...count) {
 				var offset2:Int = (i * 0x14) + 0x18;
 				var id:String = handler.getFourCCAt(offset2);
+				if (i == 0) {
+					Browser.window.console.log(id);
+				}
 				var offset3:Int = handler.getUIntAt(offset2 + 8, 2);
 				if (id != "free") {
-				ptrs1[i0] = offset3;
-				i0++;
+					ptrs1[i0] = offset3;
+					i0++;
 				}
 				ptrs2[i] = offset3;
 			}

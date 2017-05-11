@@ -1,9 +1,4 @@
--cp lib
--cp src
-#-D source-map-content
--dce full
---macro Stub.modules()
-
+#compiles the RIFF library
 -D compileLvl=libRIFF
 -js bin/RIFF_hx.js
 brian151.riff.File

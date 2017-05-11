@@ -1,6 +1,7 @@
 (function (console, $hx_exports) { "use strict";
 var brian151 = $hx_exports.brian151 = $hx_exports.brian151 || {};
-$hx_exports.brian151.earthquake = $hx_exports.brian151.earthquake || {};
+$hx_exports.brian151.riff = $hx_exports.brian151.riff || {};
+;$hx_exports.brian151.earthquake = $hx_exports.brian151.earthquake || {};
 $hx_exports.brian151.earthquake.filesystem = $hx_exports.brian151.earthquake.filesystem || {};
 function $extend(from, fields) {
 	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
@@ -75,11 +76,11 @@ brian151_earthquake_Movie.prototype = {
 	}
 };
 var brian151_earthquake_filesystem_CompressedFile = $hx_exports.brian151.earthquake.filesystem.CompressedFile = function(src) {
-	$hx_scope.brian151.riff.File.call(this,src);
+	brian151.riff.File.call(this,src);
 	this.isProjector = false;
 };
-brian151_earthquake_filesystem_CompressedFile.__super__ = $hx_scope.brian151.riff.File;
-brian151_earthquake_filesystem_CompressedFile.prototype = $extend($hx_scope.brian151.riff.File.prototype,{
+brian151_earthquake_filesystem_CompressedFile.__super__ = brian151.riff.File;
+brian151_earthquake_filesystem_CompressedFile.prototype = $extend(brian151.riff.File.prototype,{
 	checkCast: function() {
 		return false;
 	}
@@ -88,11 +89,11 @@ brian151_earthquake_filesystem_CompressedFile.prototype = $extend($hx_scope.bria
 	}
 });
 var brian151_earthquake_filesystem_DirectorFile = $hx_exports.brian151.earthquake.filesystem.DirectorFile = function(src) {
-	$hx_scope.brian151.riff.File.call(this,src);
+	brian151.riff.File.call(this,src);
 	this.isProjector = false;
 };
-brian151_earthquake_filesystem_DirectorFile.__super__ = $hx_scope.brian151.riff.File;
-brian151_earthquake_filesystem_DirectorFile.prototype = $extend($hx_scope.brian151.riff.File.prototype,{
+brian151_earthquake_filesystem_DirectorFile.__super__ = brian151.riff.File;
+brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151.riff.File.prototype,{
 	checkCast: function() {
 		return false;
 	}
@@ -101,14 +102,14 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend($hx_scope.brian1
 	}
 	,findMap: function() {
 		var mapIndexChunk = this.getSectionAt(12);
-		var mapIndexHandler = new $hx_scope.brian151.riff.LinkedSectionHandler(mapIndexChunk,this);
+		var mapIndexHandler = new brian151.riff.LinkedSectionHandler(mapIndexChunk,this);
 		return mapIndexHandler.getUIntAt(8,2);
 	}
 	,parseMap: function(offset) {
 		var mapChunk = this.getSectionAt(offset);
 		var id = mapChunk.get_ID();
 		if(id == "mmap") {
-			var handler = new $hx_scope.brian151.riff.LinkedSectionHandler(mapChunk,this);
+			var handler = new brian151.riff.LinkedSectionHandler(mapChunk,this);
 			var count = handler.getUIntAt(4,2);
 			var usedCount = handler.getUIntAt(8,2);
 			this.ptrBuffer = new ArrayBuffer(usedCount * 4 + count * 4);
@@ -120,6 +121,7 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend($hx_scope.brian1
 				var i = _g++;
 				var offset2 = i * 20 + 24;
 				var id1 = handler.getFourCCAt(offset2);
+				if(i == 0) window.console.log(id1);
 				var offset3 = handler.getUIntAt(offset2 + 8,2);
 				if(id1 != "free") {
 					this.ptrs1[i0] = offset3;
@@ -131,11 +133,11 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend($hx_scope.brian1
 	}
 });
 var brian151_earthquake_filesystem_ProtectedFile = $hx_exports.brian151.earthquake.filesystem.ProtectedFile = function(src) {
-	$hx_scope.brian151.riff.File.call(this,src);
+	brian151.riff.File.call(this,src);
 	this.isProjector = false;
 };
-brian151_earthquake_filesystem_ProtectedFile.__super__ = $hx_scope.brian151.riff.File;
-brian151_earthquake_filesystem_ProtectedFile.prototype = $extend($hx_scope.brian151.riff.File.prototype,{
+brian151_earthquake_filesystem_ProtectedFile.__super__ = brian151.riff.File;
+brian151_earthquake_filesystem_ProtectedFile.prototype = $extend(brian151.riff.File.prototype,{
 	checkCast: function() {
 		return false;
 	}

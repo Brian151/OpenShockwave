@@ -1,0 +1,7 @@
+#required by all modules to compile correctly
+-cp lib
+-cp src
+#-debug
+#-D source-map-content
+-dce full
+--macro Stub.modules()

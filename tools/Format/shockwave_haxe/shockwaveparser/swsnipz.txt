@@ -1,0 +1,50 @@
+﻿to-dos , notes , and code snippets:
+
+[TODO]
+add classes to proceess CASt and clut
+
+[NOTES]
+purpose of packages/classes (riff):
+	File : wrapper and handler of a RIFF-formated binary file
+	Section : wrapper for an individual chunk/section of a RIFF file
+	SectionHandler : processor of a section
+	LinkedSectionHandler : processor of a section that uses the containing File's 
+		processing methods
+
+purpose of packages/classes (earthquake):
+  filesystem : actual file structure
+    CompressedFile : DCR/CCT handler/container
+    DirectorFile : DIR/CST handler/container
+    ProtectedFile : DXR/CXT handler/container
+    structs: parsing sections
+		CastMemberHeader : processes the CASt sections
+  scripting : scripting stuff
+  Movie : object containing one or more casts, can run stand-alone, 
+	wrapped around one of the three types of file handlers
+  Cast : object containing zero or more cast members, can be stored inside a movie or in own file
+  CastMember : a cast member, contains all internal assets and source code
+  members : contains certain types of cast members all extending the base type,
+	may or may not get implemented
+  
+[CODE]
+var varint = 0;
+var result = 0;
+do {
+  varint = ShockwaveChunk.readUint8();
+  result |= varint & 0x7F;
+  result = result << 7;
+} while(varint & 0x80 >> 7);
+result = result >> 7;
+
+var varint = 0;
+var result = 0;
+while (true) {
+  varint = ShockwaveChunk.readUint8();
+  result |= varint & 0x7F;
+  result = result << 7;
+  if (!(varint & 0x80 >> 7)) {
+    break;
+  }
+}
+result = result >> 7;
+
