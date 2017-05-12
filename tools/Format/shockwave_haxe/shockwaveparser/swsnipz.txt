@@ -1,7 +1,10 @@
 ﻿to-dos , notes , and code snippets:
 
 [TODO]
-add classes to proceess CASt and clut
+proccess CASt and clut
+copy BITD handler from projectorrays
+implement methods to check if file is a movie or an external cast
+start parsing DCR/CCT formats
 
 [NOTES]
 purpose of packages/classes (riff):

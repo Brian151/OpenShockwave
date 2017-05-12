@@ -143,11 +143,29 @@ Section BITD
 		unknown, no examples encountered yet
 	}
 	@24BPP {
-		A special form of RLE
+		"Curtain" RLE {
+			encodes all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded	
+		} //compression named by Tomyssahdow?
 	}
 	@32BPP {
-		A special form of RLE
+		"Curtain" RLE {
+			encodes all alpha, all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded
+		} //compression named by Tomyssahdow?
 	}
+}
+
+Section Thum
+{
+	//these two appear to be constantly 36
+	Uint32 [big] width // ?
+	Uint32 [big] height //?
+	length - 8 bytes data {
+		currently assumed to be "Curtain" RLE,
+		but no success yet. Might be at bit depth 16 or lower
+	}
+	//thumnails? (only appears in a DIR that's been saved in Director)
 }
 
 Section CASt
