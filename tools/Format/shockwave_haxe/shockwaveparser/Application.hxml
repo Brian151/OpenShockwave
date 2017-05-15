@@ -1,0 +1,7 @@
+#compiles the main application
+-js bin/AppMain.js
+#has to be done, otherwise the compiler compiles the dependencies as well
+#(do not want, the idea is to compile the different parts of the app as separate modules)
+--macro exclude("brian151.riff")
+--macro exclude("brian151.earthquake")
+-main brian151.Main

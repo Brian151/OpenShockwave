@@ -1,0 +1,96 @@
+more comparison of bitmap cast members' specificData
+
+spybot.worldmap:0_owned
+80 9C 00 00 // ?
+00 00       // ?
+00 9A       // w
+00 9C       // h
+01 00 00 00 // c
+00 00 00 00 // ?
+00 4D       // rx
+00 4E       // ry
+C0 08       // ?,BPP
+FF FF 00 70 // ?,palette
+
+redbluesquare.Internal:red_square
+80 20 00 00 // ?
+00 00       // ?
+00 08       // w
+00 08       // h
+01 00 00 00 // c
+FF BB FF 9A // ?
+00 04       // rx
+00 04       // ry
+20 20       // ?,BPP
+FF FF FF 9B // ?,palette
+
+spybot.worldmap:0_owned_selected
+80 9C 00 00 // ?
+00 00       // ?
+00 9A       // w
+00 9C       // h
+01 00 00 00 // c
+00 00 00 00 // ?
+00 4D       // rx
+00 4E       // ry
+80 08       // ?,BPP
+FF FF 00 72 // ?,palette
+
+monstermakerdemo.Internal:red rubber mouth
+80 2E 01 0B // ?
+01 4E       // ?
+01 2A       // w
+01 7C       // h
+00 00 01 4E // c... suddenly, this is not constantly 01 00 00 00 ?!
+01 2A 01 7C // ?
+01 19       // rx
+01 66       // ry
+00 08       // ?,BPP
+FF FF 00 74 // ?,palette
+
+redbluesquare.Internal:blue_square
+80 20 00 00 // ?
+00 00       // ?
+00 08       // w
+00 08       // h
+01 00 00 00 // c
+FF 73 FF 77 // ?
+00 04       // rx
+00 04       // ry
+20 20       // ?,BPP
+FF FF FF 9B // ?,palette
+
+80 4E 00 00 // ?
+00 00       // ?
+00 9A       // w
+00 9C       // h
+01 00 00 00 // c
+00 00 00 00 // ?
+00 4D       // rx
+00 4E       // ry
+C0 04       // ?,BPP
+FF FF 00 73 // ?,palette
+
+theories:
+	*value before BPP is a bitfield
+	observed values: C0,20,00,80
+	aka: 1100- , 0010- , 0000- , 1000-
+	- denotes the second nibble(set of four bits), it's not at this time known to be used
+	*first byte is also a bitfield
+	observed values: constant 80 or 1000-
+	*if director files are anything like fla, then the source document might retain certain
+	details specific to the editor. Why the compressed/protected movies would retain this is uncertain, 
+	unless it's because the 'specificData' blocks do not ever change when the project is published. 
+	(another theory in and of itself)
+		the third four-byte value is actually two shorts, x and y of:
+			a] the bitmap's position on the paint canvas
+			b] the user's position on the paint canvas
+	*all values are either shorts or bytes
+		Based on current observations, it doesn't look like any one value is
+		larger than 2 bytes. While a few are still listed as Uint32's, current trends
+		suggest they will get split very soon.
+	
+problems:
+	monster maker (demo) is a...well, ancient projector...
+	must verify if things about bitmap-specific data blocks
+	have changed even slightly as newer versions came-out...

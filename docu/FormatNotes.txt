@@ -19,9 +19,9 @@ Section imap
 	8 bytes unknown
 	4 bytes mapOffset 
 	/* 
-		points to the currently valid mapp chunk
+		points to the currently valid mmap chunk
 		as it turns-out, re-saving a .dir just appends data, including
-		a new mmap chunk (o...k...) 
+		a new mmap chunk (does not happen with "save and compact") 
 	*/
 }
 
@@ -131,9 +131,41 @@ Section BITD
 	length
 	data
 	/*
-		bitmap data, all attempts to parse/understand have failed thus far
-		Can be Standard (probably uncompressed) or JPEG
+		format varies...
 	*/
+	@4BPP {
+		unknown, no examples analyzed yet
+	}
+	@8BPP {
+		ByteArray(length * width), or some form of compression
+	}
+	@16BPP {
+		unknown, no examples encountered yet
+	}
+	@24BPP {
+		"Curtain" RLE {
+			encodes all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded	
+		} //compression named by Tomyssahdow?
+	}
+	@32BPP {
+		"Curtain" RLE {
+			encodes all alpha, all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded
+		} //compression named by Tomyssahdow?
+	}
+}
+
+Section Thum
+{
+	//these two appear to be constantly 36
+	Uint32 [big] width // ?
+	Uint32 [big] height //?
+	length - 8 bytes data {
+		currently assumed to be "Curtain" RLE,
+		but no success yet. Might be at bit depth 16 or lower
+	}
+	//thumnails? (only appears in a DIR that's been saved in Director)
 }
 
 Section CASt
@@ -186,8 +218,9 @@ Section CASt
 			4 bytes unknown
 			Uint16 regPointX
 			Uint16 regPointY
-			2 bytes unknown
-			4 bytes palleteID //? still needs more research, not even sure how director actually links palettes
+			1 byte unknown //possibly a bitfield
+			1 byte bitsPerPixel //8,16,24,32
+			Uint16 [big] palette ID //still needs research, but seems to be based on the cast member number of a given palette
 		}
 		scriptData {
 			Uint16 [big-end] scriptType

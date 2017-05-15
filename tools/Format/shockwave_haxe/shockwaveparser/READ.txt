@@ -1,0 +1,35 @@
+build targets (second dropdown box of flashdevelop):
+name/ID | module
+RIFF | RIFF library
+Earthquake | shockwave library
+Application | main application
+
+descriptions of packages:
+	brian151:Brian151's code
+		riff : RIFF reading/writing library
+		earthquake : shockwave/director parsing library, name by Tommysshadow
+	imaya:github username of zlib.js's creator, contains zlibjs externs
+		zlib:externs for zlib.js, covers bare minimum required by earthquake
+
+authors:
+	Brian151 (https://github.com/Brian151)
+	Tommysshadow (https://github.com/tomysshadow) 
+		(currently does not maintain the HaXe parts of the project)
+		
+original project:
+https://github.com/Brian151/OpenShockwave/
+	
+license (excludes zlib):
+ Copyright {2017} {Brian151 (https://github.com/Brian151)} , {Tommysshadow (https://github.com/tomysshadow)}
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
