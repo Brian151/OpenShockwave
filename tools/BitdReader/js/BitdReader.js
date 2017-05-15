@@ -1,6 +1,6 @@
-// Bitmap NUU to PNG
+// SeismoGRAPH: Bitmap NUU to PNG
 // Scripted by TOMYSSHADOW
-// Version 1.0.1
+// Version 1.0.2
 var loggingEnabled = false;
 
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
@@ -45,6 +45,11 @@ this.drawNUU = function(save) {
 						}
 						// width
 						var width = parseInt(document.getElementById("width").value);
+						var height = parseInt(document.getElementById("height").value);
+						if (!width || !height) {
+							window.alert("Please enter the width and height of the image.");
+							return;
+						}
 						var hasalpha = document.getElementById("bitdepth").selectedIndex;
 						// it would seem alpha values are reversed if every alpha value is transparent
 						var reversealpha = true;
@@ -69,6 +74,7 @@ this.drawNUU = function(save) {
 								len++;
 								!loggingEnabled||console.log("LR - channel " + channel + " - len " + len);
 								for(var j=0;j<len;j++) {
+									if(NUUDataStream.isEof()){break;}
 									// continually read the next colours for this channel
 									rgbColour = NUUDataStream.readUint8();
 									if (hasalpha && reversealpha && !channel && rgbColour) {
@@ -85,6 +91,7 @@ this.drawNUU = function(save) {
 								// run length encoding
 								len = 0x101 - len;
 								!loggingEnabled||console.log("RLE - channel " + channel + " - len " + len);
+								if(NUUDataStream.isEof()){break;}
 								// read the next colour for this channel once, then repeat it len times
 								rgbColour = NUUDataStream.readUint8();
 								if (hasalpha && reversealpha && !channel && rgbColour) {
@@ -103,8 +110,9 @@ this.drawNUU = function(save) {
 						//!loggingEnabled||console.log(rgbColours);
 						cvs.width = width;
 						// any channel - they should be the same length
-						cvs.height = Math.ceil(rgbColours[0].length / width);
-						for(var j=0,len2=rgbColours[0].length;j<len2;j++) {
+						cvs.height = height;
+						//cvs.height = Math.ceil(Math.min(rgbColours[0].length, rgbColours[1].length, rgbColours[2].length, rgbColours[3].length) / width);
+						for(var j=0,len2=Math.min(rgbColours[0].length, rgbColours[1].length, rgbColours[2].length, rgbColours[3].length);j<len2;j++) {
 							// sometimes I think alpha is reversed where 0 means opaque and 255 means transparent?
 							if (reversealpha) {
 								rgbColours[0][j] = 255 - rgbColours[0][j];
@@ -118,9 +126,9 @@ this.drawNUU = function(save) {
 								x = 0;
 							}
 							// these files have no metadata
-							//if (y >= height && document.getElementById("useRealHeight").checked) {
-								//break;
-							//}
+							if (y >= height/* && document.getElementById("useRealHeight").checked*/) {
+								break;
+							}
 						}
 						if (save) {
 							var link = document.createElement('a');

@@ -142,6 +142,7 @@ function OpenShockwaveMovie(file) {
 						//alert(i + " " + len + " " + this.mapArray[i]["name"]);
 						result.mapArray[i]["len"] = this.ChunkDataStream.readUint32();
 						result.mapArray[i]["offset"] = this.ChunkDataStream.readUint32();
+						result.mapArray[i]["offset"] -= Main.differenceImap;
 						result.mapArray[i]["padding"] = this.ChunkDataStream.readInt16();
 						result.mapArray[i]["unknown0"] = this.ChunkDataStream.readInt16();
 						result.mapArray[i]["link"] = this.ChunkDataStream.readInt32();
@@ -170,12 +171,12 @@ function OpenShockwaveMovie(file) {
 					result.map = new Array();
 					result.map["handlervectors"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
 					result.map["properties"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-					console.log(result.map["properties"].offset);
+					//console.log(result.map["properties"].offset);
 					result.map["globals"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-					console.log(result.map["globals"].offset);
+					//console.log(result.map["globals"].offset);
 					// 74
 					result.map["handlers"] = new result.LscrChunk(this.ChunkDataStream.readUint16(),  this.ChunkDataStream.readUint32());
-					console.log(result.map["handlers"].offset);
+					//console.log(result.map["handlers"].offset);
 					result.map["literals"] = new result.LscrChunk(this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
 					this.ChunkDataStream.seek(result.map["handlers"].offset);
 					// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
@@ -884,6 +885,14 @@ function OpenShockwaveMovie(file) {
 		// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
 		// we will continue to use it because in this implementation RIFX doesn't contain it
 		this.chunkArray["imap"][0] = new this.chunk(DirectorFileDataStream, "imap", undefined, 12);
+		this.differenceImap = 0;
+		// sanitize mmaps
+		if (this.chunkArray["imap"][0].mmapArray[0] - 0x2C) {
+			this.differenceImap = this.chunkArray["imap"][0].mmapArray[0] - 0x2C;
+			for(var i=0,len=this.chunkArray["imap"][0].mmapArray.length;i<len;i++) {
+				this.chunkArray["imap"][0].mmapArray[i] -= this.differenceImap;
+			}
+		}
 		// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
 		DirectorFileDataStream.seek(this.chunkArray["imap"][0].mmapArray[0]);
 		// interpret the numbers in the mmap - but don't actually find the chunks in it yet
