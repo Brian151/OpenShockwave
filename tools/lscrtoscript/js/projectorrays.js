@@ -116,25 +116,26 @@ function OpenShockwaveMovie(file) {
 					result.codec = this.ChunkDataStream.readStringEndianness(4);
 					break;
 				case "imap":
-					result = new Main.iMap();
-					result.mmapCount = this.ChunkDataStream.readUint32();
-					result.mmapArray = this.ChunkDataStream.readUint32Array(result.mmapCount);
+					result = new Main.idealizedMap();
+					result.memoryMapCount = this.ChunkDataStream.readUint32();
+					result.memoryMapArray = this.ChunkDataStream.readUint32Array(result.memoryMapCount);
 					break;
 				case "mmap":
-					result = new Main.mMap();
+					result = new Main.memoryMap();
 					// read in mmap here
 					// these names are taken from Schockabsorber, I don't know what they do
 					result.unknown0 = this.ChunkDataStream.readUint16();
 					result.unknown1 = this.ChunkDataStream.readUint16();
 					// possible one of the unknown mmap entries determines why an unused item is there?
 					// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
-					result.chunkCount = this.ChunkDataStream.readInt32();
+					result.chunkCountMax = this.ChunkDataStream.readInt32();
 					result.chunkCountUsed = this.ChunkDataStream.readInt32();
 					result.junkPointer = this.ChunkDataStream.readInt32();
 					result.unknown2 = this.ChunkDataStream.readInt32();
 					result.freePointer = this.ChunkDataStream.readInt32();
 					result.mapArray = new Array();
 					// seems chunkCountUsed is used here, so what is chunkCount for?
+					// EDIT: chunkCountMax is maximum allowed chunks before new mmap created!
 					for(var i=0,len=result.chunkCountUsed;i<len;i++) {
 						// don't actually generate new chunk objects here, just read in data
 						result.mapArray[i] = [];
@@ -244,10 +245,10 @@ function OpenShockwaveMovie(file) {
 	this.Meta = function() {
 	}
 	
-	this.iMap = function() {
+	this.idealizedMap = function() {
 	}
 	
-	this.mMap = function() {
+	this.memoryMap = function() {
 	}
 	
 	this.cast = function() {
@@ -887,16 +888,16 @@ function OpenShockwaveMovie(file) {
 		this.chunkArray["imap"][0] = new this.chunk(DirectorFileDataStream, "imap", undefined, 12);
 		this.differenceImap = 0;
 		// sanitize mmaps
-		if (this.chunkArray["imap"][0].mmapArray[0] - 0x2C) {
-			this.differenceImap = this.chunkArray["imap"][0].mmapArray[0] - 0x2C;
-			for(var i=0,len=this.chunkArray["imap"][0].mmapArray.length;i<len;i++) {
-				this.chunkArray["imap"][0].mmapArray[i] -= this.differenceImap;
+		if (this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C) {
+			this.differenceImap = this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C;
+			for(var i=0,len=this.chunkArray["imap"][0].memoryMapArray.length;i<len;i++) {
+				this.chunkArray["imap"][0].memoryMapArray[i] -= this.differenceImap;
 			}
 		}
 		// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
-		DirectorFileDataStream.seek(this.chunkArray["imap"][0].mmapArray[0]);
+		DirectorFileDataStream.seek(this.chunkArray["imap"][0].memoryMapArray[0]);
 		// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-		this.chunkArray["mmap"].push(new this.chunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].mmapArray[0]));
+		this.chunkArray["mmap"].push(new this.chunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].memoryMapArray[0]));
 		// add chunks in the mmap to the chunkArray HERE
 		// make sure to account for chunks with existing names, lengths and offsets
 		DirectorFileDataStream.position = 0;

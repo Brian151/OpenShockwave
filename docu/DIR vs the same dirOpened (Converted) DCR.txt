@@ -1,0 +1,58 @@
+Comparing a DIR file to the same file exported to DCR and dirOpened
+
+The point of this experiment was to see if there are any sections in DIR that are ditched upon DCR export, and may be less important to focus on as a result.
+
+The resulting files were more similar than I initially expected though with some differences.
+
+-The length of the overall file changed
+ -The "codec," of course, did not change from MV93 to anything else
+
+-imap did not change at all
+
+-The length of the mmap did not change, even though entries were removed, length of the mmap remains the same and the end where stuff used to be is simply NOP'd out
+ -This seems to suggest a second mmap is only made when the first becomes too small to contain new chunks
+ -I think that one of the values at the beginning of the mmap is actually the maximum allowed chunks in this mmap before creating a second mmap!
+-The two values related to the number of chunks in the mmap changed
+-In the mmap entry relating to imap, the last value changed entirely
+-In the mmap entry relating to mmap itself, the last value changed entirely
+ -Notably, in both the original DIR file and the converted DCR file, the last byte of both the imap and mmap entries are the same
+-The length of the KEY* section changed
+ -Resultingly the offset of everything else after it is affected
+-A VWLB chunk was replaced with a junk chunk with other chunks around it left intact
+ -The length of the chunk changed to zero as a result
+ -This confirmed my suspicion that junk chunks can replace chunks that are no longer useful due to a different export format
+ -The actual VWLB chunk still remains in the file at the offset specified as the junk chunk's
+ -Other junk chunks previously existed with offsets at other zero length chunks
+ -From this I can infer that junk chunks appear in the mmap when in the file there is a chunk with zero length
+ -It's still not immediately obvious what the last two values in an mmap entry do from this. The second to last is always 4 and the last is typically some lower number but is 0xFFFFFFFF for the ccl  chunk.
+ -Also changing these had no effect suggesting that maybe they aren't important values.
+-At the end of the original DIR file's mmap are a VERS, FCOL, PUBL, GRID, and two SCRF chunks that are gone in the converted DCR and simply NOP'd out in the mmap.
+ -This suggests VERS, FCOL, PUBL, GRID, and SCRF chunks aren't required and are simply extra information, which seems to make sense considering they're mostly publishing-related data
+
+-KEY* is the same minus the sections that were gone in the converted DCR
+
+-DRCF is exactly the same
+
+-FXmp still contains the "Font Mapping Table" configuration file, but all the comments in the file are removed, and replaced by spaces at the end of the file to keep it the same length
+
+-XTRl is exactly the same
+
+-Cinf is entirely different throughout
+
+-Lctx has only one byte changed
+ -I'm not familiar enough with the chunk to know what that byte does
+
+-Lnam has some of the variable names capitalized differently but is otherwise the same
+
+-VWFI is exactly the same
+
+-VWSC is exactly the same
+
+-VWTC is exactly the same
+
+-VWLB went from being six bytes long (each of them being zero) to being zero bytes long
+
+-VWTL is exactly the same and is zero bytes long in both files
+ -This may be because there was nothing on the timeline
+
+May investigate effects on cast members at a later date.
