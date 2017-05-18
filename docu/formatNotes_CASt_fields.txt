@@ -42,6 +42,7 @@ comment {
 15
 16 {
 	string fileFormatID (
+		// more of these exist, all of them can be seen defined in the XDK, the idea is to have a unique identifier for every format (similar to a mimetype but an Adobe version of it)
 		"kMoaCfFormat_SWA" : SWA
 		"kMoaCfFormat_snd" : PCM
 		"kMoaCfFormat_JPEG" : JPEG

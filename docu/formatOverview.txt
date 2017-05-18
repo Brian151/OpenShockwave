@@ -1,91 +1,135 @@
-Format Overview (lists section ID's an their purpose)
+Format Overview (lists chunk names and their purpose, list is non-extensive)
 
-CASt:
-Cast Member (body)
 
-Lscr:
-Lingo Script (compiled)
+Movie Related
+RIFX:
+Main Section
 
-FXmp:
-Font Mapping Table
+VERS:
+Version Info (unprotected only)
 
-mmap:
-Internal Mapping Table
+FCOL:
+??? (unprotected only)
 
-imap:
-Offset of mmap
+PUBL:
+Publshing Data (unprotected only)
 
-Fmap:
-??? (possibly something to do with fonts)
-
-Lnam:
-Lingo Names Table 
-
-ccl : 
-???
-
-XTRl:
-Xtra Lib/Linkages
-
-junk:
-null, mapped but does not exist
-
-Cinf:
-???
-
-free:
-null, mapped but does not exist
-
-Sord:
-??? 
-
-snd :
-Embedded Wave or AIFF audio file
-
-LctX:
-Lingo Script Collection
-
-SCVW:
-???
-
-STXT:
-Text Data, exact format unknown, needs research 
-
-CLUT:
-RGB24 Color Palette. each entry has thre extra values not currently known 
-
-ediM:
-Contains various embedded data/files, originally thought only to contain SWA
-
-MCsL:
-Cast List 
-
-VWFI:
-Probably something to do with Xtras
+GRID:
+??? UI related? (unprotected only)
  
 DRCF:
 ???
 
-BITD:
-Bitmap Data, not yet cracked
+SCRF:
+??? (unprotected only)
 
-XMED:
-Media requiring an Xtra, probably
+
+Map Related
+imap:
+Idealized Mapping Table (points to mmap(s))
+
+mmap:
+Memory Mapping Table
+
+	junk:
+	Empty Chunk (refers to chunk of different name that only exists in raw file, do not allocate)
+
+	free:
+	Unset Chunk (previously referred to chunk of different name that was deleted and replaced in mmap with nothing, do not allocate)
+
+Fmap:
+??? (possibly something to do with fonts)
+
+FXmp:
+Font Mapping Table (can contain comments which are removed and replaced with spaces in DCR)
+
+
+Xtras/XDK/Macromedia Open Architecture (Moa) Related
+XTRl:
+Xtra Lib/Linkages
+
+
+Cast Related
+MCsL:
+Movie Cast List 
+
+Cinf:
+Cast info
+
+CASt:
+Cast Member (body)
+
+CAS*:
+Per-cast Association Table (internal casts only)
+
+KEY*:
+Association Table
+
+
+	Cast Data Related
+		Bitmap Related
+		BITD:
+		RLE Bitmap Data
+		
+		DIB :
+		Windows Clipboard Image Data
+
+		CLUT:
+		Photoshop CLUT RGB24 Color Palette. each entry has thre extra values not currently known 
+
+		ALFA:
+		Alpha Mask (JPEG Compression only,) not yet understood 
+
+		
+		Sound Related
+
+		snd :
+		Embedded Raw (snd) Audio File
+		
+		
+		Lingo Related
+		LctX:
+		Lingo Script Collection
+
+		Lnam:
+		Lingo Names Table 
+
+		Lscr:
+		Lingo Script (compiled)
+		
+		
+		Text Related
+		STXT:
+		Text Data, exact format unknown, needs research 
+		
+		
+		Xtra Related
+		XMED:
+		Media requiring an Xtra, probably
+		
+		
+		Unknown Cast Data Related Purpose
+		ediM:
+		Contains various embedded data/files, originally thought only to contain SWA
+
+Timeline Related
+
+SCVW:
+???
+
+VWFI:
+Maybe something to do with Xtras and load time?
 
 VWSC:
 ???
 
 VWLB:
-??? 
+???
 
-ALFA:
-Alpha Mask, not yet understood 
 
-RIFX:
-Main Section
+Unknown Purpose
+ccl : 
+???
 
-KEY*:
-Association Table
-
-CAS*:
-Per-cast Association Table, external casts do not have one
+Sord:
+???
