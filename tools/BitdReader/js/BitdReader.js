@@ -1,6 +1,6 @@
 // SeismoGRAPH: Bitmap NUU to PNG
 // Scripted by TOMYSSHADOW
-// Version 1.0.2
+// Version 1.1.0
 var loggingEnabled = false;
 
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
@@ -50,9 +50,12 @@ this.drawNUU = function(save) {
 							window.alert("Please enter the width and height of the image.");
 							return;
 						}
-						var hasalpha = document.getElementById("bitdepth").selectedIndex;
+						var bitdepth = document.getElementById("bitdepth").selectedIndex;
+						var hasalpha = bitdepth == 4;
 						// it would seem alpha values are reversed if every alpha value is transparent
 						var reversealpha = true;
+						// for bits
+						var bit = 0;
 						// length of next literal run or run length
 						var len = 0;
 						// variable to contain colour for RLE
@@ -69,50 +72,64 @@ this.drawNUU = function(save) {
 						// loop through the rest of the file, taking each colour, breaking it down into RGB and drawing each pixel to the canvas
 						while (!NUUDataStream.isEof()) {
 							len = NUUDataStream.readUint8();
-							if (0x101 - len > 0x7F) {
-								// literal run
-								len++;
-								!loggingEnabled||console.log("LR - channel " + channel + " - len " + len);
-								for(var j=0;j<len;j++) {
+							switch (bitdepth) {
+								case 0:
+								for(var j=0;j<8;j++) {
+									bit = ((len & (1 << (7 - j))) >> (7 - j));
+									!loggingEnabled||console.log("Raw - len " + len + " - bit " + bit);
+									rgbColours[0].push(bit?255:0);
+								}
+								break;
+								default:
+								var widthFix = (((bitdepth==1||bitdepth==2)&&width%2)?width-1:width);
+								if (0x101 - len - (bitdepth == 1 || bitdepth == 2) > 0x7F) {
+									// literal run
+									len++;
+									!loggingEnabled||console.log("LR - channel " + channel + " - len " + len);
+									for(var j=0;j<len;j++) {
+										if(NUUDataStream.isEof()){break;}
+										// continually read the next colours for this channel
+										rgbColour = NUUDataStream.readUint8();
+										if (hasalpha && reversealpha && !channel && rgbColour) {
+											reversealpha = false;
+										}
+										rgbColours[channel].push(rgbColour);
+										// once we've found the value for all pixels in the line for this channel, move to next channel
+										if (++i >= widthFix) {
+											channel = (++channel % (3 + hasalpha));
+											i=0;
+										}
+									}
+								} else {
+									// run length encoding
+									len = 0x101 - len;
+									!loggingEnabled||console.log("RLE - channel " + channel + " - len " + len);
 									if(NUUDataStream.isEof()){break;}
-									// continually read the next colours for this channel
+									// read the next colour for this channel once, then repeat it len times
 									rgbColour = NUUDataStream.readUint8();
 									if (hasalpha && reversealpha && !channel && rgbColour) {
 										reversealpha = false;
 									}
-									rgbColours[channel].push(rgbColour);
-									// once we've found the value for all pixels in the line for this channel, move to next channel
-									if (++i >= width) {
-										channel = (++channel % (3 + hasalpha));
-										i=0;
-									}
-								}
-							} else {
-								// run length encoding
-								len = 0x101 - len;
-								!loggingEnabled||console.log("RLE - channel " + channel + " - len " + len);
-								if(NUUDataStream.isEof()){break;}
-								// read the next colour for this channel once, then repeat it len times
-								rgbColour = NUUDataStream.readUint8();
-								if (hasalpha && reversealpha && !channel && rgbColour) {
-									reversealpha = false;
-								}
-								for(var j=0;j<len;j++) {
-									rgbColours[channel].push(rgbColour);
-									// once we've found the value for all pixels in the line for this channel, move to next channel
-									if (++i >= width) {
-										channel = (++channel % (3 + hasalpha));
-										i=0;
+									for(var j=0;j<len;j++) {
+										rgbColours[channel].push(rgbColour);
+										// once we've found the value for all pixels in the line for this channel, move to next channel
+										if (++i >= widthFix) {
+											channel = (++channel % (3 + hasalpha));
+											i=0;
+										}
 									}
 								}
 							}
+						}
+						if (!bitdepth) {
+							rgbColours[1] = rgbColours[2] = rgbColours[0];
 						}
 						//!loggingEnabled||console.log(rgbColours);
 						cvs.width = width;
 						// any channel - they should be the same length
 						cvs.height = height;
 						//cvs.height = Math.ceil(Math.min(rgbColours[0].length, rgbColours[1].length, rgbColours[2].length, rgbColours[3].length) / width);
-						for(var j=0,len2=Math.min(rgbColours[0].length, rgbColours[1].length, rgbColours[2].length, rgbColours[3].length);j<len2;j++) {
+						for(var j=0,len2=Math.min(rgbColours[0].length, rgbColours[1].length, rgbColours[2].length);j<len2;j++) {
 							// sometimes I think alpha is reversed where 0 means opaque and 255 means transparent?
 							if (reversealpha) {
 								rgbColours[0][j] = 255 - rgbColours[0][j];
