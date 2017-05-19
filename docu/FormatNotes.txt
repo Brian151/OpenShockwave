@@ -224,14 +224,15 @@ Section CASt
 		}
 		bitmapData {
 			//still trying to understand this one...
-			4 bytes unknown
 			2 bytes unknown
-			Uint16 width
-			Uint16 height
+			Uint16 paddingH
+			Uint16 paddingW
+			Uint16 height // subtract paddingW for correct value
+			Uint16 width // subtract paddingH for correct value
 			Uint32 constant1 (1) //1 is so far, only observed value...
 			4 bytes unknown
-			Uint16 regPointX
-			Uint16 regPointY
+			Uint16 regPointY // subtract paddingW for correct value
+			Uint16 regPointX // subtract paddingH for correct value
 			1 byte unknown //possibly a bitfield
 			1 byte bitsPerPixel //8,16,24,32
 			Uint16 [big] palette ID //still needs research, but seems to be based on the cast member number of a given palette
