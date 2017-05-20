@@ -23,6 +23,9 @@ var brian151_earthquake_Movie = $hx_exports.brian151.earthquake.Movie = function
 		} else this.dataFile = new brian151_earthquake_filesystem_DirectorFile(src);
 		this.isExternalCast = this.dataFile.checkCast();
 		if(this.isExternalCast && this.isProjector) this.isValid = false;
+		this.dataFile.setFormat(this.riffType);
+		var mapO = this.dataFile.findMap();
+		this.dataFile.parseMap(mapO);
 	}
 };
 brian151_earthquake_Movie.prototype = {
@@ -103,11 +106,13 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151.riff.Fi
 	,findMap: function() {
 		var mapIndexChunk = this.getSectionAt(12);
 		var mapIndexHandler = new brian151.riff.LinkedSectionHandler(mapIndexChunk,this);
-		return mapIndexHandler.getUIntAt(8,2);
+		return mapIndexHandler.getUIntAt(4,2);
 	}
 	,parseMap: function(offset) {
 		var mapChunk = this.getSectionAt(offset);
 		var id = mapChunk.get_ID();
+		window.console.log("assumed memory map ID: " + id);
+		window.console.log("selected format: " + this.formats[this.currentFormat]);
 		if(id == "mmap") {
 			var handler = new brian151.riff.LinkedSectionHandler(mapChunk,this);
 			var count = handler.getUIntAt(4,2);
@@ -121,13 +126,15 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151.riff.Fi
 				var i = _g++;
 				var offset2 = i * 20 + 24;
 				var id1 = handler.getFourCCAt(offset2);
-				if(i == 0) window.console.log(id1);
+				if(i == 0) window.console.log("current mapped chunk(0): " + id1);
 				var offset3 = handler.getUIntAt(offset2 + 8,2);
 				if(id1 != "free") {
 					this.ptrs1[i0] = offset3;
 					i0++;
 				}
 				this.ptrs2[i] = offset3;
+				$hx_scope.ptrs1 = this.ptrs1;
+				$hx_scope.ptrs2 = this.ptrs2;
 			}
 		}
 	}

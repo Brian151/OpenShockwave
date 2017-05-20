@@ -25,7 +25,7 @@ brian151_riff_File.__name__ = true;
 brian151_riff_File.prototype = {
 	getSectionAt: function(offset) {
 		var id = this.getFourCCAt(offset);
-		var len = this.getUIntAt(offset,0);
+		var len = this.getUIntAt(offset + 4,0);
 		return new brian151_riff_Section(this.view.buffer,offset,len,id);
 	}
 	,getFourCCAt: function(offset) {
@@ -43,7 +43,7 @@ brian151_riff_File.prototype = {
 				break;
 			}
 		}
-		if(!byteOrder && !hasErrored) str.reverse();
+		if(byteOrder && !hasErrored) str.reverse();
 		var out = str.join("");
 		return out;
 	}
@@ -180,10 +180,76 @@ brian151_riff_File.prototype = {
 		}
 	}
 };
+var brian151_riff_LinkedSectionHandler = $hx_exports.brian151.riff.LinkedSectionHandler = function(src,parent) {
+	this.target = src;
+	this.view = this.target.get_view();
+	this.parentFile = parent;
+};
+brian151_riff_LinkedSectionHandler.__name__ = true;
+brian151_riff_LinkedSectionHandler.prototype = {
+	checkBounds: function(offset,length) {
+		return offset + length >= this.view.byteLength;
+	}
+	,getFourCCAt: function(offset) {
+		if(!this.checkBounds(offset,4)) return this.parentFile.getFourCCAt(this.view.byteOffset + offset); else return "ERR ";
+	}
+	,setFourCCAt: function(offset,fourCC) {
+		if(!this.checkBounds(offset,4)) this.parentFile.setFourCCAt(this.view.byteOffset + offset,fourCC);
+	}
+	,getUIntAt: function(offset,byteOrderID) {
+		if(!this.checkBounds(offset,4)) return this.parentFile.getUIntAt(this.view.byteOffset + offset,byteOrderID); else return 0;
+	}
+	,setUintAt: function(offset,value,byteOrderID) {
+		if(!this.checkBounds(offset,4)) this.parentFile.setUintAt(this.view.byteOffset + offset,value,byteOrderID);
+	}
+	,getUShortAt: function(offset,byteOrder) {
+		if(!this.checkBounds(offset,2)) return this.parentFile.getUShortAt(this.view.byteOffset + offset,byteOrder); else return 0;
+	}
+	,setUShortAt: function(offset,value,byteOrder) {
+		if(!this.checkBounds(offset,2)) this.parentFile.getUShortAt(this.view.byteOffset + offset,byteOrder);
+	}
+	,getUByteAt: function(offset) {
+		if(!this.checkBounds(offset,1)) return this.parentFile.getUByteAt(this.view.byteOffset + offset); else return 0;
+	}
+	,setUByteAt: function(offset,value) {
+		if(!this.checkBounds(offset,1)) this.parentFile.setUByteAt(this.view.byteOffset + offset,value);
+	}
+	,getIntAt: function(offset,byteOrder) {
+		if(!this.checkBounds(offset,4)) return this.parentFile.getIntAt(this.view.byteOffset + offset,byteOrder); else return 0;
+	}
+	,setIntAt: function(offset,value,byteOrder) {
+		if(!this.checkBounds(offset,4)) this.parentFile.setIntAt(this.view.byteOffset + offset,value,byteOrder);
+	}
+	,getShortAt: function(offset,byteOrder) {
+		if(!this.checkBounds(offset,2)) return this.parentFile.getShortAt(this.view.byteOffset + offset,byteOrder); else return 0;
+	}
+	,setShortAt: function(offset,value,byteOrder) {
+		if(!this.checkBounds(offset,2)) this.parentFile.setShortAt(this.view.byteOffset + offset,value,byteOrder);
+	}
+	,getByteAt: function(offset) {
+		if(!this.checkBounds(offset,1)) return this.parentFile.getByteAt(this.view.byteOffset + offset); else return 0;
+	}
+	,setByteAt: function(offset,value) {
+		if(!this.checkBounds(offset,1)) this.parentFile.setByteAt(this.view.byteOffset + offset,value);
+	}
+	,getFloatAt: function(offset,byteOrder) {
+		if(!this.checkBounds(offset,4)) return this.parentFile.getFloatAt(this.view.byteOffset + offset,byteOrder); else return 0;
+	}
+	,setFloatAt: function(offset,value,byteOrder) {
+		if(!this.checkBounds(offset,4)) this.parentFile.setFloatAt(this.view.byteOffset + offset,value,byteOrder);
+	}
+	,getDoubleAt: function(offset,byteOrder) {
+		if(!this.checkBounds(offset,8)) return this.parentFile.getDoubleAt(this.view.byteOffset + offset,byteOrder); else return 0;
+	}
+	,setDoubleAt: function(offset,value,byteOrder) {
+		if(!this.checkBounds(offset,8)) this.parentFile.setDoubleAt(this.view.byteOffset + offset,value,byteOrder);
+	}
+};
 var brian151_riff_Section = $hx_exports.brian151.riff.Section = function(src,offset,len,id) {
 	this.view = new DataView(src,offset + 8,len);
 	this.length = this.view.byteLength;
 	this.realLength = this.length + 8;
+	this.secID = id;
 };
 brian151_riff_Section.__name__ = true;
 brian151_riff_Section.prototype = {

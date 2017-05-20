@@ -6,6 +6,7 @@ import brian151.riff.File;
 import js.html.ArrayBuffer;
 import js.html.Uint8Array;
 import js.html.DataView;
+import js.Browser;
 
 /**
  * ...
@@ -44,6 +45,11 @@ class Movie
 			if (isExternalCast && isProjector) {
 				isValid = false;
 			}
+			dataFile.setFormat(riffType);
+			var mapO:Int = dataFile.findMap();
+			//Browser.console.log(mapO);
+			dataFile.parseMap(mapO);
+			
 		}
 	}
 	private function getType(hint:DataView):Void {
