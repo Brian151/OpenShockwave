@@ -18,7 +18,6 @@ import js.Browser;
    limitations under the License.
 */
 
-
 /**
  * ...
  * @author Brian151
@@ -48,7 +47,7 @@ class File
 	}
 	public function getSectionAt(offset:Int):Section {
 		var id = this.getFourCCAt(offset);
-		var len = this.getUIntAt(offset, 0);
+		var len = this.getUIntAt(offset + 4, 0);
 		return new Section(view.buffer, offset, len, id);
 	}
 	public function getFourCCAt(offset:Int):String {
@@ -66,7 +65,7 @@ class File
 				break;
 			}
 		}
-		if (!byteOrder && !hasErrored) {
+		if (byteOrder && !hasErrored) {
 			str.reverse();
 		}
 		var out:String = str.join("");

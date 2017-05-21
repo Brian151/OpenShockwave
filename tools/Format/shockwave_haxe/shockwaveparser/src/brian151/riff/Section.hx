@@ -39,6 +39,7 @@ class Section
 		view = new DataView(src, offset + 8, len);
 		length = view.byteLength;
 		realLength = length + 8;
+		secID = id;
 	}
 	public function get_length():Int{
 		return length;

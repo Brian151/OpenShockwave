@@ -20,8 +20,7 @@ class DirectorFile extends File
 	private var ptrBuffer:ArrayBuffer;
 	private var ptrs1:Uint32Array;
 	private var ptrs2:Uint32Array;
-	public function new(src:ArrayBuffer):Void 
-	{
+	public function new(src:ArrayBuffer):Void {
 		super(src);
 		isProjector = false;
 	}
@@ -34,11 +33,13 @@ class DirectorFile extends File
 	public function findMap():Int {
 		var mapIndexChunk:Section = getSectionAt(0xc);
 		var mapIndexHandler:LinkedSectionHandler = new LinkedSectionHandler(mapIndexChunk,this);
-		return mapIndexHandler.getUIntAt(8,2);
+		return mapIndexHandler.getUIntAt(4,2);
 	}
 	public function parseMap(offset:Int):Void{
 		var mapChunk:Section = getSectionAt(offset);
 		var id = mapChunk.get_ID();
+		Browser.window.console.log("assumed memory map ID: " + id);
+		Browser.window.console.log("selected format: " + formats[currentFormat]);
 		if (id == "mmap") {
 			var handler:LinkedSectionHandler = new LinkedSectionHandler(mapChunk,this);
 			var count:Int = handler.getUIntAt(4, 2);
@@ -51,7 +52,7 @@ class DirectorFile extends File
 				var offset2:Int = (i * 0x14) + 0x18;
 				var id:String = handler.getFourCCAt(offset2);
 				if (i == 0) {
-					Browser.window.console.log(id);
+					Browser.window.console.log("current mapped chunk(0): " + id);
 				}
 				var offset3:Int = handler.getUIntAt(offset2 + 8, 2);
 				if (id != "free") {
@@ -59,6 +60,10 @@ class DirectorFile extends File
 					i0++;
 				}
 				ptrs2[i] = offset3;
+				//temporary exposure of pointer arrays to global scope,
+				//for debugging purposes
+				untyped __js__("$hx_scope.ptrs1 = this.ptrs1");
+				untyped __js__("$hx_scope.ptrs2 = this.ptrs2");
 			}
 		}
 	}

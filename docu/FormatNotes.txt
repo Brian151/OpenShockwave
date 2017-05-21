@@ -7,7 +7,7 @@ Section RIFX
 	(
 		"MV93" for DXR and DIR 
 		"FGDM" for DCR
-		"LPPA" for Projector RIFX container (see Projector Notes)
+		"APPL" for Projector RIFX container (see Projector Notes)
 	)
 	data //entire file, (minus chunkID & chunklength), chunklength bytes long
 }
@@ -27,7 +27,10 @@ Section imap
 
 Section mmap
 {
-	data (first 0x18 bytes are unknown)
+	8 bytes unknown
+	4 bytes chunkCountMax? (maximum amount of chunks in this mmap before Director creates a second one and adds it to the imap?)
+	4 bytes chunkCountUsed
+	12 bytes unknown (Schockabsorber calls two of these junk pointer and free pointer for unknown reason)
 	/*
 		following those bytes is a list of chunks
 		this is the mapping table
@@ -36,9 +39,10 @@ Section mmap
 	{
 		fourcc chunkID
 		uint32 length (not sure why include this, since these entries are nothing but pointers to the chunk)
-		unit32 offset
-		//remaining 8 bytes are unknown, and always seem to be set to 0
-		//in total, each entry is 0x14 in length
+		uint32 offset
+		uint16 attributes (seems to be 0x01 if chunk is "protected," as in unreadable by Director, not sure what other values do. Seems to commonly be 0x04 or 0x0C for junk and free chunks respectively, so may be a mask, with 0x04 meaning do not validate, and 0x08 meaning ignore in KEY* section ids)
+		uint16 unknown (always zero)
+		uint32 memsize? (the number of bytes of additional memory beyond the chunk's length that will need to be allocated to parse the rest of the chunk, i.e. for the imap/mmap entries this value will be the number of bytes needed to be allocated in memory to store everything within the mmap table?)
 	}
 
 }
@@ -71,12 +75,17 @@ Section KEY*
 
 Section [ghost] junk
 {
-	//these do not seem to actually exist, but are indexed in mmap for some reason
+	// these are only seen in the mmap - when going to the offset specified, a different chunk name is found which this one replaces
+	// effectively, "junk" replaces chunks that are currently empty, but may be needed later, such as, for example, an empty timeline in Director files
+	// in the mmap, the fact the name is "junk" signifies that although they exist in the raw file, no memory is to be allocated for the chunk until it is needed
 }
 
 Section [ghost] free
 {
-	//these do not seem to actually exist, but are indexed in mmap for some reason
+	// these do not seem to actually exist, but are indexed in mmap for some reason
+	// they typically have no offset (it's just zero)
+	// they may serve the purpose of replacing deleted or obsolete chunks in the mmap (rather than empty chunks that simply don't need to be allocated yet, unlike junk, like the difference between empty/isset in PHP)
+	// or they may have something else to do with memory allocation
 {
 
 Section XMED
@@ -132,6 +141,9 @@ Section BITD
 	data
 	/*
 		format varies...
+		the format is a length followed by a value, across the width of the image one channel at a time
+		however, the length has an odd quirk: you need to do 257 minus the length to get the actual length to use
+		however, if 257 minus the length is less than 127, it is a literal run for that length plus one and specifies all the colours in a row like a raw image
 	*/
 	@4BPP {
 		unknown, no examples analyzed yet
@@ -143,16 +155,17 @@ Section BITD
 		unknown, no examples encountered yet
 	}
 	@24BPP {
-		"Curtain" RLE {
+		RLE {
 			encodes all red, all green, all blue across entire width of image,
 			then starts over until all rows have been encoded	
-		} //compression named by Tomyssahdow?
+		}
 	}
 	@32BPP {
-		"Curtain" RLE {
+		RLE {
 			encodes all alpha, all red, all green, all blue across entire width of image,
 			then starts over until all rows have been encoded
-		} //compression named by Tomyssahdow?
+			sometimes all alpha values are reversed, and 0 means 255, which only seems to occur if every value is 0
+		}
 	}
 }
 
@@ -162,7 +175,7 @@ Section Thum
 	Uint32 [big] width // ?
 	Uint32 [big] height //?
 	length - 8 bytes data {
-		currently assumed to be "Curtain" RLE,
+		currently assumed to be RLE,
 		but no success yet. Might be at bit depth 16 or lower
 	}
 	//thumnails? (only appears in a DIR that's been saved in Director)
@@ -174,6 +187,7 @@ Section CASt
 	{
 		Uint32 [big-end] castMemberType
 		(
+			// do each of these correspond to one type of chunk or group of chunks? (BITD, whatever the chunk for a film loop is, CLUT, snd , whatever the chunk for a button is, whatever the chunk for a vector shape is, Lscr, and XMED?)
 			0x01 : bitmap
 			0x02 : film loop
 			0x04 : palette
@@ -210,14 +224,15 @@ Section CASt
 		}
 		bitmapData {
 			//still trying to understand this one...
-			4 bytes unknown
 			2 bytes unknown
-			Uint16 width
-			Uint16 height
+			Uint16 paddingH
+			Uint16 paddingW
+			Uint16 height // subtract paddingW for correct value
+			Uint16 width // subtract paddingH for correct value
 			Uint32 constant1 (1) //1 is so far, only observed value...
 			4 bytes unknown
-			Uint16 regPointX
-			Uint16 regPointY
+			Uint16 regPointY // subtract paddingW for correct value
+			Uint16 regPointX // subtract paddingH for correct value
 			1 byte unknown //possibly a bitfield
 			1 byte bitsPerPixel //8,16,24,32
 			Uint16 [big] palette ID //still needs research, but seems to be based on the cast member number of a given palette
@@ -266,6 +281,7 @@ Section CLUT
 		Or, each color value has some extra data attached.
 		Regardless, the reasons for the three extra bytes per entry is a mystery for the time being.
 		Other than that, the data is an array of RGB24 colors
+		The name of an Xtra seems to suggest this is lifted from Photoshop
 	*/
 	Array entries/data(length/6) {
 		byte red
