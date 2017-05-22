@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImagePalette
 
 import bitstring
 
-
+# pretty hardcoded function for converting the bitd images
 def convertBITD( w, h, f, entry ):
 
 	bitmapValues = [[0 for x in range( w )] for y in range( h )]
@@ -26,14 +26,13 @@ def convertBITD( w, h, f, entry ):
 	draw_x = 0
 	draw_y = 0
 
-	start = entry['offset'] + 8
+	start = entry['offset'] + 8 # +8 bytes to skip fourcc and length
 	size = entry['length']
 
 	#padbytes = -1
 
+	# seek to the bitd image data
 	f.seek( start )
-
-	print("seek to " + str(start) )
 
 	while f.tell() <= start + size:
 
@@ -162,6 +161,7 @@ def readCST(f):
 
 	global entries, castList, metaList, BigEndian
 
+	# fourcc
 	# pos 0-4 (XFIR)
 	RIFX_SIGN = f.read(4).decode("utf-8")
 	doLog( "RIFX_SIGN: " + str( RIFX_SIGN ) )
@@ -172,34 +172,43 @@ def readCST(f):
 	else:
 		BigEndian = True
 
+	# file size/length
 	# pos 4-8 (Length)
 	SIZE = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 	doLog( "SIZE: " + str( SIZE ) + " (" + str( round( SIZE / 1024 ) ) + "kb)" )
 
+	# some signage related to cst/cxt & dir/dxr
 	# pos 8-12
 	SIGN = f.read(4)
 	doLog( "SIGN: " + str( SIGN ) )
 
-
+	# skip to offset 60, just for convenience
 	f.seek(60) # pos 60
 
+	# get file count for pointer list
 	rawFileNum = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 	doLog( "File num: " + str( rawFileNum ) )
 
+	# skip 12 bytes to beginning of file pointers
 	f.read(12) # pos 76, file block begin
 
 
 	doLog("\n\n--- READ POINTERS ---")
 	for i in range(0, rawFileNum):
 
+		# save beginning of pointer
 		pointerOffset = f.tell()
 
+		# file type fourcc (cast/sound/bitmap etc)
 		if BigEndian:
 			entryType = f.read(4).decode("utf-8")[::-1] # 4
 		else:
 			entryType = f.read(4).decode("utf-8") # 4
 
+		# file size
 		entryLength = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0] # 8
+
+		# file offset
 		entryOffset = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0] # 12
 
 		'''
@@ -232,8 +241,10 @@ def readCST(f):
 			'friendlyType': ''
 		}
 
-		f.read(8)
+		f.read(8) # padding data?
 
+
+	# loop through all found entries, skip all but the KEY* list
 	doLog("\n\n--- READ KEY ---")
 
 	for i in entries:
@@ -245,35 +256,45 @@ def readCST(f):
 
 		f.seek( e['offset'], 0 )
 
-		fEntryHeaderRaw = f.read(4)
-		fEntryLengthRaw = f.read(4)
+		fEntryHeaderRaw = f.read(4) # fourcc header
 
+		fEntryLengthRaw = f.read(4) # length
+
+
+		# parse header, and reverse it if applicable
 		if BigEndian:
 			fEntryHeader = fEntryHeaderRaw.decode("utf-8")[::-1]
 		else:
 			fEntryHeader = fEntryHeaderRaw.decode("utf-8")
 
+		# parse length
 		fEntryLength = struct.unpack( ('i' if BigEndian else '>i'), fEntryLengthRaw )[0]
 
+		# put into entry data
 		e['headerRaw'] = fEntryHeaderRaw
 		e['lengthRaw'] = fEntryLengthRaw
 
+
 		doLog("--- KEY @ " + str( e['offset'] ) + " ---")
 		
+		# no idea what these do
 		fUnknownNum1 = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
-
 		fUnknownNum2 = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 
+		# total list of entries in key list
 		fEntryNum = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 
 		# doLog(" fUnknownNum1: " + str( fUnknownNum1 ) + ", fUnknownNum2: " + str( fUnknownNum2 ) + ", fEntryNum: " + str( fEntryNum ) )
 
 		for i in range(0, fEntryNum):
 
+			# save offset
 			kPos = f.tell()
 			
+			# slot in entries pointing to a file (bitd/snd/script ex.)
 			castFileSlot = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 
+			# slot in entries pointing to the cast
 			castSlot = struct.unpack( ('i' if BigEndian else '>i'), f.read(4) )[0]
 
 			if BigEndian:
@@ -282,10 +303,6 @@ def readCST(f):
 				castType = f.read(4).decode("utf-8")
 
 			# doLog("[KEY " + str(i) + "] Cast file slot offset: " + str( castFileSlot ) + ", Cast slot offset: " + str( castSlot ) + ", Type: " + str( castType ) )
-
-			# entries[ castSlot ]['slotNum'] = castSlot
-			# entries[ castSlot ]['fileSlot'] = castFileSlot
-			# entries[ castSlot ]['fileObj'] = entries[ castFileSlot ]
 
 			if not castSlot in entries:
 				doLog("  INVALID KEY CAST SLOT: " + str( castFileSlot ) + "->" + str( castSlot ) + " (" + str( castType ) + ") @ " + str(kPos) )
@@ -299,11 +316,13 @@ def readCST(f):
 			# doLog("  KeyCastOffset: " + str( castOffset ) + ", KeyCastId: " + str( castId ) + ", KeyCastType: " + str( castType ) )
 
 
+	# loop through all the rest of the files
 	doLog("\n\n--- READ FILES ---")
 	for i in entries:
 
 		e = entries[i]
 
+		# skip junk
 		if e['type'] == "free" or e['type'] == "junk":
 			continue
 
@@ -326,14 +345,16 @@ def readCST(f):
 
 		if e['type'] == 'STXT':
 
-			f.read(4) # content
+			# unknown
+			f.read(4)
 
+			# length of the text
 			textLength = struct.unpack('>i', f.read(4) )[0]
 
+			# data at the end of the content, no idea what
 			textPadding = struct.unpack('>i', f.read(4) )[0]
 
-			# fPad = struct.unpack('i', f.read(1) )[0]
-
+			# read text content
 			textContent = f.read( textLength )
 
 			e['content'] = textContent
@@ -349,30 +370,33 @@ def readCST(f):
 		
 		if e['type'] == 'CASt':
 
-			# 3 - field
-			# 6 - audio
-
+			# cast type, e.g. 1 = bitmap, 3 = field, 6 = audio
 			castType = struct.unpack('>i', f.read(4) )[0]
 			e['castType'] = castType
 
+			# data length
 			castDataLen = struct.unpack('>i', f.read(4) )[0]
 			e['dataLength'] = castDataLen
 
+			# data at the end of the data, good description
 			castDataEnd = struct.unpack('>i', f.read(4) )[0]
 			e['dataEnd'] = castDataEnd
 			
 			# bitmap
 			if castType == 1:
 
-				f.read(32)
+				f.read(32) # it always seems to be 32, skip that
 
+				# this byte appears to be 02 if there's a name available
 				hasName = struct.unpack('>h', f.read(2) )[0]
 
 				if hasName > 0:
 
 					f.read(8) # pad
-					f.read(4) # length
 
+					f.read(4) # text length int32, not required i think
+
+					# read cast name with a byte infront specifying the length
 					castInfoName = f.read( struct.unpack('b', f.read(1) )[0] ).decode('ansi')
 					e['name'] = castInfoName
 
@@ -387,34 +411,44 @@ def readCST(f):
 
 				f.read(3)
 
+				# i don't know the term for this, so i called it padding
 				e['paddingH'] = struct.unpack('>h', f.read(2) )[0]
 				e['paddingW'] = struct.unpack('>h', f.read(2) )[0]
 
+				# to note with all of these, they're in "height, width" order
 				e['heightRaw'] = struct.unpack('>h', f.read(2) )[0]
 				e['widthRaw'] = struct.unpack('>h', f.read(2) )[0]
 
+				# to get the proper width/height, the padding has to be subtracted off values, no idea what purpose it serves
 				e['height'] = e['heightRaw'] - e['paddingH']
 				e['width'] = e['widthRaw'] - e['paddingW']
 
-				e['constant'] = f.read(4) # struct.unpack('>i', f.read(4) )[0]
+				# no clue what this is
+				e['constant'] = f.read(4)
 
+				# neither this
 				f.read(4)
 
+				# reg point, for having something else than 0,0 as the center, same subtracting stuff here
 				e['regyRaw'] = struct.unpack('>h', f.read(2) )[0]
 				e['regxRaw'] = struct.unpack('>h', f.read(2) )[0]
 				e['regy'] = e['regyRaw'] - e['paddingH']
 				e['regx'] = e['regxRaw'] - e['paddingW']
 
-				e['bitalpha'] = struct.unpack('b', f.read(1) )[0]
-				e['bitdepth'] = struct.unpack('b', f.read(1) )[0]
-				e['palette'] = struct.unpack('>h', f.read(2) )[0]
+				# THE DATA ENDS HERE IF THE BITMAP IS 1-BIT
 
+				e['bitalpha'] = struct.unpack('b', f.read(1) )[0] # not sure at all
+
+				e['bitdepth'] = struct.unpack('b', f.read(1) )[0]
+
+				e['palette'] = struct.unpack('>h', f.read(2) )[0] # i have only seen -1 being used here
 
 
 			if castType == 3:
 				e['friendlyType'] = 'field'
 				f.read(70)
 				
+				# this is a bad solution
 				rl = struct.unpack('b', f.read(1) )[0]
 				if rl > 0:
 					castInfoName = f.read( rl ).decode('ansi')
@@ -430,6 +464,7 @@ def readCST(f):
 
 				e['friendlyType'] = 'sound'
 
+				# in one file this worked, subtracting some values and getting an offset, but ultimately it wasn't reliable
 				'''
 
 				castSub1 = struct.unpack('>i', f.read(4) )[0]
@@ -465,19 +500,23 @@ def readCST(f):
 				
 
 
-
+			# garbage really
 			if castType == 11:
 				e['friendlyType'] = 'misc/xtra'
 
 
-
+		# cast position definer
 		if e['type'] == "CAS*":
 
-			for i in range(0, round(fEntryLength/4) ):
+			for i in range(0, round(fEntryLength/4) ): #two values, so divide by 4 (bytes)
 
+				# cast slot is an int
 				castSlot = struct.unpack('>i', f.read(4) )[0]
+
+				# offset by one
 				entries[ castSlot ]['memberNum'] = i + 1
 
+				# add to cast list
 				castList.append( entries[ castSlot ] )
 
 				#metaList[ castSlot ] = {
@@ -489,6 +528,7 @@ def readCST(f):
 #mullePalette = tmp.palette
 #tmp.close()
 
+# mostly metadata in json here
 def parseCast( num, f ):
 	
 	# doLog("[CAST " + str(e['num']) + "]")
@@ -559,6 +599,7 @@ def parseCast( num, f ):
 
 		if l['type'] == "sndS":
 			
+			# using a python library here to write the wav data, even if it's an aiff file, dunno why that works
 			snd = wave.open( outFolder + "/" + str(e['memberNum']) + ".wav", "w")
 			snd.setnchannels(1)
 			snd.setsampwidth(1)
@@ -585,9 +626,9 @@ def parseCast( num, f ):
 			'''
 
 			if e["bitdepth"] > 8:
-				im = Image.new("1", (e["width"], e["height"]) )
+				im = Image.new("1", (e["width"], e["height"]) ) # 1-bit 0/1 image
 			else:
-				im = Image.new("P", (e["width"], e["height"]) )
+				im = Image.new("P", (e["width"], e["height"]) ) # 8-bit palette image
 				tmp = Image.open( "pal.bmp" )
 				im.palette = tmp.palette
 				tmp.close()
@@ -596,27 +637,20 @@ def parseCast( num, f ):
 			
 			bitmapValues = convertBITD( e['width'], e['height'], f, l )
 
-			draw_x = 0
-			draw_y = 0
-
-			doit = True
-
-			
-
-			# doLog( str( colours ) )
-
 			x = 0
 			y = 0
 
 			# doLog( str(len(colours[0])) + ", " + str(len(colours[1])) + ", " + str(len(colours[2])) )
 
+			# draw the image
 			for y in range( 0, e['height']  ):
 				for x in range( 0, e['width'] ):
 					dr.point( (x, y), bitmapValues[y][x] )
 
-
+			# save as bmp
 			im.save( outFolder + "/" + str(e['memberNum']) + ".bmp", "BMP")
 
+			# use magick to convert one opaque and one transparent (from white colour) png
 			call("magick convert " + outFolder + "/" + str(e['memberNum']) + ".bmp " + outFolder + "/" + str(e['memberNum']) + "O.png")
 			call("magick convert " + outFolder + "/" + str(e['memberNum']) + ".bmp -transparent \"#FFFFFF\" " + outFolder + "/" + str(e['memberNum']) + "T.png")
 			
@@ -624,6 +658,7 @@ def parseCast( num, f ):
 
 		if l['type'] == "STXT":
 			
+			# simply write the text data
 			txt = open( outFolder + "/" + str(e['memberNum']) + ".txt", "wb")
 			txt.write( l['content'] )
 			txt.close()
@@ -636,6 +671,7 @@ def parseCast( num, f ):
 	cst.close()
 	'''
 
+	# test
 	if e["castType"] == 4:
 		doLog("PALETTE!!")
 		return
