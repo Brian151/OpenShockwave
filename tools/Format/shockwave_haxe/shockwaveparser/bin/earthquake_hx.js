@@ -201,7 +201,7 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151.riff.Fi
 					var _g11 = out.length;
 					while(_g21 < _g11) {
 						var i2 = _g21++;
-						if(out[i2][0] == parentOffset) {
+						if(out[i2].parent == parentOffset) {
 							pointer = i2;
 							foundParent = true;
 							break;
@@ -209,9 +209,28 @@ brian151_earthquake_filesystem_DirectorFile.prototype = $extend(brian151.riff.Fi
 					}
 					if(!foundParent) {
 						pointer = out.length;
-						out.push([parentOffset]);
+						out.push({ parent : parentOffset, children : []});
 					}
-					out[pointer].push(this.ptrs2[sectionID]);
+					out[pointer].children.push(this.ptrs2[sectionID]);
+				} else {
+					var libID = aTabHandler.getUShortAt(baseOffset + 6,true);
+					var foundLib = false;
+					var pointer1 = 0;
+					var _g22 = 0;
+					var _g12 = out.length;
+					while(_g22 < _g12) {
+						var i21 = _g22++;
+						if(out[i21].libID == libID) {
+							pointer1 = i21;
+							foundLib = true;
+							break;
+						}
+					}
+					if(!foundLib) {
+						pointer1 = out.length;
+						out.push({ libID : libID, children : []});
+					}
+					out[pointer1].children.push(this.ptrs2[sectionID]);
 				}
 			}
 		} else window.console.log("error ! cannot find KEY*");

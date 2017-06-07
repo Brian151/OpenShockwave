@@ -83,11 +83,11 @@ class DirectorFile extends File
 			}
 		}
 	}
-	public function parseSectionAssociationTable():/*Array<Section>*/Array<Array<Int>> {
+	public function parseSectionAssociationTable():/*Array<Section>*/Array<Dynamic> {
 		//TODO: figure out how to handle stuff besides cast members
 		var aTabOffset:Int = 0;
 		var foundATab:Bool = false;
-		var out = new Array();
+		var out:Dynamic = [];
 		for (i in 0...ptrs1.length) {
 			var curr = getFourCCAt(ptrs1[i]);
 			if (curr == "KEY*") {
@@ -111,7 +111,7 @@ class DirectorFile extends File
 					var foundParent:Bool = false;
 					var pointer:Int = 0;
 					for (i2 in 0...out.length) {
-						if (out[i2][0] == parentOffset) {
+						if (out[i2].parent == parentOffset) {
 							pointer = i2;
 							foundParent = true;
 							break;
@@ -119,9 +119,31 @@ class DirectorFile extends File
 					}
 					if (!foundParent) {
 						pointer = out.length;
-						out.push([parentOffset]);
+						out.push({
+							parent : parentOffset,
+							children : []
+						});
 					}
-					out[pointer].push(ptrs2[sectionID]);
+					out[pointer].children.push(ptrs2[sectionID]);
+				} else {
+					var libID:Int = aTabHandler.getUShortAt(baseOffset + 6, true);
+					var foundLib:Bool = false;
+					var pointer:Int = 0;
+					for (i2 in 0...out.length) {
+						if (out[i2].libID == libID) {
+							pointer = i2;
+							foundLib = true;
+							break;
+						}
+					}
+					if (!foundLib) {
+						pointer = out.length;
+						out.push({
+							libID : libID,
+							children : []
+						});
+					}
+					out[pointer].children.push(ptrs2[sectionID]);
 				}
 			}
 		} else {
