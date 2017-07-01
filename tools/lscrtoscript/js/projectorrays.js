@@ -1,3 +1,29 @@
+function el(tagName, attributes, children) {
+	var e = document.createElement(tagName);
+	function addChild(child) {
+		if (!(child instanceof Node)) {
+			child = new Text(child);
+		}
+		e.appendChild(child);
+	}
+
+	if (attributes) {
+		for (var attr in attributes) {
+			e.setAttribute(attr, attributes[attr]);
+		}
+	}
+	if (children) {
+		if (Array.isArray(children)) {
+			for (var i = 0, l = children.length; i < l; i++) {
+				addChild(children[i]);
+			}
+		} else {
+			addChild(children);
+		}
+	}
+	return e;
+}
+
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
 var files = null;
 if (!!document.form1.Lscr.files[0]) {
@@ -831,15 +857,25 @@ function OpenShockwaveMovie(file) {
 		
 		// needs serious work within new model
 		!loggingEnabled||console.log("Constructing Lingo Script");
-		this.handler.prototype.write = function() {
-			var towrite = "<table border='1'><tr><th>bytecode</th><th>opcode</th><th>pseudocode</th></tr>";
+
+		this.handler.prototype.toHTML = function() {
+			var table = el('table', {border: 1}, [
+				el('tr', null, [
+					el('th', null, 'bytecode'),
+					el('th', null, 'opcode'),
+					el('th', null, 'pseudocode')
+				])
+			]);
 			var translation;
-			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
+			for (var i = 0, l = this.bytecodeArray.length; i < l; i++) {
 				translation = this.bytecodeArray[i].translate();
-				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + translation[0] + "</td><td>" + translation[1] + "</td></tr>";
+				table.appendChild(el('tr', null, [
+					el('td', null, this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj !== null ? " " + this.bytecodeArray[i].obj : "")),
+					el('td', null, translation[0]),
+					el('td', null, translation[1])
+				]));
 			}
-			towrite += "</table>";
-			return towrite;
+			return table;
 		}
 	}
 	
@@ -918,7 +954,7 @@ function OpenShockwaveMovie(file) {
 		} else {
 			for (var i=0,len=this.chunkArray["Lscr"].length;i<len;i++) {
 				for (var j=0,len2=this.chunkArray["Lscr"][i].handlers.length;j<len2;j++) {
-					parent.right.document.getElementById("Lscrtables").innerHTML += this.chunkArray["Lscr"][i].handlers[j].write();
+					parent.right.document.getElementById("Lscrtables").appendChild(this.chunkArray["Lscr"][i].handlers[j].toHTML());
 				}
 			}
 		}
