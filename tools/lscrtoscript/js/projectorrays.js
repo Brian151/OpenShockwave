@@ -24,6 +24,13 @@ function el(tagName, attributes, children) {
 	return e;
 }
 
+function formatBytes(num) {
+	var hex = num.toString(16).toUpperCase();
+	if (hex.length % 2 === 1) hex = '0' + hex;
+	if (hex.length === 2) return hex;
+	return hex.match(/.{2}/g).join(' ');
+}
+
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
 var files = null;
 if (!!document.form1.Lscr.files[0]) {
@@ -870,7 +877,7 @@ function OpenShockwaveMovie(file) {
 			for (var i = 0, l = this.bytecodeArray.length; i < l; i++) {
 				translation = this.bytecodeArray[i].translate();
 				table.appendChild(el('tr', null, [
-					el('td', null, this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj !== null ? " " + this.bytecodeArray[i].obj : "")),
+					el('td', null, formatBytes(this.bytecodeArray[i].val) + "" + (this.bytecodeArray[i].obj !== null ? " " + formatBytes(this.bytecodeArray[i].obj) : "")),
 					el('td', null, translation[0]),
 					el('td', null, translation[1])
 				]));
