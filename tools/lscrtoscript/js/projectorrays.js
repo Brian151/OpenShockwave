@@ -53,7 +53,7 @@ PathTooNewError.prototype = new Error;
 
 DataStream.prototype.readStringEndianness = function() {
 	var result = this.readString(4);
-	!this.endianness||(result=result.split("").reverse().join(""));
+	if (this.endianness) result = result.split("").reverse().join("");
 	return result;
 }
 
@@ -75,9 +75,9 @@ OpenShockwaveMovie.prototype.readFile = function(file) {
 	if (loggingEnabled) console.log("Constructing Open Shockwave Movie");
 
 	this.chunkArray = [];
-	this.chunkArray["RIFX"] = [];
-	this.chunkArray["imap"] = [];
-	this.chunkArray["mmap"] = [];
+	this.chunkArray.RIFX = [];
+	this.chunkArray.imap = [];
+	this.chunkArray.mmap = [];
 
 	var reader = new FileReader();
 	reader.onload = e => {
@@ -96,49 +96,49 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	// valid length is undefined because we have not yet reached mmap
 	// however, it will be filled automatically in chunk's constructor
 	this.chunkPointers = [];
-	this.chunkArray["RIFX"][0] = this.readChunk(DirectorFileDataStream, "RIFX");
+	this.chunkArray.RIFX[0] = this.readChunk(DirectorFileDataStream, "RIFX");
 	// we can only open DIR or DXR
 	// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
-	if (this.chunkArray["RIFX"][0].codec != "MV93") {
-		throw PathTooNewError("Codec " + this.chunkArray["RIFX"][0].codec + " unsupported.");
+	if (this.chunkArray.RIFX[0].codec != "MV93") {
+		throw PathTooNewError("Codec " + this.chunkArray.RIFX[0].codec + " unsupported.");
 	}
 	// the next chunk should be imap
 	// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
 	// we will continue to use it because in this implementation RIFX doesn't contain it
-	this.chunkArray["imap"][0] = this.readChunk(DirectorFileDataStream, "imap", undefined, 12);
+	this.chunkArray.imap[0] = this.readChunk(DirectorFileDataStream, "imap", undefined, 12);
 	this.differenceImap = 0;
 	// sanitize mmaps
-	if (this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C) {
-		this.differenceImap = this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C;
-		for(var i=0,len=this.chunkArray["imap"][0].memoryMapArray.length;i<len;i++) {
-			this.chunkArray["imap"][0].memoryMapArray[i] -= this.differenceImap;
+	if (this.chunkArray.imap[0].memoryMapArray[0] - 0x2C) {
+		this.differenceImap = this.chunkArray.imap[0].memoryMapArray[0] - 0x2C;
+		for(var i=0,len=this.chunkArray.imap[0].memoryMapArray.length;i<len;i++) {
+			this.chunkArray.imap[0].memoryMapArray[i] -= this.differenceImap;
 		}
 	}
 	// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
-	DirectorFileDataStream.seek(this.chunkArray["imap"][0].memoryMapArray[0]);
+	DirectorFileDataStream.seek(this.chunkArray.imap[0].memoryMapArray[0]);
 	// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-	this.chunkArray["mmap"].push(this.readChunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].memoryMapArray[0]));
+	this.chunkArray.mmap.push(this.readChunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray.imap[0].memoryMapArray[0]));
 	// add chunks in the mmap to the chunkArray HERE
 	// make sure to account for chunks with existing names, lengths and offsets
 	DirectorFileDataStream.position = 0;
-	for(var i=0,len=this.chunkArray["mmap"][0].mapArray.length;i<len;i++) {
-		if (this.chunkArray["mmap"][0].mapArray[i]["name"] != "mmap") {
-			DirectorFileDataStream.seek(this.chunkArray["mmap"][0].mapArray[i]["offset"]);
-			if (!!!this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]) {
-				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]] = [];
+	for(var i=0,len=this.chunkArray.mmap[0].mapArray.length;i<len;i++) {
+		if (this.chunkArray.mmap[0].mapArray[i].name != "mmap") {
+			DirectorFileDataStream.seek(this.chunkArray.mmap[0].mapArray[i].offset);
+			if (!this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name]) {
+				this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name] = [];
 			}
-			this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(this.readChunk(DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
-			this.chunkPointers.push(this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]);
+			this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name].push(this.readChunk(DirectorFileDataStream, this.chunkArray.mmap[0].mapArray[i].name, this.chunkArray.mmap[0].mapArray[i].len, this.chunkArray.mmap[0].mapArray[i].offset, this.chunkArray.mmap[0].mapArray[i].padding, this.chunkArray.mmap[0].mapArray[i].unknown0, this.chunkArray.mmap[0].mapArray[i].link));
+			this.chunkPointers.push(this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name]);
 		} else {
-			DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
+			DirectorFileDataStream.position += this.chunkArray.mmap[0].len + 8;
 		}
 	}
 	// uncomment for a demo
-	if (!this.chunkArray["Lscr"]) {
+	if (!this.chunkArray.Lscr) {
 	} else {
 		var container = parent.right.document.getElementById("Lscrtables");
-		for (var i = 0, l = this.chunkArray["Lscr"].length; i < l; i++) {
-			container.appendChild(this.chunkArray["Lscr"][i].toHTML());
+		for (var i = 0, l = this.chunkArray.Lscr.length; i < l; i++) {
+			container.appendChild(this.chunkArray.Lscr[i].toHTML());
 			if (i < l - 1) container.appendChild(el('hr'));
 		}
 	}
@@ -343,16 +343,16 @@ LingoScript.prototype.read = function(dataStream) {
 	this.scriptBehaviour = dataStream.readUint32();
 	dataStream.seek(50);
 	this.map = {};
-	this.map["handlervectors"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32(), dataStream.readUint32());
-	this.map["properties"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	this.map["globals"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	this.map["handlers"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	this.map["literals"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	this.map["literalsdata"] = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+	this.map.handlervectors = new LscrChunk(dataStream.readUint16(), dataStream.readUint32(), dataStream.readUint32());
+	this.map.properties = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.globals = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.handlers = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.literals = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.literalsdata = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
 
-	dataStream.seek(this.map["handlers"].offset);
+	dataStream.seek(this.map.handlers.offset);
 	this.handlers = [];
-	for (i = 0, l = this.map["handlers"].len; i < l; i++) {
+	for (i = 0, l = this.map.handlers.len; i < l; i++) {
 		handler = new Handler(this);
 		handler.readRecord(dataStream);
 		this.handlers[i] = handler;
@@ -361,15 +361,15 @@ LingoScript.prototype.read = function(dataStream) {
 		this.handlers[i].readBytecode(dataStream);
 	}
 
-	dataStream.seek(this.map["literals"].offset);
+	dataStream.seek(this.map.literals.offset);
 	this.literals = [];
-	for (i = 0, l = this.map["literals"].len; i < l; i++) {
+	for (i = 0, l = this.map.literals.len; i < l; i++) {
 		literal = new Literal(this);
 		literal.readRecord(dataStream);
 		this.literals[i] = literal;
 	}
 	for (i = 0, l = this.literals.length; i < l; i++) {
-		this.literals[i].readValue(dataStream, this.map["literalsdata"].offset);
+		this.literals[i].readValue(dataStream, this.map.literalsdata.offset);
 	}
 }
 
@@ -381,7 +381,7 @@ LingoScript.prototype.toHTML = function() {
 	var container = container, table, i, l;
 
 	container = el('section');
-	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArray["Lscr"].indexOf(this)));
+	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArray.Lscr.indexOf(this)));
 	if (this.literals.length > 0) {
 		container.appendChild(el('h3', null, 'Literals'));
 		table = el('table', null, [
@@ -1132,7 +1132,7 @@ Array.prototype.pop = function() {
 
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
 var files = null;
-if (!!document.form1.Lscr.files[0]) {
+if (document.form1.Lscr.files[0]) {
 	files = document.form1.Lscr.files;
 }
 
@@ -1149,7 +1149,7 @@ document.form1.Lscr.onchange = setFiles;
 var movie = null;
 function createNewOpenShockwaveMovie() {
 	if (loggingEnabled) console.log("Creating New Open Shockwave Movie");
-	if (!!files) {
+	if (files) {
 		movie = new OpenShockwaveMovie(files[0]);
 	} else {
 		window.alert("You need to choose a file first.");
