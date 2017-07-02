@@ -96,7 +96,7 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	// valid length is undefined because we have not yet reached mmap
 	// however, it will be filled automatically in chunk's constructor
 	this.chunkPointers = [];
-	this.chunkArray["RIFX"][0] = new Chunk(this, DirectorFileDataStream, "RIFX").read();
+	this.chunkArray["RIFX"][0] = this.readChunk(DirectorFileDataStream, "RIFX");
 	// we can only open DIR or DXR
 	// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
 	if (this.chunkArray["RIFX"][0].codec != "MV93") {
@@ -105,7 +105,7 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	// the next chunk should be imap
 	// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
 	// we will continue to use it because in this implementation RIFX doesn't contain it
-	this.chunkArray["imap"][0] = new Chunk(this, DirectorFileDataStream, "imap", undefined, 12).read();
+	this.chunkArray["imap"][0] = this.readChunk(DirectorFileDataStream, "imap", undefined, 12);
 	this.differenceImap = 0;
 	// sanitize mmaps
 	if (this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C) {
@@ -117,7 +117,7 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
 	DirectorFileDataStream.seek(this.chunkArray["imap"][0].memoryMapArray[0]);
 	// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-	this.chunkArray["mmap"].push(new Chunk(this, DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].memoryMapArray[0]).read());
+	this.chunkArray["mmap"].push(this.readChunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].memoryMapArray[0]));
 	// add chunks in the mmap to the chunkArray HERE
 	// make sure to account for chunks with existing names, lengths and offsets
 	DirectorFileDataStream.position = 0;
@@ -127,7 +127,7 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 			if (!!!this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]) {
 				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]] = [];
 			}
-			this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(new Chunk(this, DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]).read());
+			this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(this.readChunk(DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
 			this.chunkPointers.push(this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]);
 		} else {
 			DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
@@ -144,236 +144,225 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	}
 }
 
-/* Chunk */
-
-function Chunk(main, MainDataStream, name, len, offset, padding, unknown0, link) {
+OpenShockwaveMovie.prototype.readChunk = function(mainDataStream, name, len, offset, padding, unknown0, link) {
 	if (loggingEnabled) console.log("Constructing Chunk: " + name);
-
-	this.main = main;
 
 	// check if this is the chunk we are expecting
 	// we're using this instead of readString because we need to respect endianness
-	var validName = MainDataStream.readStringEndianness(4);
+	var validName = mainDataStream.readStringEndianness(4);
 	if (name == "RIFX") {
 		//if (validName.substring(0, 2) == "MZ") {
 			// handle Projector HERE
 		//}
 		if (validName == "XFIR") {
-			MainDataStream.endianness = true;
+			mainDataStream.endianness = true;
 			validName = "RIFX";
 		}
 	}
 	// check if it has the length the mmap table specifies
-	var validLen = MainDataStream.readUint32();
+	var validLen = mainDataStream.readUint32();
 	// the offset is checked against, well, our offset
-	var validOffset = MainDataStream.position - 8;
+	var validOffset = mainDataStream.position - 8;
 	// if we don't know what to expect, grab the name of the chunk
-	if (name != null) {
-		this.name = name;
-	} else {
-		this.name = validName;
+	if (name == null) {
+		name = validName;
 	}
 	// ignore validation if we have not yet reached the mmap section
-	if (len != null) {
-		this.len = len;
-	} else {
-		this.len = validLen;
+	if (len == null) {
+		len = validLen;
 	}
 	// use our current offset if we have not yet reached the mmap section
-	if (offset != null) {
-		this.offset = offset;
-	} else {
-		this.offset = validOffset;
+	if (offset == null) {
+		offset = validOffset;
 	}
 	// padding can't be checked, so let's give it a default value if we don't yet know it
-	if (padding != null) {
-		this.padding = padding;
-	} else {
+	if (padding == null) {
 		// padding is usually zero
-		if (this.name != "free" && this.name != "junk") {
-			this.padding = 0;
+		if (name != "free" && name != "junk") {
+			padding = 0;
 		} else {
-			this.padding = 12;
+			padding = 12;
 		}
 	}
-	if (unknown0 != null) {
-		this.unknown0 = unknown0;
-	} else {
-		this.unknown0 = undefined;
+	if (unknown0 == null) {
+		unknown0 = undefined;
 	}
-	if (link != null) {
-		this.link = link;
-	} else {
-		this.link = undefined;
+	if (link == null) {
+		link = undefined;
 	}
-	if (!this.validate(this.name, validName, this.len, validLen, this.offset, validOffset)) {
-		throw new InvalidDirectorFileError("At offset " + validOffset + ", expected '" + this.name + "' chunk with a length of " + this.len + " and offset of " + this.offset + " but found an '" + validName + "' chunk with a length of " + validLen + ".");
+
+	// validate chunk
+	if (name != validName || len != validLen || offset != validOffset) {
+		throw new InvalidDirectorFileError("At offset " + validOffset + ", expected '" + name + "' chunk with a length of " + len + " and offset of " + offset + " but found an '" + validName + "' chunk with a length of " + validLen + ".");
 	}
-	if (this.name != "RIFX") {
+
+	if (name != "RIFX") {
 	} else {
 		// we're going to pretend RIFX is only 12 bytes long
 		// this is because offsets are relative to the beginning of the file
 		// whereas everywhere else they're relative to chunk start
-		this.len = 4;
+		len = 4;
 	}
-	// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
-	this.ChunkDataStream = new DataStream();
-	this.ChunkDataStream.endianness = MainDataStream.endianness;
-	this.ChunkDataStream.writeUint8Array(MainDataStream.mapUint8Array(this.len/* - 8*/));
-	this.ChunkDataStream.seek(0);
-}
 
-// read in the values pertaining to this chunk
-// this will be a huge part of the code
-// TODO: insert notes from FormatNotes.txt here for a quicker reference
-Chunk.prototype.read = function() {
+	// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
+	var chunkDataStream = new DataStream();
+	chunkDataStream.endianness = mainDataStream.endianness;
+	chunkDataStream.writeUint8Array(mainDataStream.mapUint8Array(len));
+	chunkDataStream.seek(0);
+
 	var result;
-	switch (this.name) {
+	switch (name) {
 		case "RIFX":
-			result = new Meta();
-			result.codec = this.ChunkDataStream.readStringEndianness(4);
+			result = new Meta(this);
+			result.read(chunkDataStream);
 			break;
 		case "imap":
-			result = new IdealizedMap();
-			result.memoryMapCount = this.ChunkDataStream.readUint32();
-			result.memoryMapArray = this.ChunkDataStream.readUint32Array(result.memoryMapCount);
+			result = new IdealizedMap(this);
+			result.read(chunkDataStream);
 			break;
 		case "mmap":
-			result = new MemoryMap();
-			// read in mmap here
-			// these names are taken from Schockabsorber, I don't know what they do
-			result.unknown0 = this.ChunkDataStream.readUint16();
-			result.unknown1 = this.ChunkDataStream.readUint16();
-			// possible one of the unknown mmap entries determines why an unused item is there?
-			// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
-			result.chunkCountMax = this.ChunkDataStream.readInt32();
-			result.chunkCountUsed = this.ChunkDataStream.readInt32();
-			result.junkPointer = this.ChunkDataStream.readInt32();
-			result.unknown2 = this.ChunkDataStream.readInt32();
-			result.freePointer = this.ChunkDataStream.readInt32();
-			result.mapArray = [];
-			// seems chunkCountUsed is used here, so what is chunkCount for?
-			// EDIT: chunkCountMax is maximum allowed chunks before new mmap created!
-			for(var i=0,len=result.chunkCountUsed;i<len;i++) {
-				// don't actually generate new chunk objects here, just read in data
-				result.mapArray[i] = [];
-				result.mapArray[i]["name"] = this.ChunkDataStream.readStringEndianness(4);
-				//alert(i + " " + len + " " + this.mapArray[i]["name"]);
-				result.mapArray[i]["len"] = this.ChunkDataStream.readUint32();
-				result.mapArray[i]["offset"] = this.ChunkDataStream.readUint32();
-				result.mapArray[i]["offset"] -= this.main.differenceImap;
-				result.mapArray[i]["padding"] = this.ChunkDataStream.readInt16();
-				result.mapArray[i]["unknown0"] = this.ChunkDataStream.readInt16();
-				result.mapArray[i]["link"] = this.ChunkDataStream.readInt32();
-				// we don't care about free or junk chunks, go back and overwrite them
-				// don't move this if block up - the cursor has to be in the right position to read the next chunk
-				if (result.mapArray[i]["name"] == "free" || result.mapArray[i]["name"] == "junk") {
-					// delete this chunk
-					result.mapArray.splice(i, 1);
-					i--;
-					len--;
-				}
-			}
+			result = new MemoryMap(this);
+			result.read(chunkDataStream);
 			break;
 		case "Lscr":
-			result = new LingoScript();
-			this.ChunkDataStream.seek(8);
-			// Lingo scripts are always big endian regardless of file endianness
-			this.ChunkDataStream.endianness = false;
-			result.totalLength = this.ChunkDataStream.readUint32();
-			result.totalLength2 = this.ChunkDataStream.readUint32();
-			result.headerLength = this.ChunkDataStream.readUint16();
-			result.scriptNumber = this.ChunkDataStream.readUint16();
-			this.ChunkDataStream.seek(38);
-			result.scriptBehaviour = this.ChunkDataStream.readUint32();
-			this.ChunkDataStream.seek(50);
-			result.map = [];
-			result.map["handlervectors"] = new LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
-			result.map["properties"] = new LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-			//console.log(result.map["properties"].offset);
-			result.map["globals"] = new LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-			//console.log(result.map["globals"].offset);
-			// 74
-			result.map["handlers"] = new LscrChunk(this.ChunkDataStream.readUint16(),  this.ChunkDataStream.readUint32());
-			//console.log(result.map["handlers"].offset);
-			result.map["literals"] = new LscrChunk(this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
-			this.ChunkDataStream.seek(result.map["handlers"].offset);
-			// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
-			result.handlers = [];
-			for(var i=0,len=result.map["handlers"].len;i<len;i++) {
-				result.handlers[i] = new Handler(result);
-				result.handlers[i].name = this.ChunkDataStream.readUint16();
-				result.handlers[i].handlervectorpos = this.ChunkDataStream.readUint16();
-				result.handlers[i].compiledlen = this.ChunkDataStream.readUint32();
-				result.handlers[i].compiledoffset = this.ChunkDataStream.readUint32();
-				result.handlers[i].argumentcount = this.ChunkDataStream.readUint16();
-				result.handlers[i].argumentoffset = this.ChunkDataStream.readUint32();
-				result.handlers[i].localscount = this.ChunkDataStream.readUint16();
-				result.handlers[i].localsoffset = this.ChunkDataStream.readUint32();
-				result.handlers[i].unknown0count = this.ChunkDataStream.readUint16();
-				result.handlers[i].unknown0offset = this.ChunkDataStream.readUint32();
-				result.handlers[i].unknown1 = this.ChunkDataStream.readUint32();
-				result.handlers[i].unknown2 = this.ChunkDataStream.readUint16();
-				result.handlers[i].unknown3 = this.ChunkDataStream.readUint16();
-				result.handlers[i].linecount = this.ChunkDataStream.readUint16();
-				result.handlers[i].lineoffset = this.ChunkDataStream.readUint32();
-				// yet to implement
-				result.handlers[i].stackheight = this.ChunkDataStream.readUint32();
-			}
-			if (result.map["handlers"].len) {
-				this.ChunkDataStream.seek(result.handlers[0].compiledoffset);
-				result.handlers[0].bytecodeArray = [];
-				// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
-				// loop while there's still more code left
-				var op, obj = null, pos = null;
-				while (this.ChunkDataStream.position < result.handlers[0].compiledoffset + result.handlers[0].compiledlen) {
-					var op = this.ChunkDataStream.readUint8();
-					// instructions can be one, two or three bytes
-					if (op >= 192) {
-						obj = this.ChunkDataStream.readUint24();
-					} else if (op >= 128) {
-						obj = this.ChunkDataStream.readUint16();
-					} else if (op >= 64) {
-						obj = this.ChunkDataStream.readUint8();
-					}
-					// read the first byte to convert to an opcode
-					pos = new Bytecode(result.handlers[0], op, obj);
-					result.handlers[0].bytecodeArray.push(pos);
-				}
-			}
+			result = new LingoScript(this);
+			result.read(chunkDataStream);
 			break;
 	}
 	return result;
 }
 
-Chunk.prototype.validate = function(name, validName, len, validLen, offset, validOffset) {
-	if (loggingEnabled) console.log("Validating Chunk: " + name);
-	if (name != validName || len != validLen || offset != validOffset) {
-		return false;
-	} else {
-		return true;
-	}
-}
-
 /* Meta */
 
-function Meta() {
+function Meta(main) {
+	this.main = main;
+
+	this.codec = null;
+}
+
+Meta.prototype.read = function(dataStream) {
+	this.codec = dataStream.readStringEndianness(4);
 }
 
 /* IdealizedMap */
 
-function IdealizedMap() {
+function IdealizedMap(main) {
+	this.main = main;
+
+	this.memoryMapCount = null;
+	this.memoryMapArray = null;
+}
+
+IdealizedMap.prototype.read = function(dataStream) {
+	this.memoryMapCount = dataStream.readUint32();
+	this.memoryMapArray = dataStream.readUint32Array(this.memoryMapCount);
 }
 
 /* MemoryMap */
 
-function MemoryMap() {
+function MemoryMap(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.chunkCountMax = null;
+	this.chunkCountUsed = null;
+	this.junkPointer = null;
+	this.unknown2 = null;
+	this.freePointer = null;
+	this.mapArray = null;
 }
+
+MemoryMap.prototype.read = function(dataStream) {
+	this.unknown0 = dataStream.readUint16();
+	this.unknown1 = dataStream.readUint16();
+	// possible one of the unknown mmap entries determines why an unused item is there?
+	// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
+	this.chunkCountMax = dataStream.readInt32();
+	this.chunkCountUsed = dataStream.readInt32();
+	this.junkPointer = dataStream.readInt32();
+	this.unknown2 = dataStream.readInt32();
+	this.freePointer = dataStream.readInt32();
+	this.mapArray = [];
+	// seems chunkCountUsed is used here, so what is chunkCount for?
+	// EDIT: chunkCountMax is maximum allowed chunks before new mmap created!
+	var entry;
+	for(var i=0,len=this.chunkCountUsed;i<len;i++) {
+		// don't actually generate new chunk objects here, just read in data
+		var entry = new MemoryMapEntry(this);
+		entry.read(dataStream);
+		// we don't care about free or junk chunks
+		if (entry.name !== 'free' && entry.name !== 'junk') {
+			this.mapArray.push(entry);
+		}
+	}
+}
+
+/* MemoryMapEntry */
+
+function MemoryMapEntry(map) {
+	this.map = map;
+}
+
+MemoryMapEntry.prototype.read = function(dataStream) {
+	this.name = dataStream.readStringEndianness(4);
+	this.len = dataStream.readUint32();
+	this.offset = dataStream.readUint32();
+	this.offset -= this.map.main.differenceImap;
+	this.padding = dataStream.readInt16();
+	this.unknown0 = dataStream.readInt16();
+	this.link = dataStream.readInt32();
+};
 
 /* LingoScript */
 
-function LingoScript() {
-	// add handlers, variables...
+function LingoScript(main) {
+	this.main = main;
+
+	this.totalLength = null;
+	this.totalLength2 = null;
+	this.headerLength = null;
+	this.scriptNumber = null;
+	this.scriptBehaviour = null;
+	this.map = null;
+	this.handlers = null;
+}
+
+LingoScript.prototype.read = function(dataStream) {
+	dataStream.seek(8);
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+	this.totalLength = dataStream.readUint32();
+	this.totalLength2 = dataStream.readUint32();
+	this.headerLength = dataStream.readUint16();
+	this.scriptNumber = dataStream.readUint16();
+	dataStream.seek(38);
+	this.scriptBehaviour = dataStream.readUint32();
+	dataStream.seek(50);
+	this.map = {};
+	this.map["handlervectors"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32(), dataStream.readUint32());
+	this.map["properties"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	//console.log(this.map["properties"].offset);
+	this.map["globals"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	//console.log(this.map["globals"].offset);
+	// 74
+	this.map["handlers"] = new LscrChunk(dataStream.readUint16(),  dataStream.readUint32());
+	//console.log(this.map["handlers"].offset);
+	this.map["literals"] = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+	dataStream.seek(this.map["handlers"].offset);
+	// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
+	this.handlers = [];
+	var handler, op, obj = null, pos = null;
+	console.log(this.map['handlers']);
+	for (var i = 0, l = this.map["handlers"].len; i < l; i++) {
+		handler = new Handler(this);
+		handler.read(dataStream);
+		this.handlers[i] = handler;
+	}
+	console.log(this.handlers);
+	if (this.handlers[0]) {
+		this.handlers[0].readBytecode(dataStream);
+	}
 }
 
 LingoScript.prototype.stack = [];
@@ -410,6 +399,66 @@ function NameValuePair(val, name) {
 function Handler(script) {
 	this.script = script;
 	this.bytecodeArray = [];
+
+	this.name = null;
+	this.handlervectorpos = null;
+	this.compiledlen = null;
+	this.compiledoffset = null;
+	this.argumentcount = null;
+	this.argumentoffset = null;
+	this.localscount = null;
+	this.localsoffset = null;
+	this.unknown0count = null;
+	this.unknown0offset = null;
+	this.unknown1 = null;
+	this.unknown2 = null;
+	this.unknown3 = null;
+	this.linecount = null;
+	this.lineoffset = null;
+	this.stackheight = null;
+}
+
+Handler.prototype.read = function(dataStream) {
+	this.name = dataStream.readUint16();
+	this.handlervectorpos = dataStream.readUint16();
+	this.compiledlen = dataStream.readUint32();
+	this.compiledoffset = dataStream.readUint32();
+	this.argumentcount = dataStream.readUint16();
+	this.argumentoffset = dataStream.readUint32();
+	this.localscount = dataStream.readUint16();
+	this.localsoffset = dataStream.readUint32();
+	this.unknown0count = dataStream.readUint16();
+	this.unknown0offset = dataStream.readUint32();
+	this.unknown1 = dataStream.readUint32();
+	this.unknown2 = dataStream.readUint16();
+	this.unknown3 = dataStream.readUint16();
+	this.linecount = dataStream.readUint16();
+	this.lineoffset = dataStream.readUint32();
+	// yet to implement
+	this.stackheight = dataStream.readUint32();
+}
+
+Handler.prototype.readBytecode = function(dataStream) {
+	console.log(dataStream, this.compiledoffset);
+	dataStream.seek(this.compiledoffset);
+	this.bytecodeArray = [];
+	// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
+	// loop while there's still more code left
+	var op, obj = null, pos = null;
+	while (dataStream.position < this.compiledoffset + this.compiledlen) {
+		var op = dataStream.readUint8();
+		// instructions can be one, two or three bytes
+		if (op >= 192) {
+			obj = dataStream.readUint24();
+		} else if (op >= 128) {
+			obj = dataStream.readUint16();
+		} else if (op >= 64) {
+			obj = dataStream.readUint8();
+		}
+		// read the first byte to convert to an opcode
+		pos = new Bytecode(this, op, obj);
+		this.bytecodeArray.push(pos);
+	}
 }
 
 Handler.prototype.toHTML = function() {
