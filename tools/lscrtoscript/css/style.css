@@ -9,4 +9,9 @@ a {
 table {
 	margin-top:1em;
 	font-family: monospace;
+	border-collapse: collapse;
+}
+
+table, th, td {
+	border: 1px solid black;
 }

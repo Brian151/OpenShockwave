@@ -3,10 +3,16 @@
 function el(tagName, attributes, children) {
 	var e = document.createElement(tagName);
 	function addChild(child) {
-		if (!(child instanceof Node)) {
-			child = new Text(child);
+		if (Array.isArray(child)) {
+			for (var i = 0, l = child.length; i < l; i++) {
+				addChild(child[i]);
+			}
+		} else if (child != null) {
+			if (!(child instanceof Node)) {
+				child = new Text(child);
+			}
+			e.appendChild(child);
 		}
-		e.appendChild(child);
 	}
 
 	if (attributes) {
@@ -14,14 +20,8 @@ function el(tagName, attributes, children) {
 			e.setAttribute(attr, attributes[attr]);
 		}
 	}
-	if (children) {
-		if (Array.isArray(children)) {
-			for (var i = 0, l = children.length; i < l; i++) {
-				addChild(children[i]);
-			}
-		} else {
-			addChild(children);
-		}
+	if (children != null) {
+		addChild(children);
 	}
 	return e;
 }
@@ -136,10 +136,10 @@ OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
 	// uncomment for a demo
 	if (!this.chunkArray["Lscr"]) {
 	} else {
-		for (var i=0,len=this.chunkArray["Lscr"].length;i<len;i++) {
-			for (var j=0,len2=this.chunkArray["Lscr"][i].handlers.length;j<len2;j++) {
-				parent.right.document.getElementById("Lscrtables").appendChild(this.chunkArray["Lscr"][i].handlers[j].toHTML());
-			}
+		var container = parent.right.document.getElementById("Lscrtables");
+		for (var i = 0, l = this.chunkArray["Lscr"].length; i < l; i++) {
+			container.appendChild(this.chunkArray["Lscr"][i].toHTML());
+			if (i < l - 1) container.appendChild(el('hr'));
 		}
 	}
 }
@@ -326,9 +326,12 @@ function LingoScript(main) {
 	this.scriptBehaviour = null;
 	this.map = null;
 	this.handlers = null;
+	this.literals = null;
 }
 
 LingoScript.prototype.read = function(dataStream) {
+	var i, l, handler, literal;
+
 	dataStream.seek(8);
 	// Lingo scripts are always big endian regardless of file endianness
 	dataStream.endianness = false;
@@ -342,30 +345,65 @@ LingoScript.prototype.read = function(dataStream) {
 	this.map = {};
 	this.map["handlervectors"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32(), dataStream.readUint32());
 	this.map["properties"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	//console.log(this.map["properties"].offset);
 	this.map["globals"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
-	//console.log(this.map["globals"].offset);
-	// 74
-	this.map["handlers"] = new LscrChunk(dataStream.readUint16(),  dataStream.readUint32());
-	//console.log(this.map["handlers"].offset);
-	this.map["literals"] = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+	this.map["handlers"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map["literals"] = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map["literalsdata"] = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+
 	dataStream.seek(this.map["handlers"].offset);
-	// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
 	this.handlers = [];
-	var handler, op, obj = null, pos = null;
-	for (var i = 0, l = this.map["handlers"].len; i < l; i++) {
+	for (i = 0, l = this.map["handlers"].len; i < l; i++) {
 		handler = new Handler(this);
-		handler.read(dataStream);
+		handler.readRecord(dataStream);
 		this.handlers[i] = handler;
 	}
 	for (i = 0, l = this.handlers.length; i < l; i++) {
 		this.handlers[i].readBytecode(dataStream);
+	}
+
+	dataStream.seek(this.map["literals"].offset);
+	this.literals = [];
+	for (i = 0, l = this.map["literals"].len; i < l; i++) {
+		literal = new Literal(this);
+		literal.readRecord(dataStream);
+		this.literals[i] = literal;
+	}
+	for (i = 0, l = this.literals.length; i < l; i++) {
+		this.literals[i].readValue(dataStream, this.map["literalsdata"].offset);
 	}
 }
 
 LingoScript.prototype.stack = [];
 //this.LingoScript.prototype.stack.push(this.val);
 //this.val = this.LingoScript.prototype.stack.pop();
+
+LingoScript.prototype.toHTML = function() {
+	var container = container, table, i, l;
+
+	container = el('section');
+	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArray["Lscr"].indexOf(this)));
+	if (this.literals.length > 0) {
+		container.appendChild(el('h3', null, 'Literals'));
+		table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'type'),
+				el('th', null, 'value')
+			])
+		]);
+		for (i = 0, l = this.literals.length; i < l; i++) {
+			table.appendChild(this.literals[i].toHTML());
+		}
+		container.appendChild(table);
+	}
+	if (this.handlers.length > 0) {
+		container.appendChild(el('h3', null, 'Handlers'));
+		for (i = 0, l = this.handlers.length; i < l; i++) {
+			container.appendChild(this.handlers[i].toHTML());
+		}
+	}
+	return container;
+}
 
 /* LscrChunk */
 
@@ -417,7 +455,7 @@ function Handler(script) {
 	this.stackheight = null;
 }
 
-Handler.prototype.read = function(dataStream) {
+Handler.prototype.readRecord = function(dataStream) {
 	this.name = dataStream.readUint16();
 	this.handlervectorpos = dataStream.readUint16();
 	this.compiledlen = dataStream.readUint32();
@@ -460,7 +498,9 @@ Handler.prototype.readBytecode = function(dataStream) {
 }
 
 Handler.prototype.toHTML = function() {
-	var table = el('table', {border: 1}, [
+	var fragment = document.createDocumentFragment();
+	fragment.appendChild(el('h4', null, this.script.handlers.indexOf(this)));
+	var table = el('table', null, [
 		el('tr', null, [
 			el('th', null, 'bytecode'),
 			el('th', null, 'opcode'),
@@ -476,7 +516,42 @@ Handler.prototype.toHTML = function() {
 			el('td', null, translation[1])
 		]));
 	}
-	return table;
+	fragment.appendChild(table);
+	return fragment;
+}
+
+/* Literal */
+
+function Literal(script) {
+	this.script = script;
+
+	this.type = null;
+	this.offset = null;
+	this.length = null;
+	this.value = null;
+}
+
+Literal.prototype.readRecord = function(dataStream) {
+	this.type = dataStream.readUint32();
+	this.offset = dataStream.readUint32();
+}
+
+Literal.prototype.readValue = function(dataStream, literalsOffset) {
+	dataStream.seek(literalsOffset + this.offset);
+	this.length = dataStream.readUint32();
+	if (this.type === 1) {
+		this.value = dataStream.readString(this.length - 1); // minus null terminator
+	} else if (this.type === 9) {
+		this.value = dataStream.readFloat32();
+	}
+}
+
+Literal.prototype.toHTML = function() {
+	return el('tr', null, [
+		el('td', null, this.script.literals.indexOf(this)),
+		el('td', null, this.type === 1 ? 'string' : this.type === 9 ? 'double' : '?'),
+		el('td', null, this.value)
+	]);
 }
 
 /* Bytecode */	
