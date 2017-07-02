@@ -51,8 +51,8 @@ PathTooNewError.prototype = new Error;
 
 /* DataStream */
 
-DataStream.prototype.readStringEndianness = function() {
-	var result = this.readString(4);
+DataStream.prototype.readStringEndianness = function(length) {
+	var result = this.readString(length);
 	if (this.endianness) result = result.split("").reverse().join("");
 	return result;
 }
