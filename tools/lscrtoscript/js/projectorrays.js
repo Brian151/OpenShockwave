@@ -353,15 +353,13 @@ LingoScript.prototype.read = function(dataStream) {
 	// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
 	this.handlers = [];
 	var handler, op, obj = null, pos = null;
-	console.log(this.map['handlers']);
 	for (var i = 0, l = this.map["handlers"].len; i < l; i++) {
 		handler = new Handler(this);
 		handler.read(dataStream);
 		this.handlers[i] = handler;
 	}
-	console.log(this.handlers);
-	if (this.handlers[0]) {
-		this.handlers[0].readBytecode(dataStream);
+	for (i = 0, l = this.handlers.length; i < l; i++) {
+		this.handlers[i].readBytecode(dataStream);
 	}
 }
 
@@ -412,7 +410,8 @@ function Handler(script) {
 	this.unknown0offset = null;
 	this.unknown1 = null;
 	this.unknown2 = null;
-	this.unknown3 = null;
+	// unknown3 doesn't seem to exist...
+	// this.unknown3 = null;
 	this.linecount = null;
 	this.lineoffset = null;
 	this.stackheight = null;
@@ -431,7 +430,7 @@ Handler.prototype.read = function(dataStream) {
 	this.unknown0offset = dataStream.readUint32();
 	this.unknown1 = dataStream.readUint32();
 	this.unknown2 = dataStream.readUint16();
-	this.unknown3 = dataStream.readUint16();
+	// this.unknown3 = dataStream.readUint16();
 	this.linecount = dataStream.readUint16();
 	this.lineoffset = dataStream.readUint32();
 	// yet to implement
@@ -439,7 +438,6 @@ Handler.prototype.read = function(dataStream) {
 }
 
 Handler.prototype.readBytecode = function(dataStream) {
-	console.log(dataStream, this.compiledoffset);
 	dataStream.seek(this.compiledoffset);
 	this.bytecodeArray = [];
 	// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
@@ -642,7 +640,6 @@ Bytecode.prototype.translate = function() {
 		case 0x11:
 		case 0x12:
 		case 0x13:
-		case 0x14:
 		case 0x15:
 		case 0x16:
 			return this.operate21(this.val);
