@@ -449,7 +449,7 @@ function Bytecode(handler, val, obj) {
 }
 
 Bytecode.prototype.operate11 = function(val) {
-	var opcode, operator, result;
+	var opcode, operator, result, pseudocode = '';
 	var x = LingoScript.prototype.stack.pop();
 	switch (val) {
 		case 0x9:
@@ -464,10 +464,11 @@ Bytecode.prototype.operate11 = function(val) {
 	}
 	pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
 	LingoScript.prototype.stack.push(new NameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
+	return [opcode.toUpperCase(), pseudocode];
 }
 
 Bytecode.prototype.operate21 = function(val) {
-	var opcode, operator, result;
+	var opcode, operator, result, pseudocode = '';
 	var x = LingoScript.prototype.stack.pop();
 	var y = LingoScript.prototype.stack.pop();
 	switch (val) {
@@ -557,6 +558,7 @@ Bytecode.prototype.operate21 = function(val) {
 	}
 	pseudocode = "projectorrraystemp_" + x.name + "" + operator + "" + y.name + " = (" + x.name + " " + operator + " " + y.name + ")";
 	LingoScript.prototype.stack.push(new NameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
+	return [opcode.toUpperCase(), pseudocode];
 }
 
 Bytecode.prototype.translate = function() {
@@ -594,11 +596,11 @@ Bytecode.prototype.translate = function() {
 		case 0x14:
 		case 0x15:
 		case 0x16:
-			this.operate21(this.val);
+			return this.operate21(this.val);
 			break;
 		case 0x9:
 		case 0x14:
-			this.operate11(this.val);
+			return this.operate11(this.val);
 			break;
 		case 0x17:
 			opcode = "splitstr";
