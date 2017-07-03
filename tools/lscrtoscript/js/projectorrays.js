@@ -42,14 +42,14 @@ function InvalidDirectorFileError(message) {
 	this.message = message;
 	this.stack = (new Error()).stack;
 }
-InvalidDirectorFileError.prototype = new Error;
+InvalidDirectorFileError.prototype = new Error();
 
 function PathTooNewError(message) {
 	this.name = "PathTooNewError";
 	this.message = message;
 	this.stack = (new Error()).stack;
 }
-PathTooNewError.prototype = new Error;
+PathTooNewError.prototype = new Error();
 
 /* DataStream */
 
@@ -57,6 +57,10 @@ DataStream.prototype.readStringEndianness = function(length) {
 	var result = this.readString(length);
 	if (this.endianness) result = result.split("").reverse().join("");
 	return result;
+}
+
+DataStream.prototype.skip = function(n) {
+	this.seek(this.position + n);
 }
 
 /* OpenShockwaveMovie */
@@ -93,8 +97,8 @@ OpenShockwaveMovie.prototype.readFile = function(file) {
 
 		if (this.chunkArrays.Lscr) {
 			var container = parent.right.document.getElementById("Lscrtables");
-			for (let i = 0, l = this.chunkArrays.Lscr.length; i < l; i++) {
-				container.appendChild(this.chunkArrays.Lscr[i].toHTML());
+			for (let i = 0, l = this.chunkArrays.LctX.length; i < l; i++) {
+				container.appendChild(this.chunkArrays.LctX[i].toHTML());
 				if (i < l - 1) container.appendChild(el('hr'));
 			}
 		}
@@ -113,7 +117,7 @@ OpenShockwaveMovie.prototype.lookupMmap = function(dataStream) {
 	// we can only open DIR or DXR
 	// we'll read OpenShockwaveMovie from dataStream because OpenShockwaveMovie is an exception to the normal rules
 	if (this.chunkArrays.RIFX[0].codec != "MV93") {
-		throw PathTooNewError("Codec " + this.chunkArrays.RIFX[0].codec + " unsupported.");
+		throw new PathTooNewError("Codec " + this.chunkArrays.RIFX[0].codec + " unsupported.");
 	}
 	// the next chunk should be imap
 	// this HAS to be dataStream for the OFFSET check to be correct
@@ -157,6 +161,7 @@ OpenShockwaveMovie.prototype.linkScripts = function() {
 			if (section.sectionID > -1) {
 				let script = this.chunkMap[section.sectionID];
 				script.context = scriptContext;
+				script.readNames();
 				scriptContext.scripts.push(script);
 			}
 		}
@@ -402,6 +407,15 @@ ScriptContext.prototype.read = function(dataStream) {
 	}
 }
 
+ScriptContext.prototype.toHTML = function() {
+	var container = el('div');
+	container.appendChild(el('h1', null, 'LctX ' + this.main.chunkMap.indexOf(this)));
+	for (let script of this.scripts) {
+		container.appendChild(script.toHTML());
+	}
+	return container;
+}
+
 /* ScriptContextSection */
 
 function ScriptContextSection(scriptContext) {
@@ -466,9 +480,9 @@ function LingoScript(main) {
 	this.scriptNumber = null;
 	this.scriptBehaviour = null;
 	this.map = null;
+
 	this.handlers = null;
 	this.literals = null;
-
 	this.context = null;
 }
 
@@ -510,7 +524,13 @@ LingoScript.prototype.read = function(dataStream) {
 		this.literals.push(literal);
 	}
 	for (let literal of this.literals) {
-		this.literals[i].readValue(dataStream, this.map.literalsdata.offset);
+		literal.readValue(dataStream, this.map.literalsdata.offset);
+	}
+}
+
+LingoScript.prototype.readNames = function() {
+	for (let handler of this.handlers) {
+		handler.readNames()
 	}
 }
 
@@ -519,10 +539,10 @@ LingoScript.prototype.stack = [];
 //this.val = this.LingoScript.prototype.stack.pop();
 
 LingoScript.prototype.toHTML = function() {
-	var container = el('section');
-	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArrays.Lscr.indexOf(this)));
+	var fragment = document.createDocumentFragment();
+	fragment.appendChild(el('h2', null, 'Lscr ' + this.main.chunkMap.indexOf(this)));
 	if (this.literals.length > 0) {
-		container.appendChild(el('h3', null, 'Literals'));
+		fragment.appendChild(el('h3', null, 'Literals'));
 		var table = el('table', null, [
 			el('tr', null, [
 				el('th', null, 'index'),
@@ -533,15 +553,15 @@ LingoScript.prototype.toHTML = function() {
 		for (let literal of this.literals) {
 			table.appendChild(literal.toHTML());
 		}
-		container.appendChild(table);
+		fragment.appendChild(table);
 	}
 	if (this.handlers.length > 0) {
-		container.appendChild(el('h3', null, 'Handlers'));
+		fragment.appendChild(el('h3', null, 'Handlers'));
 		for (let handler of this.handlers) {
-			container.appendChild(handler.toHTML());
+			fragment.appendChild(handler.toHTML());
 		}
 	}
-	return container;
+	return fragment;
 }
 
 /* LscrChunk */
@@ -574,7 +594,7 @@ function NameValuePair(val, name) {
 function Handler(script) {
 	this.script = script;
 
-	this.name = null;
+	this.nameID = null;
 	this.handlervectorpos = null;
 	this.compiledlen = null;
 	this.compiledoffset = null;
@@ -593,10 +613,11 @@ function Handler(script) {
 	this.stackheight = null;
 
 	this.bytecodeArray = [];
+	this.name = null;
 }
 
 Handler.prototype.readRecord = function(dataStream) {
-	this.name = dataStream.readUint16();
+	this.nameID = dataStream.readUint16();
 	this.handlervectorpos = dataStream.readUint16();
 	this.compiledlen = dataStream.readUint32();
 	this.compiledoffset = dataStream.readUint32();
@@ -637,9 +658,19 @@ Handler.prototype.readBytecode = function(dataStream) {
 	}
 }
 
+Handler.prototype.readNames = function() {
+	var names = this.script.context.scriptNames.names;
+	this.name = names[this.nameID];
+}
+
 Handler.prototype.toHTML = function() {
 	var fragment = document.createDocumentFragment();
-	fragment.appendChild(el('h4', null, this.script.handlers.indexOf(this)));
+	fragment.appendChild(
+		el(
+			'h4', null,
+			this.script.handlers.indexOf(this) + ': ' + this.name
+		)
+	);
 	var table = el('table', null, [
 		el('tr', null, [
 			el('th', null, 'bytecode'),
@@ -680,19 +711,27 @@ Literal.prototype.readValue = function(dataStream, literalsOffset) {
 	dataStream.seek(literalsOffset + this.offset);
 	this.length = dataStream.readUint32();
 	if (this.type === 1) {
-		this.value = dataStream.readString(this.length - 1); // minus null terminator
+		this.value = dataStream.readString(this.length - 1);
+	} else if (this.type === 4) {
+		this.value = this.offset;
 	} else if (this.type === 9) {
-		this.value = dataStream.readFloat32();
+		this.value = dataStream.readFloat64();
 	}
 }
 
 Literal.prototype.toHTML = function() {
 	return el('tr', null, [
 		el('td', null, this.script.literals.indexOf(this)),
-		el('td', null, this.type === 1 ? 'string' : this.type === 9 ? 'double' : '?'),
-		el('td', null, this.value)
+		el('td', null, Literal.types[this.type] || '?'),
+		el('td', null, JSON.stringify(this.value))
 	]);
 }
+
+Literal.types = {
+	1: 'string',
+	4: 'int',
+	9: 'double'
+};
 
 /* Bytecode */	
 
@@ -725,7 +764,7 @@ Bytecode.prototype.operate11 = function(val) {
 			result = !x.val;
 	}
 	pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
-	LingoScript.prototype.stack.push(new NameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
+	LingoScript.prototype.stack.push(new NameValuePair(result, "projectorrraystemp_" + operator + "" + x.name + ""));
 	return [opcode.toUpperCase(), pseudocode];
 }
 
@@ -828,6 +867,8 @@ Bytecode.prototype.translate = function() {
 	if (loggingEnabled) console.log("Translate Bytecode: " + bytecode);
 	var opcode = "";
 	var pseudocode = "";
+	var script = this.handler.script;
+	var nameList = script.context.scriptNames.names;
 	// see the documentation for notes on these opcodes
 	switch (this.val) {
 		// TODO: copy the comments from OP.txt into the code for a quicker reference
@@ -979,21 +1020,19 @@ Bytecode.prototype.translate = function() {
 		case 0x44:
 		case 0x84:
 		case 0xc4:
-			opcode = "push";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(obj => {
+				var literal = script.literals[this.obj]
+				opcode = "push" + Literal.types[literal.type];
+				LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+				pseudocode = JSON.stringify(literal.value);
+			})(this.obj);
 			break; 
-			/* 
-				likely to be re-named to:
-				pushstring
-				pushint
-				pushfloat,
-				based on the type of constant record referenced by this instruction
-			*/
 		case 0x45:
 		case 0x85:
 		case 0xc5:
 			opcode = "pushsymb";
 			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			pseudocode = "#" + nameList[this.obj];
 			break;
 		/*
 		case 0x46:
@@ -1111,7 +1150,7 @@ Bytecode.prototype.translate = function() {
 						argsliststring += ", ";
 					}
 				}
-				pseudocode = obj + "(" + argsliststring + ")";
+				pseudocode = nameList[script.handlers[obj].nameID] + "(" + argsliststring + ")";
 			})(this.obj);
 			break;
 		case 0x57:
@@ -1205,14 +1244,13 @@ Bytecode.prototype.translate = function() {
 		case 0xdf:
 			opcode = "getprop";
 			LingoScript.prototype.stack.push(new NameValuePair("TODO"));
-			pseudocode = "(the prop)";
+			pseudocode = "(the " + nameList[this.obj] + ")";
 			break;
 		case 0x60:
 		case 0xa0:
 		case 0xe0:
 			opcode = "setprop";
-			LingoScript.prototype.stack.pop();
-			pseudocode = "set the prop to x";
+			pseudocode = "set the " + nameList[this.obj] + " to " + LingoScript.prototype.stack.pop();
 			break;
 		case 0x61:
 		case 0xa1:
