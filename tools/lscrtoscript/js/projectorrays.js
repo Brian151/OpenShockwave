@@ -1,11 +1,13 @@
+'use strict';
+
 /* Utilities */
 
 function el(tagName, attributes, children) {
 	var e = document.createElement(tagName);
 	function addChild(child) {
 		if (Array.isArray(child)) {
-			for (var i = 0, l = child.length; i < l; i++) {
-				addChild(child[i]);
+			for (let c of child) {
+				addChild(c);
 			}
 		} else if (child != null) {
 			if (!(child instanceof Node)) {
@@ -35,14 +37,14 @@ function formatBytes(num) {
 
 /* Error Handling */
 
-InvalidDirectorFileError = function(message) {
+function InvalidDirectorFileError(message) {
 	this.name = "InvalidDirectorFileError";
 	this.message = message;
 	this.stack = (new Error()).stack;
 }
 InvalidDirectorFileError.prototype = new Error;
 
-PathTooNewError = function(message) {
+function PathTooNewError(message) {
 	this.name = "PathTooNewError";
 	this.message = message;
 	this.stack = (new Error()).stack;
@@ -60,8 +62,8 @@ DataStream.prototype.readStringEndianness = function(length) {
 /* OpenShockwaveMovie */
 
 function OpenShockwaveMovie(file) {
-	this.chunkArray = null;
-	this.chunkPointers = null;
+	this.chunkArrays = null;
+	this.chunkMap = null;
 	this.differenceImap = null;
 
 	if (file != null) {
@@ -74,72 +76,89 @@ function OpenShockwaveMovie(file) {
 OpenShockwaveMovie.prototype.readFile = function(file) {
 	if (loggingEnabled) console.log("Constructing Open Shockwave Movie");
 
-	this.chunkArray = [];
-	this.chunkArray.RIFX = [];
-	this.chunkArray.imap = [];
-	this.chunkArray.mmap = [];
+	this.chunkArrays = {};
+	this.chunkArrays.RIFX = [];
+	this.chunkArrays.imap = [];
+	this.chunkArrays.mmap = [];
 
 	var reader = new FileReader();
 	reader.onload = e => {
-			if (loggingEnabled) console.log("ShockwaveMovieReader onLoad");
-			var dataStream = new DataStream(e.target.result);
-			dataStream.endianness = false; // we set this properly when we create the RIFX chunk
-			this.lookupMmap(dataStream);
+		if (loggingEnabled) console.log("ShockwaveMovieReader onLoad");
+		var dataStream = new DataStream(e.target.result);
+		dataStream.endianness = false; // we set this properly when we create the RIFX chunk
+		this.lookupMmap(dataStream);
+		this.linkScripts();
+
+		console.log(this.chunkArrays);
+
+		if (this.chunkArrays.Lscr) {
+			var container = parent.right.document.getElementById("Lscrtables");
+			for (let i = 0, l = this.chunkArrays.Lscr.length; i < l; i++) {
+				container.appendChild(this.chunkArrays.Lscr[i].toHTML());
+				if (i < l - 1) container.appendChild(el('hr'));
+			}
+		}
 	};
 	reader.readAsArrayBuffer(file);
 };
 
 // at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
-OpenShockwaveMovie.prototype.lookupMmap = function(DirectorFileDataStream) {
+OpenShockwaveMovie.prototype.lookupMmap = function(dataStream) {
 	if (loggingEnabled) console.log("Looking Up mmap");
 
 	// valid length is undefined because we have not yet reached mmap
 	// however, it will be filled automatically in chunk's constructor
-	this.chunkPointers = [];
-	this.chunkArray.RIFX[0] = this.readChunk(DirectorFileDataStream, "RIFX");
+	this.chunkMap = [];
+	this.chunkArrays.RIFX[0] = this.readChunk(dataStream, "RIFX");
 	// we can only open DIR or DXR
-	// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
-	if (this.chunkArray.RIFX[0].codec != "MV93") {
-		throw PathTooNewError("Codec " + this.chunkArray.RIFX[0].codec + " unsupported.");
+	// we'll read OpenShockwaveMovie from dataStream because OpenShockwaveMovie is an exception to the normal rules
+	if (this.chunkArrays.RIFX[0].codec != "MV93") {
+		throw PathTooNewError("Codec " + this.chunkArrays.RIFX[0].codec + " unsupported.");
 	}
 	// the next chunk should be imap
-	// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
+	// this HAS to be dataStream for the OFFSET check to be correct
 	// we will continue to use it because in this implementation RIFX doesn't contain it
-	this.chunkArray.imap[0] = this.readChunk(DirectorFileDataStream, "imap", undefined, 12);
+	var imap = this.chunkArrays.imap[0] = this.readChunk(dataStream, "imap", undefined, 12);
 	this.differenceImap = 0;
 	// sanitize mmaps
-	if (this.chunkArray.imap[0].memoryMapArray[0] - 0x2C) {
-		this.differenceImap = this.chunkArray.imap[0].memoryMapArray[0] - 0x2C;
-		for(var i=0,len=this.chunkArray.imap[0].memoryMapArray.length;i<len;i++) {
-			this.chunkArray.imap[0].memoryMapArray[i] -= this.differenceImap;
+	if (imap.memoryMapArray[0] - 0x2C) {
+		this.differenceImap = imap.memoryMapArray[0] - 0x2C;
+		for (let i = 0, l = imap.memoryMapArray.length; i < l; i++) {
+			imap.memoryMapArray[i] -= this.differenceImap;
 		}
 	}
 	// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
-	DirectorFileDataStream.seek(this.chunkArray.imap[0].memoryMapArray[0]);
+	dataStream.seek(imap.memoryMapArray[0]);
 	// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-	this.chunkArray.mmap.push(this.readChunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray.imap[0].memoryMapArray[0]));
-	// add chunks in the mmap to the chunkArray HERE
+	this.chunkArrays.mmap.push(this.readChunk(dataStream, "mmap", undefined, this.chunkArrays.imap[0].memoryMapArray[0]));
+	// add chunks in the mmap to the chunkArrays HERE
 	// make sure to account for chunks with existing names, lengths and offsets
-	DirectorFileDataStream.position = 0;
-	for(var i=0,len=this.chunkArray.mmap[0].mapArray.length;i<len;i++) {
-		if (this.chunkArray.mmap[0].mapArray[i].name != "mmap") {
-			DirectorFileDataStream.seek(this.chunkArray.mmap[0].mapArray[i].offset);
-			if (!this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name]) {
-				this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name] = [];
+	dataStream.position = 0;
+	for (let mapEntry of this.chunkArrays.mmap[0].mapArray) {
+		if (mapEntry.name != "mmap") {
+			dataStream.seek(mapEntry.offset);
+			if (!this.chunkArrays[mapEntry.name]) {
+				this.chunkArrays[mapEntry.name] = [];
 			}
-			this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name].push(this.readChunk(DirectorFileDataStream, this.chunkArray.mmap[0].mapArray[i].name, this.chunkArray.mmap[0].mapArray[i].len, this.chunkArray.mmap[0].mapArray[i].offset, this.chunkArray.mmap[0].mapArray[i].padding, this.chunkArray.mmap[0].mapArray[i].unknown0, this.chunkArray.mmap[0].mapArray[i].link));
-			this.chunkPointers.push(this.chunkArray[this.chunkArray.mmap[0].mapArray[i].name]);
+			let chunk = this.readChunk(dataStream, mapEntry.name, mapEntry.len, mapEntry.offset, mapEntry.padding, mapEntry.unknown0, mapEntry.link);
+			this.chunkArrays[mapEntry.name].push(chunk);
+			this.chunkMap[mapEntry.index] = chunk;
 		} else {
-			DirectorFileDataStream.position += this.chunkArray.mmap[0].len + 8;
+			dataStream.position += this.chunkArrays.mmap[0].len + 8;
 		}
 	}
-	// uncomment for a demo
-	if (!this.chunkArray.Lscr) {
-	} else {
-		var container = parent.right.document.getElementById("Lscrtables");
-		for (var i = 0, l = this.chunkArray.Lscr.length; i < l; i++) {
-			container.appendChild(this.chunkArray.Lscr[i].toHTML());
-			if (i < l - 1) container.appendChild(el('hr'));
+}
+
+OpenShockwaveMovie.prototype.linkScripts = function() {
+	for (let scriptContext of this.chunkArrays.LctX) {
+		let scriptNames = this.chunkMap[scriptContext.lnamSectionID];
+		scriptContext.scriptNames = scriptNames;
+		for (let section of scriptContext.sections) {
+			if (section.sectionID > -1) {
+				let script = this.chunkMap[section.sectionID];
+				script.context = scriptContext;
+				scriptContext.scripts.push(script);
+			}
 		}
 	}
 }
@@ -224,10 +243,20 @@ OpenShockwaveMovie.prototype.readChunk = function(mainDataStream, name, len, off
 			result = new MemoryMap(this);
 			result.read(chunkDataStream);
 			break;
+		case "LctX":
+			result = new ScriptContext(this);
+			result.read(chunkDataStream);
+			break;
+		case "Lnam":
+			result = new ScriptNames(this);
+			result.read(chunkDataStream);
+			break;
 		case "Lscr":
 			result = new LingoScript(this);
 			result.read(chunkDataStream);
 			break;
+		default:
+			result = null;
 	}
 	return result;
 }
@@ -289,10 +318,10 @@ MemoryMap.prototype.read = function(dataStream) {
 	var entry;
 	for(var i=0,len=this.chunkCountUsed;i<len;i++) {
 		// don't actually generate new chunk objects here, just read in data
-		var entry = new MemoryMapEntry(this);
+		var entry = new MemoryMapEntry(this, i);
 		entry.read(dataStream);
 		// we don't care about free or junk chunks
-		if (entry.name !== 'free' && entry.name !== 'junk') {
+		if (entry.name !== "free" && entry.name !== "junk") {
 			this.mapArray.push(entry);
 		}
 	}
@@ -300,19 +329,131 @@ MemoryMap.prototype.read = function(dataStream) {
 
 /* MemoryMapEntry */
 
-function MemoryMapEntry(map) {
+function MemoryMapEntry(map, index) {
 	this.map = map;
+	this.index = index;
+
+	this.name = null;
+	this.len = null;
+	this.offset = null;
+	this.padding = null;
+	this.unknown0 = null;
+	this.link = null;
 }
 
 MemoryMapEntry.prototype.read = function(dataStream) {
 	this.name = dataStream.readStringEndianness(4);
 	this.len = dataStream.readUint32();
-	this.offset = dataStream.readUint32();
-	this.offset -= this.map.main.differenceImap;
+	this.offset = dataStream.readUint32() - this.map.main.differenceImap;
 	this.padding = dataStream.readInt16();
 	this.unknown0 = dataStream.readInt16();
 	this.link = dataStream.readInt32();
 };
+
+/* ScriptContext */
+
+function ScriptContext(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.entryCount = null;
+	this.entryCount2 = null;
+	this.entriesOffset = null;
+	this.unknown2 = null;
+	this.unknown3 = null;
+	this.unknown4 = null;
+	this.unknown5 = null;
+	this.lnamSectionID = null;
+	this.validCount = null;
+	this.flags = null;
+	this.freePointer = null;
+
+	this.sections = null;
+
+	this.scriptNames = null;
+	this.scripts = [];
+}
+
+ScriptContext.prototype.read = function(dataStream) {
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+
+	this.unknown0 = dataStream.readInt32();
+	this.unknown1 = dataStream.readInt32();
+	this.entryCount = dataStream.readUint32();
+	this.entryCount2 = dataStream.readUint32();
+	this.entriesOffset = dataStream.readUint16();
+	this.unknown2 = dataStream.readInt16();
+	this.unknown3 = dataStream.readInt32();
+	this.unknown4 = dataStream.readInt32();
+	this.unknown5 = dataStream.readInt32();
+	this.lnamSectionID = dataStream.readInt32();
+	this.validCount = dataStream.readUint16();
+	this.flags = dataStream.readUint16();
+	this.freePointer = dataStream.readInt16();
+
+	dataStream.seek(this.entriesOffset);
+	this.sections = [];
+	for (let i = 0, l = this.entryCount; i < l; i++) {
+		let section = new ScriptContextSection(this);
+		section.read(dataStream);
+		this.sections.push(section);
+	}
+}
+
+/* ScriptContextSection */
+
+function ScriptContextSection(scriptContext) {
+	this.scriptContext = scriptContext;
+
+	this.unknown0 = null;
+	this.sectionID = null;
+	this.unknown1 = null;
+	this.unknown2 = null;
+}
+
+ScriptContextSection.prototype.read = function(dataStream) {
+	this.unknown0 = dataStream.readInt32();
+	this.sectionID = dataStream.readInt32();
+	this.unknown1 = dataStream.readUint16();
+	this.unknown2 = dataStream.readUint16();
+}
+
+/* ScriptNames */
+
+function ScriptNames(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.len1 = null;
+	this.len2 = null;
+	this.namesOffset = null;
+	this.nameCount = null;
+
+	this.names = null;
+}
+
+ScriptNames.prototype.read = function(dataStream) {
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+
+	this.unknown0 = dataStream.readInt32();
+	this.unknown1 = dataStream.readInt32();
+	this.len1 = dataStream.readUint32();
+	this.len2 = dataStream.readUint32();
+	this.namesOffset = dataStream.readUint16();
+	this.nameCount = dataStream.readUint16();
+
+	dataStream.seek(this.namesOffset);
+	this.names = [];
+	for (let i = 0, l = this.nameCount; i < l; i++) {
+		let length = dataStream.readUint8();
+		let name = dataStream.readString(length);
+		this.names.push(name);
+	}
+}
 
 /* LingoScript */
 
@@ -327,11 +468,11 @@ function LingoScript(main) {
 	this.map = null;
 	this.handlers = null;
 	this.literals = null;
+
+	this.context = null;
 }
 
 LingoScript.prototype.read = function(dataStream) {
-	var i, l, handler, literal;
-
 	dataStream.seek(8);
 	// Lingo scripts are always big endian regardless of file endianness
 	dataStream.endianness = false;
@@ -352,23 +493,23 @@ LingoScript.prototype.read = function(dataStream) {
 
 	dataStream.seek(this.map.handlers.offset);
 	this.handlers = [];
-	for (i = 0, l = this.map.handlers.len; i < l; i++) {
-		handler = new Handler(this);
+	for (let i = 0, l = this.map.handlers.len; i < l; i++) {
+		let handler = new Handler(this);
 		handler.readRecord(dataStream);
-		this.handlers[i] = handler;
+		this.handlers.push(handler);
 	}
-	for (i = 0, l = this.handlers.length; i < l; i++) {
-		this.handlers[i].readBytecode(dataStream);
+	for (let handler of this.handlers) {
+		handler.readBytecode(dataStream);
 	}
 
 	dataStream.seek(this.map.literals.offset);
 	this.literals = [];
-	for (i = 0, l = this.map.literals.len; i < l; i++) {
-		literal = new Literal(this);
+	for (let i = 0, l = this.map.literals.len; i < l; i++) {
+		let literal = new Literal(this);
 		literal.readRecord(dataStream);
-		this.literals[i] = literal;
+		this.literals.push(literal);
 	}
-	for (i = 0, l = this.literals.length; i < l; i++) {
+	for (let literal of this.literals) {
 		this.literals[i].readValue(dataStream, this.map.literalsdata.offset);
 	}
 }
@@ -378,28 +519,26 @@ LingoScript.prototype.stack = [];
 //this.val = this.LingoScript.prototype.stack.pop();
 
 LingoScript.prototype.toHTML = function() {
-	var container = container, table, i, l;
-
-	container = el('section');
-	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArray.Lscr.indexOf(this)));
+	var container = el('section');
+	container.appendChild(el('h2', null, 'Script ' + this.main.chunkArrays.Lscr.indexOf(this)));
 	if (this.literals.length > 0) {
 		container.appendChild(el('h3', null, 'Literals'));
-		table = el('table', null, [
+		var table = el('table', null, [
 			el('tr', null, [
 				el('th', null, 'index'),
 				el('th', null, 'type'),
 				el('th', null, 'value')
 			])
 		]);
-		for (i = 0, l = this.literals.length; i < l; i++) {
-			table.appendChild(this.literals[i].toHTML());
+		for (let literal of this.literals) {
+			table.appendChild(literal.toHTML());
 		}
 		container.appendChild(table);
 	}
 	if (this.handlers.length > 0) {
 		container.appendChild(el('h3', null, 'Handlers'));
-		for (i = 0, l = this.handlers.length; i < l; i++) {
-			container.appendChild(this.handlers[i].toHTML());
+		for (let handler of this.handlers) {
+			container.appendChild(handler.toHTML());
 		}
 	}
 	return container;
@@ -434,7 +573,6 @@ function NameValuePair(val, name) {
 
 function Handler(script) {
 	this.script = script;
-	this.bytecodeArray = [];
 
 	this.name = null;
 	this.handlervectorpos = null;
@@ -453,6 +591,8 @@ function Handler(script) {
 	this.linecount = null;
 	this.lineoffset = null;
 	this.stackheight = null;
+
+	this.bytecodeArray = [];
 }
 
 Handler.prototype.readRecord = function(dataStream) {
@@ -508,10 +648,10 @@ Handler.prototype.toHTML = function() {
 		])
 	]);
 	var translation;
-	for (var i = 0, l = this.bytecodeArray.length; i < l; i++) {
-		translation = this.bytecodeArray[i].translate();
+	for (let bytecode of this.bytecodeArray) {
+		translation = bytecode.translate();
 		table.appendChild(el('tr', null, [
-			el('td', null, formatBytes(this.bytecodeArray[i].val) + "" + (this.bytecodeArray[i].obj !== null ? " " + formatBytes(this.bytecodeArray[i].obj) : "")),
+			el('td', null, formatBytes(bytecode.val) + "" + (bytecode.obj !== null ? " " + formatBytes(bytecode.obj) : "")),
 			el('td', null, translation[0]),
 			el('td', null, translation[1])
 		]));
