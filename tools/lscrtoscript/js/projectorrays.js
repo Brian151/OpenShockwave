@@ -95,7 +95,7 @@ OpenShockwaveMovie.prototype.readFile = function(file) {
 
 		console.log(this.chunkArrays);
 
-		if (this.chunkArrays.Lscr) {
+		if (this.chunkArrays.LctX) {
 			var container = parent.right.document.getElementById("Lscrtables");
 			for (let i = 0, l = this.chunkArrays.LctX.length; i < l; i++) {
 				container.appendChild(this.chunkArrays.LctX[i].toHTML());
