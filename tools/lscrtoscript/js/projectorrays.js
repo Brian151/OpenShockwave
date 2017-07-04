@@ -481,9 +481,22 @@ function LingoScript(main) {
 	this.scriptBehaviour = null;
 	this.map = null;
 
+	this.propertyNameIDs = null;
+	this.globalNameIDs = null;
+
+	this.propertyNames = null;
+	this.globalNames = null;
 	this.handlers = null;
 	this.literals = null;
 	this.context = null;
+
+	this.stack = [];
+	this.stack.pop = function() {
+		return this.length > 0 ? Array.prototype.pop.apply(this) : new StackValue("error", "error");
+	};
+	this.stack.clear = function() {
+		this.splice(0, this.length);
+	};
 }
 
 LingoScript.prototype.read = function(dataStream) {
@@ -504,6 +517,9 @@ LingoScript.prototype.read = function(dataStream) {
 	this.map.handlers = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
 	this.map.literals = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
 	this.map.literalsdata = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+
+	this.propertyNameIDs = this.readVarnamesTable(dataStream, this.map.properties.len, this.map.properties.offset);
+	this.globalNameIDs = this.readVarnamesTable(dataStream, this.map.globals.len, this.map.globals.offset);
 
 	dataStream.seek(this.map.handlers.offset);
 	this.handlers = [];
@@ -528,22 +544,62 @@ LingoScript.prototype.read = function(dataStream) {
 	}
 }
 
+LingoScript.prototype.readVarnamesTable = function (dataStream, count, offset) {
+	dataStream.seek(offset);
+	var nameIDs = [];
+	for (let i = 0; i < count; i++) {
+		nameIDs.push(dataStream.readUint16());
+	}
+	return nameIDs;
+};
+
 LingoScript.prototype.readNames = function() {
+	var nameList = this.context.scriptNames.names;
+	this.propertyNames = this.propertyNameIDs.map(nameID => nameList[nameID]);
+	this.globalNames = this.globalNameIDs.map(nameID => nameList[nameID]);
 	for (let handler of this.handlers) {
-		handler.readNames()
+		handler.readNames();
 	}
 }
-
-LingoScript.prototype.stack = [];
-//this.LingoScript.prototype.stack.push(this.val);
-//this.val = this.LingoScript.prototype.stack.pop();
 
 LingoScript.prototype.toHTML = function() {
 	var fragment = document.createDocumentFragment();
 	fragment.appendChild(el('h2', null, 'Lscr ' + this.main.chunkMap.indexOf(this)));
+	if (this.propertyNames.length > 0) {
+		fragment.appendChild(el('h3', null, 'Properties'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.propertyNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.propertyNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
+	if (this.globalNames.length > 0) {
+		fragment.appendChild(el('h3', null, 'Globals'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.globalNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.globalNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
 	if (this.literals.length > 0) {
 		fragment.appendChild(el('h3', null, 'Literals'));
-		var table = el('table', null, [
+		let table = el('table', null, [
 			el('tr', null, [
 				el('th', null, 'index'),
 				el('th', null, 'type'),
@@ -574,75 +630,66 @@ function LscrChunk(len, offset, flags) {
 	}
 }
 
-/* NameValuePair */
-
-function NameValuePair(val, name) {
-	if (val != null) {
-		this.val = val;
-	} else {
-		this.val = 0;
-	}
-	if (name != null) {
-		this.name = name;
-	} else {
-		this.name = this.val;
-	}
-}
-
 /* Handler */
 
 function Handler(script) {
 	this.script = script;
 
 	this.nameID = null;
-	this.handlervectorpos = null;
-	this.compiledlen = null;
-	this.compiledoffset = null;
-	this.argumentcount = null;
-	this.argumentoffset = null;
-	this.localscount = null;
-	this.localsoffset = null;
-	this.unknown0count = null;
-	this.unknown0offset = null;
+	this.handlerVectorPos = null;
+	this.compiledLen = null;
+	this.compiledOffset = null;
+	this.argumentCount = null;
+	this.argumentOffset = null;
+	this.localsCount = null;
+	this.localsOffset = null;
+	this.unknown0Count = null;
+	this.unknown0Offset = null;
 	this.unknown1 = null;
 	this.unknown2 = null;
 	// unknown3 doesn't seem to exist...
 	// this.unknown3 = null;
-	this.linecount = null;
-	this.lineoffset = null;
-	this.stackheight = null;
+	this.lineCount = null;
+	this.lineOffset = null;
+	this.stackHeight = null;
+
+	this.argumentNameIDs = [];
+	this.localNameIDs = [];
 
 	this.bytecodeArray = [];
+	this.argumentNames = [];
+	this.localNames = [];
 	this.name = null;
 }
 
 Handler.prototype.readRecord = function(dataStream) {
 	this.nameID = dataStream.readUint16();
-	this.handlervectorpos = dataStream.readUint16();
-	this.compiledlen = dataStream.readUint32();
-	this.compiledoffset = dataStream.readUint32();
-	this.argumentcount = dataStream.readUint16();
-	this.argumentoffset = dataStream.readUint32();
-	this.localscount = dataStream.readUint16();
-	this.localsoffset = dataStream.readUint32();
-	this.unknown0count = dataStream.readUint16();
-	this.unknown0offset = dataStream.readUint32();
+	this.handlerVectorPos = dataStream.readUint16();
+	this.compiledLen = dataStream.readUint32();
+	this.compiledOffset = dataStream.readUint32();
+	this.argumentCount = dataStream.readUint16();
+	this.argumentOffset = dataStream.readUint32();
+	this.localsCount = dataStream.readUint16();
+	this.localsOffset = dataStream.readUint32();
+	this.unknown0Count = dataStream.readUint16();
+	this.unknown0Offset = dataStream.readUint32();
 	this.unknown1 = dataStream.readUint32();
 	this.unknown2 = dataStream.readUint16();
 	// this.unknown3 = dataStream.readUint16();
-	this.linecount = dataStream.readUint16();
-	this.lineoffset = dataStream.readUint32();
+	this.lineCount = dataStream.readUint16();
+	this.lineOffset = dataStream.readUint32();
 	// yet to implement
-	this.stackheight = dataStream.readUint32();
+	this.stackHeight = dataStream.readUint32();
 }
 
 Handler.prototype.readBytecode = function(dataStream) {
-	dataStream.seek(this.compiledoffset);
+	dataStream.seek(this.compiledOffset);
 	this.bytecodeArray = [];
 	// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
 	// loop while there's still more code left
+	this.script.stack.clear();
 	var op, obj = null, pos = null;
-	while (dataStream.position < this.compiledoffset + this.compiledlen) {
+	while (dataStream.position < this.compiledOffset + this.compiledLen) {
 		var op = dataStream.readUint8();
 		// instructions can be one, two or three bytes
 		if (op >= 192) {
@@ -656,11 +703,18 @@ Handler.prototype.readBytecode = function(dataStream) {
 		pos = new Bytecode(this, op, obj);
 		this.bytecodeArray.push(pos);
 	}
+
+	this.argumentNameIDs = this.readVarnamesTable(dataStream, this.argumentCount, this.argumentOffset);
+	this.localNameIDs = this.readVarnamesTable(dataStream, this.localsCount, this.localsOffset);
 }
 
+Handler.prototype.readVarnamesTable = LingoScript.prototype.readVarnamesTable;
+
 Handler.prototype.readNames = function() {
-	var names = this.script.context.scriptNames.names;
-	this.name = names[this.nameID];
+	var nameList = this.script.context.scriptNames.names;
+	this.name = nameList[this.nameID];
+	this.argumentNames = this.argumentNameIDs.map(nameID => nameList[nameID]);
+	this.localNames = this.localNameIDs.map(nameID => nameList[nameID]);
 }
 
 Handler.prototype.toHTML = function() {
@@ -668,19 +722,36 @@ Handler.prototype.toHTML = function() {
 	fragment.appendChild(
 		el(
 			'h4', null,
-			this.script.handlers.indexOf(this) + ': ' + this.name
+			this.script.handlers.indexOf(this) + ': ' + this.name + '('
+			+ this.argumentNames.join(', ') + ')'
 		)
 	);
-	var table = el('table', null, [
+	if (this.localNames.length > 0) {
+		fragment.appendChild(el('h5', null, 'Local Variables'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.localNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.localNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
+	fragment.appendChild(el('h5', null, 'Bytecode'));
+	let table = el('table', null, [
 		el('tr', null, [
 			el('th', null, 'bytecode'),
 			el('th', null, 'opcode'),
 			el('th', null, 'pseudocode')
 		])
 	]);
-	var translation;
 	for (let bytecode of this.bytecodeArray) {
-		translation = bytecode.translate();
+		let translation = bytecode.translate();
 		table.appendChild(el('tr', null, [
 			el('td', null, formatBytes(bytecode.val) + "" + (bytecode.obj !== null ? " " + formatBytes(bytecode.obj) : "")),
 			el('td', null, translation[0]),
@@ -750,8 +821,10 @@ function Bytecode(handler, val, obj) {
 }
 
 Bytecode.prototype.operate11 = function(val) {
-	var opcode, operator, result, pseudocode = '';
-	var x = LingoScript.prototype.stack.pop();
+	var opcode, operator, result, pseudocode = "";
+	var script = this.handler.script;
+	var nameList = script.context.scriptNames.names;
+	var x = script.stack.pop();
 	switch (val) {
 		case 0x9:
 			opcode = "inv";
@@ -763,123 +836,113 @@ Bytecode.prototype.operate11 = function(val) {
 			operator = "!";
 			result = !x.val;
 	}
-	pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
-	LingoScript.prototype.stack.push(new NameValuePair(result, "projectorrraystemp_" + operator + "" + x.name + ""));
+	pseudocode = "" + operator + x;
+	script.stack.push(new StackValue(pseudocode, "pseudocode"));
 	return [opcode.toUpperCase(), pseudocode];
 }
 
 Bytecode.prototype.operate21 = function(val) {
-	var opcode, operator, result, pseudocode = '';
-	var x = LingoScript.prototype.stack.pop();
-	var y = LingoScript.prototype.stack.pop();
+	var opcode, operator, result, pseudocode = "";
+	var script = this.handler.script;
+	var nameList = script.context.scriptNames.names;
+	var y = script.stack.pop();
+	var x = script.stack.pop();
 	switch (val) {
 		case 0x4:
 			opcode = "mul";
 			operator = "*";
-			result = x.val * y.val;
 			break;
 		case 0x5:
 			opcode = "add";
 			operator = "+";
-			result = (x.val * 1) + (y.val * 1);
 			break;
 		case 0x6:
 			opcode = "sub";
 			operator = "-";
-			result = x.val - y.val;
 			break;
 		case 0x7:
 			opcode = "div";
 			operator = "/";
-			result = x.val / y.val;
 			break;
 		case 0x8:
 			opcode = "mod";
 			operator = "mod";
-			result = x.val % y.val;
 		case 0xa:
 			opcode = "joinstr";
 			operator = "&";
-			result = x.val.toString() + y.val.toString();
 			break;
 		case 0xb:
 			opcode = "joinpadstr";
 			operator = "&&";
-			result = x.val.toString() + " " + y.val.toString();
 			break;
 		case 0xc:
 			opcode = "lt";
 			operator = "<";
-			result = x.val < y.val;
 			break;
 		case 0xd:
 			opcode = "lteq";
 			operator = "<=";
-			result = x.val <= y.val;
 			break;
 		case 0xe:
 			opcode = "nteq";
-			operator = "!=";
-			result = x.val != y.val;
+			operator = "<>";
 			break;
 		case 0xf:
 			opcode = "eq";
-			operator = "==";
-			result = x.val == y.val;
+			operator = "=";
 			break;
 		case 0x10:
 			opcode = "gt";
 			operator = ">";
-			result = x.val > y.val;
 			break;
 		case 0x11:
 			opcode = "gteq";
 			operator = ">=";
-			result = x.val >= y.val;
 			break;
 		case 0x12:
 			opcode = "and";
 			operator = "and";
-			result = x.val && y.val;
 			break;
 		case 0x13:
 			opcode = "or";
 			operator = "or";
-			result = x.val || y.val;
 			break;
 		case 0x15:
 			opcode = "containsstr";
 			operator = "contains";
-			result = ~x.val.indexOf(y.val);
 			break;
 		case 0x16:
 			opcode = "contains0str";
 			operator = "starts";
-			result = !x.val.indexOf(y.val);
 	}
-	pseudocode = "projectorrraystemp_" + x.name + "" + operator + "" + y.name + " = (" + x.name + " " + operator + " " + y.name + ")";
-	LingoScript.prototype.stack.push(new NameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
+	pseudocode = "" + x + " " + operator + " ";
+	script.stack.push(new StackValue(pseudocode, "pseudocode"));
 	return [opcode.toUpperCase(), pseudocode];
 }
 
 Bytecode.prototype.translate = function() {
-	LingoScript.prototype.stack = [];
 	if (loggingEnabled) console.log("Translate Bytecode: " + bytecode);
 	var opcode = "";
 	var pseudocode = "";
 	var script = this.handler.script;
 	var nameList = script.context.scriptNames.names;
+	// script.stack = [];
 	// see the documentation for notes on these opcodes
 	switch (this.val) {
 		// TODO: copy the comments from OP.txt into the code for a quicker reference
 		/* Single Byte Instructions */
 		case 0x1:
-			opcode = "ret";
-			pseudocode = "exit";
+			(() => {
+				opcode = "ret";
+				pseudocode = "exit";
+			})();
 			break;
 		case 0x3:
-			opcode = "pushint0";
-			LingoScript.prototype.stack.push(new NameValuePair(0));
+			(() => {
+				opcode = "pushint0";
+				pseudocode = "0";
+				script.stack.push(new StackValue(0, "int"));
+			})();
 			break;
 		case 0x4:
 		case 0x5:
@@ -905,82 +968,135 @@ Bytecode.prototype.translate = function() {
 			return this.operate11(this.val);
 			break;
 		case 0x17:
-			opcode = "splitstr";
 			(() => {
-				var firstchar = LingoScript.prototype.stack.pop();
-				var lastchar = LingoScript.prototype.stack.pop();
-				var firstchar = LingoScript.prototype.stack.pop();
-				var firstword = LingoScript.prototype.stack.pop();
-				var lastword = LingoScript.prototype.stack.pop();
-				var firstitem = LingoScript.prototype.stack.pop();
-				var lastitem = LingoScript.prototype.stack.pop();
-				var firstline = LingoScript.prototype.stack.pop();
-				var lastline = LingoScript.prototype.stack.pop();
-				var strsplit = LingoScript.prototype.stack.pop();
-				// lazy
-				LingoScript.prototype.stack.push(new NameValuePair(strsplit));
-				pseudocode = "char " + firstchar + " of " + lastchar;
+				opcode = "splitstr";
+				var string = script.stack.pop();
+				var lastLine = script.stack.pop();
+				var firstLine = script.stack.pop();
+				var lastItem = script.stack.pop();
+				var firstItem = script.stack.pop();
+				var lastWord = script.stack.pop();
+				var firstWord = script.stack.pop();
+				var lastChar = script.stack.pop();
+				var firstChar = script.stack.pop();
+				if (firstChar !== 0) {
+					if (lastChar === 0) {
+						pseudocode = "char " + firstChar + " of " + string;
+					} else {
+						pseudocode = "char " + firstChar + " to " + lastChar + " of " + string;
+					}
+				} else if (firstWord !== 0) {
+					if (lastWord === 0) {
+						pseudocode = "word " + firstWord + " of " + string;
+					} else {
+						pseudocode = "word " + firstWord + " to " + lastWord + " of " + string;
+					}
+				} else if (firstItem !== 0) {
+					if (lastItem === 0) {
+						pseudocode = "item " + firstItem + " of " + string;
+					} else {
+						pseudocode = "word " + firstItem + " to " + lastItem + " of " + string;
+					}
+				} else if (firstLine !== 0) {
+					if (lastLine === 0) {
+						pseudocode = "item " + firstLine + " of " + string;
+					} else {
+						pseudocode = "word " + firstLine + " to " + lastLine + " of " + string;
+					}
+				}
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
 			})();
 			break;
 		case 0x18:
-			opcode = "lightstr";
 			(() => {
-				var firstchar = LingoScript.prototype.stack.pop();
-				var lastchar = LingoScript.prototype.stack.pop();
-				var firstchar = LingoScript.prototype.stack.pop();
-				var firstword = LingoScript.prototype.stack.pop();
-				var lastword = LingoScript.prototype.stack.pop();
-				var firstitem = LingoScript.prototype.stack.pop();
-				var lastitem = LingoScript.prototype.stack.pop();
-				var firstline = LingoScript.prototype.stack.pop();
-				var lastline = LingoScript.prototype.stack.pop();
-				var strsplit = LingoScript.prototype.stack.pop();
-				// lazy
-				LingoScript.prototype.stack.push(new NameValuePair(strsplit));
-				pseudocode = "hilite " + firstchar + " of " + lastchar;
+				opcode = "lightstr";
+				var field = script.stack.pop();
+				var lastLine = script.stack.pop();
+				var firstLine = script.stack.pop();
+				var lastItem = script.stack.pop();
+				var firstItem = script.stack.pop();
+				var lastWord = script.stack.pop();
+				var firstWord = script.stack.pop();
+				var lastChar = script.stack.pop();
+				var firstChar = script.stack.pop();
+				if (firstChar !== 0) {
+					if (lastChar === 0) {
+						pseudocode = "hilite char " + firstChar + " of " + field;
+					} else {
+						pseudocode = "hilite char " + firstChar + " to " + lastChar + " of " + field;
+					}
+				} else if (firstWord !== 0) {
+					if (lastWord === 0) {
+						pseudocode = "hilite word " + firstWord + " of " + field;
+					} else {
+						pseudocode = "hilite word " + firstWord + " to " + lastWord + " of " + field;
+					}
+				} else if (firstItem !== 0) {
+					if (lastItem === 0) {
+						pseudocode = "hilite item " + firstItem + " of " + field;
+					} else {
+						pseudocode = "hilite word " + firstItem + " to " + lastItem + " of " + field;
+					}
+				} else if (firstLine !== 0) {
+					if (lastLine === 0) {
+						pseudocode = "hilite item " + firstLine + " of " + field;
+					} else {
+						pseudocode = "hilite word " + firstLine + " to " + lastLine + " of " + field;
+					}
+				}
 			})();
 			break;
 		case 0x19:
-			opcode = "ontospr";
 			(() => {
-				var firstspr = LingoScript.prototype.stack.pop();
-				var secondspr = LingoScript.prototype.stack.pop();
-				// lazy
-				LingoScript.prototype.stack.push(new NameValuePair(0));
-				pseudocode = "sprite " + firstspr + " intersects " + secondspr;
+				opcode = "ontospr";
+				var firstSprite = script.stack.pop();
+				var secondSprite = script.stack.pop();
+				pseudocode = "sprite " + firstSprite + " intersects " + secondSprites;
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
 			})();
 			break;
 		case 0x1a:
-			opcode = "intospr";
 			(() => {
-				var firstspr = LingoScript.prototype.stack.pop();
-				var secondspr = LingoScript.prototype.stack.pop();
-				// lazy
-				LingoScript.prototype.stack.push(new NameValuePair(0));
-				pseudocode = "sprite " + firstspr + " within " + secondspr;
+				opcode = "intospr";
+				var firstSprite = script.stack.pop();
+				var secondSprite = script.stack.pop();
+				pseudocode = "sprite " + firstSprite + " within " + secondSprite;
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
 			})();
 			break;
 		case 0x1b:
-			opcode = "caststr";
-			LingoScript.prototype.stack.push(LingoScript.prototype.stack.pop());
-			pseudocode = "(field 1)";
+			(() => {
+				opcode = "caststr";
+				pseudocode = "field " + script.stack.pop();
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
+			})();
 			break;
 		case 0x1c:
-			opcode = "startobj";
-			LingoScript.prototype.stack.pop();
-			pseudocode = "tell obj to go to frame x";
+			(() => {
+				opcode = "startobj";
+				script.stack.pop();
+				pseudocode = "TODO";
+			})();
 			break;
 		case 0x1d:
-			opcode = "stopobj";
-			pseudocode = "tell obj to go to frame x";
+			(() => {
+				opcode = "stopobj";
+				pseudocode = "TODO";
+			})();
 			break;
 		case 0x1e:
-			opcode = "wraplist";
-			LingoScript.prototype.stack.push(LingoScript.prototype.stack.pop());
+			(() => {
+				opcode = "wraplist";
+				script.stack.pop();
+				script.stack.push(new StackValue("TODO", "pseudocode"));
+			})();
 			break; // NAME NOT CERTAINLY SET IN STONE JUST YET...
 		case 0x1f:
-			opcode = "newproplist";
-			LingoScript.prototype.stack.push(LingoScript.prototype.stack.pop());
+			(() => {
+				opcode = "newproplist";
+				script.stack.pop();
+				script.stack.push(new StackValue("TODO", "pseudocode"));
+			})();
 			break;
 		/* Multi - Byte Instructions */
 		/*
@@ -990,49 +1106,63 @@ Bytecode.prototype.translate = function() {
 			than their operands.
 		*/
 		case 0x41:
-			opcode = "pushbyte";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "pushbyte";
+				pseudocode = this.obj;
+				script.stack.push(new StackValue(this.obj, "int"));
+			})();
 			break;
 		case 0x81:
-			opcode = "pushshort";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "pushshort";
+				pseudocode = this.obj;
+				script.stack.push(new StackValue(this.obj, "int"));
+			})();
 			break;
 		case 0xc1:
-			opcode = "pushint24";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "pushint24";
+				pseudocode = this.obj;
+				script.stack.push(new StackValue(this.obj, "int"));
+			})();
 			break;
 		case 0x42:
 		case 0x82:
 		case 0xc2:
-			opcode = "newarglist";
-			(obj => {
-				var args = LingoScript.prototype.stack.splice(LingoScript.prototype.stack.length - obj, obj).reverse();
-				// we now have nameValuePair inside of
-				LingoScript.prototype.stack.push(new NameValuePair(args));
-				// pseudocode is "silent," this is just to sort out the stack
-			})(this.obj);
+			(() => {
+				opcode = "newarglist";
+				var args = script.stack.splice(script.stack.length - this.obj, this.obj).reverse();
+				script.stack.push(new StackValue(args, "arglist"));
+			})();
 			break;
 		case 0x43:
 		case 0x83:
 		case 0xc3:
-			opcode = "newlist";
+			(() => {
+				opcode = "newlist";
+				var items = script.stack.splice(script.stack.length - this.obj, this.obj).reverse();
+				script.stack.push(new StackValue(items, "list"));
+			})();
 			break;
 		case 0x44:
 		case 0x84:
 		case 0xc4:
-			(obj => {
+			(() => {
 				var literal = script.literals[this.obj]
-				opcode = "push" + Literal.types[literal.type];
-				LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+				var type = Literal.types[literal.type];
+				opcode = "push" + type;
 				pseudocode = JSON.stringify(literal.value);
-			})(this.obj);
+				script.stack.push(new StackValue(literal.value, type));
+			})();
 			break; 
 		case 0x45:
 		case 0x85:
 		case 0xc5:
-			opcode = "pushsymb";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
-			pseudocode = "#" + nameList[this.obj];
+			(() => {
+				opcode = "pushsymb";
+				pseudocode = "#" + nameList[this.obj];
+				script.stack.push(new StackValue(pseudocode, "symbol"));
+			})();
 			break;
 		/*
 		case 0x46:
@@ -1052,8 +1182,11 @@ Bytecode.prototype.translate = function() {
 			break;
 		*/
 		case 0x49:
-			opcode = "push_global";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "push_global";
+				pseudocode = script.globalNames[this.obj];
+				script.stack.push(new StackValue(pseudocode, "globalvar"));
+			})();
 			break;
 		/*
 		case 0x4a:
@@ -1065,14 +1198,20 @@ Bytecode.prototype.translate = function() {
 		case 0x4b:
 		case 0x8b:
 		case 0xcb:
-			opcode = "pushparams";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "pushparams";
+				pseudocode = this.handler.argumentNames[this.obj];
+				script.stack.push(new StackValue(pseudocode, "param"));
+			})();
 			break;
 		case 0x4c:
 		case 0x8c:
 		case 0xcc:
-			opcode = "push_local";
-			LingoScript.prototype.stack.push(new NameValuePair(this.obj));
+			(() => {
+				opcode = "push_local";
+				pseudocode = this.handler.localNames[this.obj];
+				script.stack.push(new StackValue(pseudocode, "localvar"));
+			})();
 			break;
 		/*
 		case 0x4d:
@@ -1089,13 +1228,10 @@ Bytecode.prototype.translate = function() {
 		case 0x4f:
 		case 0x8f:
 		case 0xcf:
-			opcode = "pop_global";
-			(obj => {
-				var popped = LingoScript.prototype.stack.pop();
-				var poppedstring = popped.val;
-				// go to Lnam and set that global
-				pseudocode = poppedstring + " = " + obj;
-			})(this.obj);
+			(() => {
+				opcode = "pop_global";
+				pseudocode = "set " + script.globalNames[this.obj] + " = " + script.stack.pop();
+			})();
 			break;
 		/*
 		case 0x50:
@@ -1112,70 +1248,72 @@ Bytecode.prototype.translate = function() {
 		case 0x52:
 		case 0x92:
 		case 0xd2:
-			opcode = "pop_local";
-			(obj => {
-				var popped = LingoScript.prototype.stack.pop();
-				var poppedstring = popped.val;
-				pseudocode = poppedstring + " = " + obj;
-			})(this.obj);
+			(() => {
+				opcode = "pop_local";
+				pseudocode = "set " + this.handler.localNames[this.obj] + " = " + script.stack.pop();
+			})();
 			break;
 		case 0x53:
 		case 0x93:
 		case 0xd3:
-			opcode = "jmp";
-			// do something
+			(() => {
+				opcode = "jmp";
+				// do something
+			})();
 			break;
 		case 0x54:
 		case 0x94:
 		case 0xd4:
-			opcode = "endrepeat";
-			pseudocode = "end repeat";
+			(() => {
+				opcode = "endrepeat";
+				pseudocode = "end repeat";
+			})();
 			break;
 		case 0x55:
 		case 0x95:
 		case 0xd5:
-			opcode = "iftrue";
-			pseudocode = "if (" + this.obj + ")";
+			(() => {
+				opcode = "iftrue";
+				pseudocode = "if (" + this.obj + ")";
+			})();
 			break;
 		case 0x56:
 		case 0x96:
 		case 0xd6:
-			opcode = "call_local";
-			(obj => {
-				var argslist = LingoScript.prototype.stack.pop();
-				var argsliststring = "";
-				for (var i=0,len=argslist.val.length;i<len;i++) {
-					argsliststring += argslist.val[i].val;
-					if (i < len - 1) {
-						argsliststring += ", ";
+			(() => {
+				opcode = "call_local";
+				(() => {
+					var arglist = script.stack.pop();
+					var argliststring = "";
+					if (arglist.type === "arglist" || arglist.type === "list") {
+						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
 					}
-				}
-				pseudocode = nameList[script.handlers[obj].nameID] + "(" + argsliststring + ")";
-			})(this.obj);
+					pseudocode = script.handlers[this.obj].name + "(" + argliststring + ")";
+				})();
+			})();
 			break;
 		case 0x57:
 		case 0x97:
 		case 0xd7:
-			opcode = "call_external";
-			(obj => {
-				var argslist = LingoScript.prototype.stack.pop();
-				var argsliststring = "";
-				for (var i=0,len=argslist.val.length;i<len;i++) {
-					argsliststring += argslist.val[i].val;
-					if (i < len - 1) {
-						argsliststring += ", ";
+			(() => {
+				opcode = "call_external";
+				(() => {
+					var arglist = script.stack.pop();
+					var argliststring = "";
+					if (arglist.type === "arglist" || arglist.type === "list") {
+						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
 					}
-				}
-				pseudocode = obj + "(" + argsliststring + ")";
-			})(this.obj);
+					pseudocode = nameList[this.obj] + "(" + argliststring + ")";
+				})();
+			})();
 			break;
 		case 0x58:
 		case 0x98:
 		case 0xd8:
-			opcode = "callobj";
 			(() => {
-				var argslist = LingoScript.prototype.stack.pop();
-				var poppedobject = LingoScript.prototype.stack.pop();
+				opcode = "callobj";
+				var argslist = script.stack.pop();
+				var poppedobject = script.stack.pop();
 				var argsliststring = "";
 				for (var i=0,len=argslist.val.length;i<len;i++) {
 					argsliststring += argslist.val[i].val;
@@ -1188,7 +1326,7 @@ Bytecode.prototype.translate = function() {
 			break;
 		case 0x59:
 			opcode = "op_59xx";
-			LingoScript.prototype.stack.pop();
+			script.stack.pop();
 			break; //TEMP NAME
 		/*
 		case 0x5a:
@@ -1200,34 +1338,238 @@ Bytecode.prototype.translate = function() {
 		case 0x5b:
 		case 0x9b:
 		case 0xdb:
-			opcode = "op_5bxx";
-			LingoScript.prototype.stack.pop();
+			(() => {
+				opcode = "op_5bxx";
+				script.stack.pop();
+			})();
 			break; //TEMP NAME
 		case 0x5c:
 		case 0x9c:
 		case 0xdc:
-			opcode = "get";
-			LingoScript.prototype.stack.pop();
-			if (this.val >= 0x0C) {
-				LingoScript.prototype.stack.pop();
-			}
-			LingoScript.prototype.stack.push(new NameValuePair("TODO"));
-			break; // needs values from stack to determine what it's getting
-				   // that said, dissassembly of this instruction is not yet complete
+			(() => {
+				opcode = "get";
+				switch (this.obj) {
+					case 0x00:
+						(() => {
+							const options = {
+								0x00: "floatPrecision",
+								0x01: "mouseDownScript",
+								0x02: "mouseUpScript",
+								0x03: "keyDownScript",
+								0x04: "keyUpScript",
+								0x05: "timeoutScript",
+								0x06: "short time",
+								0x07: "abbr time",
+								0x08: "long time",
+								0x09: "short date",
+								0x0a: "abbr date",
+								0x0b: "long date",
+								0x0c: "char",
+								0x0d: "word",
+								0x0e: "item",
+								0x0f: "line"
+							};
+
+							var id = script.stack.pop();
+							if (id < 0x0c) {
+								pseudocode = "the " + options[id];
+							} else {
+								var string = script.stack.pop();
+								pseudocode = "the last " + options[id] + " in " + string;
+							}
+						})();
+						break;
+					case 0x01:
+						(() => {
+							const options = {
+								0x01: "chars",
+								0x02: "words",
+								0x03: "items",
+								0x04: "lines"
+							};
+
+							var statID = script.stack.pop();
+							var string = script.stack.pop();
+							pseudocode = "the number of " + options[statID.value] + " in " + string;
+						})();
+						break;
+					case 0x02:
+						(() => {
+							const options = {
+								0x01: "name",
+								0x02: "number of menuItems"
+							};
+
+							var menuID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of menu " + menuID;
+						})();
+						break;
+					case 0x03:
+						(() => {
+							const options = {
+								0x01: "name",
+								0x02: "checkMark",
+								0x03: "enabled",
+								0x04: "script"
+							};
+
+							var itemID = script.stack.pop();
+							var menuID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of menuItem " + itemID + " of menu " + menuID;
+						})();
+						break;
+					case 0x04:
+						(() => {
+							const options = {
+								0x01: "volume"
+							};
+
+							var soundID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of sound " + soundID;
+						})();
+						break;
+					case 0x06:
+						(() => {
+							const options = {
+								0x01: "type",
+								0x02: "backColor",
+								0x03: "bottom",
+								0x04: "castNum",
+								0x05: "constraint",
+								0x06: "cursor",
+								0x07: "foreColor",
+								0x08: "height",
+								0x0a: "ink",
+								0x0b: "left",
+								0x0c: "lineSize",
+								0x0d: "locH",
+								0x0e: "locV",
+								0x0f: "movieRate",
+								0x10: "movieTime",
+								0x12: "puppet",
+								0x13: "right",
+								0x14: "startTime",
+								0x15: "stopTime",
+								0x16: "stretch",
+								0x17: "top",
+								0x18: "trails",
+								0x19: "visible",
+								0x1a: "volume",
+								0x1b: "width",
+								0x1d: "scriptNum",
+								0x1e: "moveableSprite",
+								0x20: "scoreColor"
+							};
+
+							var spriteID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of sprite " + spriteID;
+						})();
+						break;
+					case 0x07:
+						(() => {
+							const options = {
+								0x01: "beepOn",
+								0x02: "buttonStyle",
+								0x03: "centerStage",
+								0x04: "checkBoxAccess",
+								0x05: "checkboxType",
+								0x06: "colorDepth",
+								0x08: "exitLock",
+								0x09: "fixStageSize",
+								0x13: "timeoutLapsed",
+								0x17: "selEnd",
+								0x18: "selStart",
+								0x19: "soundEnabled",
+								0x1a: "soundLevel",
+								0x1b: "stageColor",
+								0x1d: "stillDown",
+								0x1e: "timeoutKeyDown",
+								0x1f: "timeoutLength",
+								0x20: "timeoutMouse",
+								0x21: "timeoutPlay",
+								0x22: "timer"
+							};
+
+							var settingID = script.stack.pop();
+							pseudocode = "the " + options[settingID.value];
+						})();
+						break;
+					case 0x08:
+						(() => {
+							const options = {
+								0x01: "the perFrameHook",
+								0x02: "number of castMembers",
+								0x03: "number of menus"
+							};
+
+							var statID = script.stack.pop();
+							pseudocode = options[statID.value];
+						})();
+						break;
+					case 0x09:
+						(() => {
+							const options = {
+								0x01: "name",
+								0x02: "text",
+								0x08: "picture",
+								0x0a: "number",
+								0x0b: "size",
+								0x11: "foreColor",
+								0x12: "backColor"
+							};
+
+							var castID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of cast " + castID;
+						})();
+						break;
+					case 0x0c:
+						(() => {
+							const options = {
+								0x03: "textStyle",
+								0x04: "textFont",
+								0x05: "textHeight",
+								0x06: "textAlign",
+								0x07: "textSize"
+							};
+
+							var fieldID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of field " + fieldID;
+						})();
+						break;
+					case 0x0d:
+						(() => {
+							const options = {
+								0x10: "sound"
+							};
+
+							var castID = script.stack.pop();
+							var propertyID = script.stack.pop();
+							pseudocode = "the " + options[propertyID.value] + " of cast " + castID;
+						})();
+				}
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
+			})();
+			break;
 		case 0x5d:
 		case 0x9d:
 		case 0xdd:
 			opcode = "set";
 			(val => {
 				// make a switch later
-				LingoScript.prototype.stack.pop();
-				LingoScript.prototype.stack.pop();
+				script.stack.pop();
+				script.stack.pop();
 				if (val == 3) {
-					LingoScript.prototype.stack.pop();
-					LingoScript.prototype.stack.pop();
+					script.stack.pop();
+					script.stack.pop();
 				}
 				if (val != 0 && val != 3 && val != 7) {
-					LingoScript.prototype.stack.pop();
+					script.stack.pop();
 				}
 			})(this.val);
 			break; // needs values from stack to determine what it's setting
@@ -1242,31 +1584,39 @@ Bytecode.prototype.translate = function() {
 		case 0x5f:
 		case 0x9f:
 		case 0xdf:
-			opcode = "getprop";
-			LingoScript.prototype.stack.push(new NameValuePair("TODO"));
-			pseudocode = "(the " + nameList[this.obj] + ")";
+			(() => {
+				opcode = "getprop";
+				pseudocode = "the " + nameList[this.obj];
+				script.stack.push(new StackValue(pseudocode, "pseudocode"));
+			})();
 			break;
 		case 0x60:
 		case 0xa0:
 		case 0xe0:
-			opcode = "setprop";
-			pseudocode = "set the " + nameList[this.obj] + " to " + LingoScript.prototype.stack.pop();
+			(() => {
+				opcode = "setprop";
+				pseudocode = "set the " + nameList[this.obj] + " to " + script.stack.pop();
+			})();
 			break;
 		case 0x61:
 		case 0xa1:
 		case 0xe1:
-			opcode = "getobjprop";
-			LingoScript.prototype.stack.pop();
-			LingoScript.prototype.stack.push(new NameValuePair("TODO"));
-			pseudocode = "(the prop of x)";
+			(() => {
+				opcode = "getobjprop";
+				script.stack.pop();
+				script.stack.push(new StackValue("TODO", "pseudocode"));
+				pseudocode = "(the prop of x)";
+			})();
 			break;
 		case 0x62:
 		case 0xa2:
 		case 0xe2:
-			opcode = "setobjprop";
-			LingoScript.prototype.stack.pop();
-			LingoScript.prototype.stack.pop();
-			pseudocode = "set the prop of x to y";
+			(() => {
+				opcode = "setobjprop";
+				script.stack.pop();
+				script.stack.pop();
+				pseudocode = "set the prop of x to y";
+			})();
 			break;
 		case 0x64:
 		case 0xa4:
@@ -1294,16 +1644,27 @@ Bytecode.prototype.translate = function() {
 				(and this might just happen), it should return source code with comments saying decompilation failed,
 				listing the opcodes and their offsets.
 			*/
+			script.stack.clear();
 		}
 		opcode += " " + (this.obj!==null?" "+this.obj:"");
 	return [opcode.toUpperCase(), pseudocode];
 }
 
-/* Weird array thing... */
+/* StackValue */
 
-var oldpop = Array.prototype.pop;
-Array.prototype.pop = function() {
-	return this.length?oldpop():new NameValuePair("", "");
+function StackValue(value, type) {
+	this.value = value;
+	this.type = type;
+}
+
+StackValue.prototype.toString = function(noParentheses) {
+	if (this.type === "pseudocode" && !noParentheses) {
+		return "(" + this.value + ")";
+	}
+	if (["string", "int", "double", "arglist", "list"].includes(this.type)) {
+		return JSON.stringify(this.value);
+	}
+	return this.value;
 }
 
 /* Initialization */
