@@ -1291,6 +1291,9 @@ Bytecode.prototype.translate = function() {
 						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
 					}
 					pseudocode = script.handlers[this.obj].name + "(" + argliststring + ")";
+					if (arglist.type === "list") {
+						script.stack.push(new StackValue(pseudocode, "pseudocode"));
+					}
 				})();
 			})();
 			break;
@@ -1306,6 +1309,9 @@ Bytecode.prototype.translate = function() {
 						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
 					}
 					pseudocode = nameList[this.obj] + "(" + argliststring + ")";
+					if (arglist.type === "list") {
+						script.stack.push(new StackValue(pseudocode, "pseudocode"));
+					}
 				})();
 			})();
 			break;
