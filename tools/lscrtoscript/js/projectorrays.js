@@ -1131,7 +1131,7 @@ Bytecode.prototype.translate = function() {
 		case 0xc2:
 			(() => {
 				opcode = "newarglist";
-				var args = script.stack.splice(script.stack.length - this.obj, this.obj).reverse();
+				var args = script.stack.splice(script.stack.length - this.obj, this.obj);
 				script.stack.push(new StackValue(args, "arglist"));
 			})();
 			break;
@@ -1140,7 +1140,7 @@ Bytecode.prototype.translate = function() {
 		case 0xc3:
 			(() => {
 				opcode = "newlist";
-				var items = script.stack.splice(script.stack.length - this.obj, this.obj).reverse();
+				var items = script.stack.splice(script.stack.length - this.obj, this.obj);
 				script.stack.push(new StackValue(items, "list"));
 			})();
 			break;
