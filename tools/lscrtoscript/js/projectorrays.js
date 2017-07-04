@@ -1230,7 +1230,8 @@ Bytecode.prototype.translate = function() {
 		case 0xcf:
 			(() => {
 				opcode = "pop_global";
-				pseudocode = "set " + script.globalNames[this.obj] + " = " + script.stack.pop();
+				var value = script.stack.pop();
+				pseudocode = "set " + script.globalNames[this.obj] + " = " + value.toString(true);
 			})();
 			break;
 		/*
@@ -1250,7 +1251,8 @@ Bytecode.prototype.translate = function() {
 		case 0xd2:
 			(() => {
 				opcode = "pop_local";
-				pseudocode = "set " + this.handler.localNames[this.obj] + " = " + script.stack.pop();
+				var value = script.stack.pop();
+				pseudocode = "set " + this.handler.localNames[this.obj] + " = " + value.toString(true);
 			})();
 			break;
 		case 0x53:
