@@ -342,6 +342,18 @@ Section MCsL
 	*/
 }
 
+Section STXT
+{
+	Uint32[big] headerLength (constant 0xC)
+	Uint32[big] textLength
+	Uint32[big] footerLength (constant 0x16)
+	String(textLength) text
+	ByteArray(footerLength) footer
+	// seems to be associated with script cast members 
+	// possible meaning : "S[cript]T[E]XT"
+	// purpose : unknown
+}
+
 Section XTRl
 {
 	Uint32 length

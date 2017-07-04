@@ -41,15 +41,17 @@ class Movie
 			} else {
 				dataFile = new DirectorFile(src);
 			}
-			isExternalCast = dataFile.checkCast();
-			if (isExternalCast && isProjector) {
-				isValid = false;
-			}
 			dataFile.setFormat(riffType);
 			var mapO:Int = dataFile.findMap();
 			//Browser.console.log(mapO);
 			dataFile.parseMap(mapO);
-			
+			isExternalCast = dataFile.checkCast();
+			if (isExternalCast && isProjector) {
+				isValid = false;
+			}
+			if (isValid) {
+				dataFile.parseSectionAssociationTable();
+			}
 		}
 	}
 	private function getType(hint:DataView):Void {
