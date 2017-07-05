@@ -835,7 +835,7 @@ Bytecode.prototype.operate11 = function(val) {
 			break;
 		case 0x14:
 			opcode = "not";
-			operator = "!";
+			operator = "not";
 			result = !x.val;
 	}
 	pseudocode = "" + operator + x;
@@ -917,7 +917,7 @@ Bytecode.prototype.operate21 = function(val) {
 			opcode = "contains0str";
 			operator = "starts";
 	}
-	pseudocode = "" + x + " " + operator + " ";
+	pseudocode = "" + x + " " + operator + " " + y;
 	script.stack.push(new StackValue(pseudocode, "pseudocode"));
 	return [opcode.toUpperCase(), pseudocode];
 }
@@ -1278,7 +1278,8 @@ Bytecode.prototype.translate = function() {
 		case 0xd5:
 			(() => {
 				opcode = "iftrue";
-				pseudocode = "if (" + this.obj + ")";
+				var expression = script.stack.pop();
+				pseudocode = "if (" + expression.toString(true) + ") then";
 			})();
 			break;
 		case 0x56:
