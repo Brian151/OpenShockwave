@@ -154,15 +154,17 @@ OpenShockwaveMovie.prototype.lookupMmap = function(dataStream) {
 }
 
 OpenShockwaveMovie.prototype.linkScripts = function() {
-	for (let scriptContext of this.chunkArrays.LctX) {
-		let scriptNames = this.chunkMap[scriptContext.lnamSectionID];
-		scriptContext.scriptNames = scriptNames;
-		for (let section of scriptContext.sections) {
-			if (section.sectionID > -1) {
-				let script = this.chunkMap[section.sectionID];
-				script.context = scriptContext;
-				script.readNames();
-				scriptContext.scripts.push(script);
+	if (this.chunkArrays.LctX) {
+		for (let scriptContext of this.chunkArrays.LctX) {
+			let scriptNames = this.chunkMap[scriptContext.lnamSectionID];
+			scriptContext.scriptNames = scriptNames;
+			for (let section of scriptContext.sections) {
+				if (section.sectionID > -1) {
+					let script = this.chunkMap[section.sectionID];
+					script.context = scriptContext;
+					script.readNames();
+					scriptContext.scripts.push(script);
+				}
 			}
 		}
 	}
