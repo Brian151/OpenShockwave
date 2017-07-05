@@ -385,6 +385,54 @@ Section XTRl
 	*/
 }
 
+// property list maybe? no clue
+Section manL
+{
+	Uint32 length
+	Uint32 unknown
+	Uint32 unknown
+	Uint32 dataLength
+	Uint32 dataLength
+	Uint16 unknown
+	Uint16 entryNum
+	Array entries(entryNum) {
+		byte nameLength
+		String(nameLength) name
+	}
+}
+
+// some metadata
+Section VWFI
+{
+	Uint32 length
+	Uint32 skipLength - 4
+	
+	// skip (28 null/garbage bytes)
+
+	Uint16 fieldNum
+
+	1 byte null
+
+	Array fields(fieldNum) {
+		Uint32 value
+	}
+
+	byte cbLength
+	String(cbLength) createdBy
+
+	1 byte null
+
+	byte mdLength
+	String(mdLength) modifiedBy
+
+	1 byte null
+
+	byte fpLength
+	String(fpLength) filePath
+
+}
+
+
 shockwave format types:
 DXR : 'protected'
 DCR : compressed (via zlib)
