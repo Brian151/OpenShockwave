@@ -385,23 +385,26 @@ Section XTRl
 	*/
 }
 
-// property list maybe? no clue
-Section manL
+//Script Name Table
+//originally documented by Shockabsorber in "section-Lnam.asćiidoc"
+Section Lnam
 {
-	Uint32 length
-	Uint32 unknown
-	Uint32 unknown
-	Uint32 dataLength
-	Uint32 dataLength
-	Uint16 unknown
-	Uint16 entryNum
-	Array entries(entryNum) {
-		byte nameLength
-		String(nameLength) name
+	Uint32 Const1 (0x00)
+	Uint32 Const2 (0x00)
+	Uint32 [big] nameTablelength
+	Uint32 [big] nameTablelength2 //usually equal to nameTablelength
+	Uint16 [big] offset (constant 0x14) //where the names table actually begins
+	Uint16 [big] namesCount //how many names
+	Array names(namesCount) {
+		Struct name {
+			byte nameLength
+			String(nameLength) nameText
+		}
 	}
 }
 
-// some metadata
+//???
+//something timeline-related, analysis in-progress by MrBrax
 Section VWFI
 {
 	Uint32 length

@@ -1,0 +1,11 @@
+SHOCKWAVE AUDIO (SWA) FORMAT:
+For the most part, SWA files sre just regular MP3 files.
+Most programs and libraries capable of playing MP3 *technically* support them.
+However, they typically contain extra data for playback-related things.
+Audacity seems to have problems when playing/editing SWA. -Brian151
+
+//found by tommysshadow
+if "MACR" found within first few bytes:
+	@offset 0x00 Uint32 [big] MP3DataOffset
+	
+//more research required...
