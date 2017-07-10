@@ -1,0 +1,281 @@
+//from spybotics
+
+//offsets?
+00 00 00 00 //let's call this "junk offset", for now
+00 00 00 00  00 00 00 0A  00 00 00 0A 00 00 00 0C  
+00 00 00 14  00 00 00 1C  00 00 00 1C 00 00 00 1E  
+00 00 00 26  00 00 00 2D  00 00 00 2D 00 00 00 2F  
+00 00 00 37  00 00 00 3D  00 00 00 3D 00 00 00 3F  
+00 00 00 47  00 00 00 4E  00 00 00 4E 00 00 00 50  
+00 00 00 58  00 00 00 62  00 00 00 62 00 00 00 64  
+00 00 00 6C  00 00 00 77  00 00 00 77 00 00 00 79  
+00 00 00 81  00 00 00 8C  00 00 00 8C 00 00 00 8E  
+00 00 00 96  00 00 00 A5  00 00 00 A6 00 00 00 A8  
+00 00 00 B0  00 00 00 BF  00 00 00 C0 00 00 00 C2  
+00 00 00 CA  00 00 00 D9  00 00 00 DA 00 00 00 DC  
+00 00 00 E4  00 00 00 F3  00 00 00 F4 00 00 00 F6  
+00 00 00 FE  00 00 01 0D  00 00 01 0E 00 00 01 10  
+00 00 01 18  00 00 01 22  00 00 01 22 00 00 01 24  
+00 00 01 2C  00 00 01 38  00 00 01 38 00 00 01 3A
+
+//dataLength
+00 00 01 42
+
+//data
+{
+	08 49 6E 74 65 72 6E 61 6C // "Internal"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 95 // 149 members
+	00 01 // cast #1
+	04 00 // 1024
+}
+{
+	06 76 69 73 75 61 6C // "visual"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	01 C1 // 449 members
+	00 02 // cast #2
+	04 00 // 1024
+}
+{
+	05 74 69 6C 65 73 // "tiles"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	02 45 // 581 members
+	00 03 // cast #3
+	04 00 // 1024
+}
+{
+	04 6D 69 73 63 // "misc"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 2E // 46 members
+	00 04 // cast #4
+	04 00 // 1024
+}
+{
+	05 73 6F 75 6E 64 // "sound"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 53 // 83 members
+	00 05 // cast #5
+	04 00 // 1024
+}
+{
+	08 77 6F 72 6C 64 4D 61 70 // "worldMap"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 98 // 152 members
+	00 06 // cast #6
+	04 00 // 1024
+}
+{
+	09 74 65 78 74 20 64 61 74 61 // "textdata"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 6F // 111 members
+	00 07 // cast #7
+	04 00 // 1024
+}
+{
+	09 6C 65 76 65 6C 44 61 74 61 // "levelData"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 27 // 39 members
+	00 08 // cast #8
+	04 00 // 1024
+}
+{
+	0D 73 6F 75 6E 64 5F 6C 65 76 65 6C 5F 31 // "sound_level_1"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	01    // unknown
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	0D 73 6F 75 6E 64 5F 6C 65 76 65 6C 5F 32 // "sound_level_2"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	01    // unknown
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	0D 73 6F 75 6E 64 5F 6C 65 76 65 6C 5F 33 // "sound_level_3"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	01    // unknown
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	0D 73 6F 75 6E 64 5F 6C 65 76 65 6C 5F 34 // "sound_level_4"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	01    // unknown
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	0D 73 6F 75 6E 64 5F 6C 65 76 65 6C 5F 35 // "sound_level_5"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	01    // unknown
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	08 74 75 74 6F 72 69 61 6C // "tutorial"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 39 // 57 members
+	00 09 // cast #9
+	04 00 // 1024
+}
+{
+	0A 61 6E 69 6D 61 74 69 6F 6E 73 // "animations"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 28 // 40 members
+	00 0A // cast #10
+	04 00 // 1024
+}
+
+//MrBrax's sample
+
+//offsets
+00 00 00 00 //let's call this "junk offset", for now
+00 00 00 00  00 00 00 0A  00 00 00 0A 00 00 00 0C
+00 00 00 14  00 00 00 1E  00 00 00 1E 00 00 00 20
+00 00 00 28  00 00 00 2E  00 00 00 2E 00 00 00 30
+00 00 00 38  00 00 00 41  00 00 00 41 00 00 00 43
+
+//dataLength
+00 00 00 4B
+
+//data
+{
+	08 49 6E 74 65 72 6E 61 6C // "Internal"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 29 // 41 members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	08 47 72 61 70 68 69 63 73 // "Graphics"
+	00    // null
+	00 00 // preload when needed
+	00 02 // stored how???
+	00 8E // 142 members
+	00 00 // cast # ???
+	04 01 // 1025
+}
+{
+	04 4C 6A 75 64 // "Ljud"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 5A // 90 members
+	00 00 // cast # ???
+	04 02 // 1026
+}
+{
+	07 50 65 74 74 46 69 6E // "PettFin"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	00 F3 // 243 members
+	00 00 // cast # ???
+	04 03 // 1027
+}
+
+//MrBrax's second sample
+
+//offsets
+00 00 00 00 //let's call this "junk offset", for now
+00 00 00 00  00 00 00 0A  00 00 00 0A  00 00 00 0C 
+00 00 00 14  00 00 00 18  00 00 00 36  00 00 00 38 
+00 00 00 40  00 00 00 46  00 00 00 66  00 00 00 68 
+00 00 00 70  00 00 00 78  00 00 00 9A  00 00 00 9C 
+00 00 00 A4  00 00 00 AE  00 00 00 D2  00 00 00 D4
+// format seems to be: 
+name, external file path, preload, attributes
+
+//data
+{
+	08 49 6E 74 65 72 6E 61 6C // "Internal"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	01 33 // 307 members
+	00 00 // cast # ???
+	04 00 // 1024
+}
+{
+	02 30 30 // "00"
+	00    //null
+	1C 43 3A 5C 64 6F 6B 5C 4D 75 6C 6C 65 5C 4D 76 4E 6F 50 72 6F 74 5C 30 30 2E 63 73 74 // "C:\dok\Mulle\MvNoProt\00.cst"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally
+	01 ED // 493 members
+	00 00 // cast # ???
+	04 03 // 1027
+}
+{
+	04 64 61 74 61 // "data"
+	00 //null
+	1E 43 3A 5C 64 6F 6B 5C 4D 75 6C 6C 65 5C 4D 76 4E 6F 50 72 6F 74 5C 64 61 74 61 2E 63 73 74 // "C:\dok\Mulle\MvNoProt\data.cst"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally ???
+	00 0B // 11 members
+	00 00 // cast # ???
+	04 05 // 1029
+}
+{
+	06 43 44 64 61 74 61 // "CDdata"
+	00 //null
+	20 43 3A 5C 64 6F 6B 5C 4D 75 6C 6C 65 5C 4D 76 4E 6F 50 72 6F 74 5C 43 44 64 61 74 61 2E 63 73 74 // "C:\dok\Mulle\MvNoProt\CDdata.cst"
+	00    // null
+	00 00 // preload when needed
+	00 01 // stored internally ???
+	05 6E // 1390 members
+	00 00 // cast # ???
+	04 07 // 1031
+}
+{
+	08 74 65 6D 70 50 6C 75 67 // "tempPlug"
+	00 //null
+	22 43 3A 5C 64 6F 6B 5C 4D 75 6C 6C 65 5C 4D 76 4E 6F 50 72 6F 74 5C 74 65 6D 70 50 6C 75 67 2E 63 73 74 // "C:\dok\Mulle\MvNoProt\tempPlug.cst"
+	00    // null
+	00 00 // preload when needed
+	00 00 // stored externally
+	00 00 // ??? members
+	00 00 // cast # ???
+	04 08 // 1032
+}
