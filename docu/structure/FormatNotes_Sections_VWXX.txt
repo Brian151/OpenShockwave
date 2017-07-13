@@ -1,0 +1,28 @@
+SHOCKWAVE FORMAT (timeline???):
+All sections here seem to pertain to the timeline
+Their FourCC ID's All begin with "VW" (meaning yet unknown)
+
+Section VWLB {
+	// "L[a]B[el]"
+	// frame labels
+}
+
+Section VWTL {
+	// "T[ime]L[ine]"
+	// movie timeline
+}
+
+Section VWFI {
+	// "F[ile]I[nfo]"
+	// some kind of file-related information
+}
+
+Section VWSC {
+	// "SC[ore]"
+	// timing information
+}
+
+Section VWTC {
+	// ???
+	// ???
+}
