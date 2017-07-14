@@ -1,0 +1,47 @@
+{
+	"title" : "Director System Palettes",
+	"palettes": [
+		{
+			"realname" : "System - Mac",
+			"file" : "mac.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},
+		{
+			"realname" : "System - Win",
+			"file" : "win.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Rainbow",
+			"file" : "rainbow.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Grayscale",
+			"file" : "gray.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Pastels",
+			"file" : "pastels.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Vivid",
+			"file" : "vivid.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "NTSC",
+			"file" : "ntsc.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Metallic",
+			"file" : "metallic.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "Web 216",
+			"file" : "web216.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		},{
+			"realname" : "System - Win (Dir 4)",
+			"file" : "windir4.pal",
+			"format" : "RIFF_PAL_EXTENDED"
+		}
+	],
+}

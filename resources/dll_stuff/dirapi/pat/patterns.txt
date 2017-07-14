@@ -1,0 +1,2 @@
+format : raw 1BPP, no headers
+tilesize: 8x8 pixels

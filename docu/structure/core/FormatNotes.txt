@@ -1,4 +1,4 @@
-SHOCKWAVE FORMAT (general internal workings):
+﻿SHOCKWAVE FORMAT (general internal workings):
 
 Section RIFX
 {
@@ -324,7 +324,7 @@ Section MCsL
 		Struct castEntry {
 			Null-terminated* Length(byte)-prefixed ASCII String name
 			Null-terminated* Length(byte)-prefixed ASCII String filePath
-			Uint16 [big] preloadSettings (0:when needed, 1: after frame one, before frame one)
+			Uint16 [big] preloadSettings (0:when needed, 1: before frame one, 2: after frame one)
 			Struct castAttributes {
 				Uint16 [big] storageType? (0:external,1:internal) // purpose recently brought into question
 				Uint16 [big] membersCount

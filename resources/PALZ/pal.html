@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<title>PAL BUSTER</title>
+	</head>
+	<body>
+		<canvas id="screen" width="383" height="159">NO HTML5 CANVAS SUPPORT</canvas>
+	</body>
+	<script>
+		function hexify(num) {
+			var out = num.toString(16);
+			if (out.length == 1) {
+				var temp = "0" + out;
+				out = temp;
+			}
+			return out;
+		}
+		var ctx = document.getElementById("screen").getContext("2d");
+		var img = new Image();
+		img.src = "System_Win_Dir_4.png";
+		ctx.drawImage(img,0,0);
+		var xMax = 32;
+		var yMax = 8;
+		var sX = 11;
+		var sY = 19;
+		var dump = [];
+		for (var iy=0; iy < yMax; iy++) {
+			for (var ix=0; ix < xMax; ix++) {
+				var posX = (ix * sX) + 1;
+				var posY = (iy * sY) + 1;
+				var iDat = ctx.getImageData(posX,posY,sX,sY).data;
+				var r = iDat[0];
+				var g = iDat[1];
+				var b = iDat[2];
+				var n = 0;
+				dump.push(r,g,b,n);
+			}
+		}
+		var dumpHex = [];
+		for (var i=0; i < dump.length; i++) {
+			dumpHex.push(hexify(dump[i]));
+		}
+		console.log(dumpHex.join(" "));
+		//var iDat = ctx.getImageData(0,0,383,159);
+	</script>
+</html>

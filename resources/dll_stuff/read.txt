@@ -1,0 +1,2 @@
+Data extracted from the shockwave binaries using ResHacker
+The format of many is currently unknown
