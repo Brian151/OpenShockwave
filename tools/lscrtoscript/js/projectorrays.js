@@ -1043,8 +1043,8 @@ Bytecode.prototype.translate = function() {
 			// TODO
 		},
 		"wraplist": () => {
-			script.stack.pop();
-			script.stack.push(new AST.TODO());
+			var list = script.stack.pop();
+			script.stack.push(list);
 		},
 		"newproplist": () => {
 			script.stack.pop();
