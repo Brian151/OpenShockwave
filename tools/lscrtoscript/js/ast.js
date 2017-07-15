@@ -392,14 +392,14 @@ window.AST = (function () {
 	/* CallStatement */
 
 	class CallStatement extends Node {
-		constructor(name, args) {
+		constructor(name, argList) {
 			super();
 			this.name = name;
-			this.addChild("args", args);
+			this.addChild("argList", argList);
 		}
 
 		toString() {
-			return this.name + "(" + this.children.args.toString(true) + ")";
+			return this.name + "(" + this.children.argList.toString(true) + ")";
 		}
 	}
 
