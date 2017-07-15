@@ -696,12 +696,6 @@ Handler.prototype.readBytecode = function(dataStream) {
 	// loop while there's still more code left
 	while (dataStream.position < this.compiledOffset + this.compiledLen) {
 		let pos = dataStream.position;
-		if (this.script.blockEnds.length > 0) {
-			if (pos === this.script.blockEnds[this.script.blockEnds.length - 1]) {
-				this.ast.exitBlock();
-				this.script.blockEnds.pop();
-			}
-		}
 		let op = dataStream.readUint8();
 		// instructions can be one, two or three bytes
 		let obj = null, objLength = 0;
@@ -737,6 +731,13 @@ Handler.prototype.translate = function() {
 	this.script.stack = new Stack();
 	this.ast = new AST(new AST.Handler(this.name, this.argumentNames));
 	for (let bytecode of this.bytecodeArray) {
+		let pos = bytecode.pos;
+		if (this.script.blockEnds.length > 0) {
+			if (pos === this.script.blockEnds[this.script.blockEnds.length - 1]) {
+				this.ast.exitBlock();
+				this.script.blockEnds.pop();
+			}
+		}
 		bytecode.translate();
 	}
 }
