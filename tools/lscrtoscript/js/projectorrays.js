@@ -11,7 +11,7 @@ function el(tagName, attributes, children) {
 			}
 		} else if (child != null) {
 			if (!(child instanceof Node)) {
-				child = new Text(child);
+				child = document.createTextNode(child);
 			}
 			e.appendChild(child);
 		}
@@ -28,9 +28,11 @@ function el(tagName, attributes, children) {
 	return e;
 }
 
-function formatBytes(num) {
+function formatBytes(num, length) {
 	var hex = num.toString(16).toUpperCase();
-	if (hex.length % 2 === 1) hex = '0' + hex;
+	if (hex.length < length * 2) {
+		hex = "0".repeat(length * 2 - hex.length) + hex;
+	}
 	if (hex.length === 2) return hex;
 	return hex.match(/.{2}/g).join(' ');
 }
@@ -163,6 +165,7 @@ OpenShockwaveMovie.prototype.linkScripts = function() {
 					let script = this.chunkMap[section.sectionID];
 					script.context = scriptContext;
 					script.readNames();
+					script.translate();
 					scriptContext.scripts.push(script);
 				}
 			}
@@ -492,13 +495,8 @@ function LingoScript(main) {
 	this.literals = null;
 	this.context = null;
 
-	this.stack = [];
-	this.stack.pop = function() {
-		return this.length > 0 ? Array.prototype.pop.apply(this) : new StackValue("error", "error");
-	};
-	this.stack.clear = function() {
-		this.splice(0, this.length);
-	};
+	this.stack = new Stack();
+	this.blockEnds = [];
 }
 
 LingoScript.prototype.read = function(dataStream) {
@@ -561,6 +559,12 @@ LingoScript.prototype.readNames = function() {
 	this.globalNames = this.globalNameIDs.map(nameID => nameList[nameID]);
 	for (let handler of this.handlers) {
 		handler.readNames();
+	}
+}
+
+LingoScript.prototype.translate = function() {
+	for (let handler of this.handlers) {
+		handler.translate();
 	}
 }
 
@@ -662,6 +666,7 @@ function Handler(script) {
 	this.argumentNames = [];
 	this.localNames = [];
 	this.name = null;
+	this.ast = null;
 }
 
 Handler.prototype.readRecord = function(dataStream) {
@@ -689,21 +694,30 @@ Handler.prototype.readBytecode = function(dataStream) {
 	this.bytecodeArray = [];
 	// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
 	// loop while there's still more code left
-	this.script.stack.clear();
-	var op, obj = null, pos = null;
 	while (dataStream.position < this.compiledOffset + this.compiledLen) {
-		var op = dataStream.readUint8();
+		let pos = dataStream.position;
+		if (this.script.blockEnds.length > 0) {
+			if (pos === this.script.blockEnds[this.script.blockEnds.length - 1]) {
+				this.ast.exitBlock();
+				this.script.blockEnds.pop();
+			}
+		}
+		let op = dataStream.readUint8();
 		// instructions can be one, two or three bytes
-		if (op >= 192) {
+		let obj = null, objLength = 0;
+		if (op >= 0xc0) {
 			obj = dataStream.readUint24();
-		} else if (op >= 128) {
+			objLength = 3;
+		} else if (op >= 0x80) {
 			obj = dataStream.readUint16();
-		} else if (op >= 64) {
+			objLength = 2;
+		} else if (op >= 0x40) {
 			obj = dataStream.readUint8();
+			objLength = 1;
 		}
 		// read the first byte to convert to an opcode
-		pos = new Bytecode(this, op, obj);
-		this.bytecodeArray.push(pos);
+		let bytecode = new Bytecode(this, op, obj, objLength, pos);
+		this.bytecodeArray.push(bytecode);
 	}
 
 	this.argumentNameIDs = this.readVarnamesTable(dataStream, this.argumentCount, this.argumentOffset);
@@ -717,6 +731,14 @@ Handler.prototype.readNames = function() {
 	this.name = nameList[this.nameID];
 	this.argumentNames = this.argumentNameIDs.map(nameID => nameList[nameID]);
 	this.localNames = this.localNameIDs.map(nameID => nameList[nameID]);
+}
+
+Handler.prototype.translate = function() {
+	this.script.stack = new Stack();
+	this.ast = new AST(new AST.Handler(this.name, this.argumentNames));
+	for (let bytecode of this.bytecodeArray) {
+		bytecode.translate();
+	}
 }
 
 Handler.prototype.toHTML = function() {
@@ -753,14 +775,15 @@ Handler.prototype.toHTML = function() {
 		])
 	]);
 	for (let bytecode of this.bytecodeArray) {
-		let translation = bytecode.translate();
 		table.appendChild(el('tr', null, [
-			el('td', null, formatBytes(bytecode.val) + "" + (bytecode.obj !== null ? " " + formatBytes(bytecode.obj) : "")),
-			el('td', null, translation[0]),
-			el('td', null, translation[1])
+			el('td', null, formatBytes(bytecode.val, 1) + (bytecode.obj != null ? " " + formatBytes(bytecode.obj, bytecode.objLength) : "")),
+			el('td', null, bytecode.opcode.toUpperCase() + (bytecode.obj != null ? " " + bytecode.obj : "")),
+			el('td', null, bytecode.translation ? bytecode.translation.toPseudocode() : null)
 		]));
 	}
 	fragment.appendChild(table);
+	fragment.appendChild(el('h5', null, 'Lingo Code'));
+	fragment.appendChild(el('pre', null, this.ast.toString()));
 	return fragment;
 }
 
@@ -803,880 +826,550 @@ Literal.prototype.toHTML = function() {
 Literal.types = {
 	1: 'string',
 	4: 'int',
-	9: 'double'
+	9: 'float'
 };
 
 /* Bytecode */	
 
-function Bytecode(handler, val, obj) {
-	if (val != null) {
-		this.val = val;
-	} else {
-		this.val = 0;
-	}
-	if (obj != null) {
-		this.obj = obj;
-	} else {
-		this.obj = null;
-	}
+function Bytecode(handler, val, obj, objLength, pos) {
 	this.handler = handler;
+	this.val = val || 0;
+	this.obj = obj != null ? obj : null;
+	this.objLength = objLength;
+	this.pos = pos;
+
+	this.opcode = this.getOpcode(this.val);
+	this.translation = null;
 }
 
-Bytecode.prototype.operate11 = function(val) {
-	var opcode, operator, result, pseudocode = "";
-	var script = this.handler.script;
-	var nameList = script.context.scriptNames.names;
-	var x = script.stack.pop();
-	switch (val) {
-		case 0x9:
-			opcode = "inv";
-			operator = "-";
-			result = -x.val;
-			break;
-		case 0x14:
-			opcode = "not";
-			operator = "not";
-			result = !x.val;
-	}
-	pseudocode = "" + operator + x;
-	script.stack.push(new StackValue(pseudocode, "pseudocode"));
-	return [opcode.toUpperCase(), pseudocode];
-}
+Bytecode.prototype.getOpcode = function(val) {
+	const oneByteCodes = {
+		0x1: "ret",
+		0x3: "pushint0",
+		0x4: "mul",
+		0x5: "add",
+		0x6: "sub",
+		0x7: "div",
+		0x8: "mod",
+		0x9: "inv",
+		0xa: "joinstr",
+		0xb: "joinpadstr",
+		0xc: "lt",
+		0xd: "lteq",
+		0xe: "nteq",
+		0xf: "eq",
+		0x10: "gt",
+		0x11: "gteq",
+		0x12: "and",
+		0x13: "or",
+		0x14: "not",
+		0x15: "containsstr",
+		0x16: "contains0str",
+		0x17: "splitstr",
+		0x18: "lightstr",
+		0x19: "ontospr",
+		0x1a: "intospr",
+		0x1b: "caststr",
+		0x1c: "startobj",
+		0x1d: "stopobj",
+		0x1e: "wraplist",
+		0x1f: "newproplist"
+	};
 
-Bytecode.prototype.operate21 = function(val) {
-	var opcode, operator, result, pseudocode = "";
-	var script = this.handler.script;
-	var nameList = script.context.scriptNames.names;
-	var y = script.stack.pop();
-	var x = script.stack.pop();
-	switch (val) {
-		case 0x4:
-			opcode = "mul";
-			operator = "*";
-			break;
-		case 0x5:
-			opcode = "add";
-			operator = "+";
-			break;
-		case 0x6:
-			opcode = "sub";
-			operator = "-";
-			break;
-		case 0x7:
-			opcode = "div";
-			operator = "/";
-			break;
-		case 0x8:
-			opcode = "mod";
-			operator = "mod";
-		case 0xa:
-			opcode = "joinstr";
-			operator = "&";
-			break;
-		case 0xb:
-			opcode = "joinpadstr";
-			operator = "&&";
-			break;
-		case 0xc:
-			opcode = "lt";
-			operator = "<";
-			break;
-		case 0xd:
-			opcode = "lteq";
-			operator = "<=";
-			break;
-		case 0xe:
-			opcode = "nteq";
-			operator = "<>";
-			break;
-		case 0xf:
-			opcode = "eq";
-			operator = "=";
-			break;
-		case 0x10:
-			opcode = "gt";
-			operator = ">";
-			break;
-		case 0x11:
-			opcode = "gteq";
-			operator = ">=";
-			break;
-		case 0x12:
-			opcode = "and";
-			operator = "and";
-			break;
-		case 0x13:
-			opcode = "or";
-			operator = "or";
-			break;
-		case 0x15:
-			opcode = "containsstr";
-			operator = "contains";
-			break;
-		case 0x16:
-			opcode = "contains0str";
-			operator = "starts";
-	}
-	pseudocode = "" + x + " " + operator + " " + y;
-	script.stack.push(new StackValue(pseudocode, "pseudocode"));
-	return [opcode.toUpperCase(), pseudocode];
+	const multiByteCodes = {
+		0x01: "pushint",
+		0x02: "newarglist",
+		0x03: "newlist",
+		0x04: "pushcons",
+		0x05: "pushsymb",
+		0x09: "push_global",
+		0x0b: "pushparams",
+		0x0c: "push_local",
+		0x0f: "pop_global",
+		0x12: "pop_local",
+		0x13: "jmp",
+		0x14: "endrepeat",
+		0x15: "iftrue",
+		0x16: "call_local",
+		0x17: "call_external",
+		0x18: "callobj",
+		0x19: "op_59xx",
+		0x1b: "op_5bxx",
+		0x1c: "get",
+		0x1d: "set",
+		0x1f: "getprop",
+		0x20: "setprop",
+		0x21: "getobjprop",
+		0x22: "setobjprop",
+		0x2e: "pushint"
+	};
+
+	var opcode = val < 0x40 ? oneByteCodes[val] : multiByteCodes[val % 0x40];
+	return opcode || "unk_" + val.toString(16);
 }
 
 Bytecode.prototype.translate = function() {
 	if (loggingEnabled) console.log("Translate Bytecode: " + bytecode);
-	var opcode = "";
-	var pseudocode = "";
+	var translation = null;
 	var script = this.handler.script;
 	var nameList = script.context.scriptNames.names;
-	// script.stack = [];
-	// see the documentation for notes on these opcodes
-	switch (this.val) {
-		// TODO: copy the comments from OP.txt into the code for a quicker reference
-		/* Single Byte Instructions */
-		case 0x1:
-			(() => {
-				opcode = "ret";
-				pseudocode = "exit";
-			})();
-			break;
-		case 0x3:
-			(() => {
-				opcode = "pushint0";
-				pseudocode = "0";
-				script.stack.push(new StackValue(0, "int"));
-			})();
-			break;
-		case 0x4:
-		case 0x5:
-		case 0x6:
-		case 0x7:
-		case 0x8:
-		case 0xa:
-		case 0xb:
-		case 0xc:
-		case 0xd:
-		case 0xe:
-		case 0xf:
-		case 0x10:
-		case 0x11:
-		case 0x12:
-		case 0x13:
-		case 0x15:
-		case 0x16:
-			return this.operate21(this.val);
-			break;
-		case 0x9:
-		case 0x14:
-			return this.operate11(this.val);
-			break;
-		case 0x17:
-			(() => {
-				opcode = "splitstr";
-				var string = script.stack.pop();
-				var lastLine = script.stack.pop();
-				var firstLine = script.stack.pop();
-				var lastItem = script.stack.pop();
-				var firstItem = script.stack.pop();
-				var lastWord = script.stack.pop();
-				var firstWord = script.stack.pop();
-				var lastChar = script.stack.pop();
-				var firstChar = script.stack.pop();
-				if (firstChar !== 0) {
-					if (lastChar === 0) {
-						pseudocode = "char " + firstChar + " of " + string;
-					} else {
-						pseudocode = "char " + firstChar + " to " + lastChar + " of " + string;
-					}
-				} else if (firstWord !== 0) {
-					if (lastWord === 0) {
-						pseudocode = "word " + firstWord + " of " + string;
-					} else {
-						pseudocode = "word " + firstWord + " to " + lastWord + " of " + string;
-					}
-				} else if (firstItem !== 0) {
-					if (lastItem === 0) {
-						pseudocode = "item " + firstItem + " of " + string;
-					} else {
-						pseudocode = "word " + firstItem + " to " + lastItem + " of " + string;
-					}
-				} else if (firstLine !== 0) {
-					if (lastLine === 0) {
-						pseudocode = "item " + firstLine + " of " + string;
-					} else {
-						pseudocode = "word " + firstLine + " to " + lastLine + " of " + string;
-					}
-				}
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x18:
-			(() => {
-				opcode = "lightstr";
-				var field = script.stack.pop();
-				var lastLine = script.stack.pop();
-				var firstLine = script.stack.pop();
-				var lastItem = script.stack.pop();
-				var firstItem = script.stack.pop();
-				var lastWord = script.stack.pop();
-				var firstWord = script.stack.pop();
-				var lastChar = script.stack.pop();
-				var firstChar = script.stack.pop();
-				if (firstChar !== 0) {
-					if (lastChar === 0) {
-						pseudocode = "hilite char " + firstChar + " of " + field;
-					} else {
-						pseudocode = "hilite char " + firstChar + " to " + lastChar + " of " + field;
-					}
-				} else if (firstWord !== 0) {
-					if (lastWord === 0) {
-						pseudocode = "hilite word " + firstWord + " of " + field;
-					} else {
-						pseudocode = "hilite word " + firstWord + " to " + lastWord + " of " + field;
-					}
-				} else if (firstItem !== 0) {
-					if (lastItem === 0) {
-						pseudocode = "hilite item " + firstItem + " of " + field;
-					} else {
-						pseudocode = "hilite word " + firstItem + " to " + lastItem + " of " + field;
-					}
-				} else if (firstLine !== 0) {
-					if (lastLine === 0) {
-						pseudocode = "hilite item " + firstLine + " of " + field;
-					} else {
-						pseudocode = "hilite word " + firstLine + " to " + lastLine + " of " + field;
-					}
-				}
-			})();
-			break;
-		case 0x19:
-			(() => {
-				opcode = "ontospr";
-				var firstSprite = script.stack.pop();
-				var secondSprite = script.stack.pop();
-				pseudocode = "sprite " + firstSprite + " intersects " + secondSprites;
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x1a:
-			(() => {
-				opcode = "intospr";
-				var firstSprite = script.stack.pop();
-				var secondSprite = script.stack.pop();
-				pseudocode = "sprite " + firstSprite + " within " + secondSprite;
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x1b:
-			(() => {
-				opcode = "caststr";
-				pseudocode = "field " + script.stack.pop();
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x1c:
-			(() => {
-				opcode = "startobj";
-				script.stack.pop();
-				pseudocode = "TODO";
-			})();
-			break;
-		case 0x1d:
-			(() => {
-				opcode = "stopobj";
-				pseudocode = "TODO";
-			})();
-			break;
-		case 0x1e:
-			(() => {
-				opcode = "wraplist";
-				script.stack.pop();
-				script.stack.push(new StackValue("TODO", "pseudocode"));
-			})();
-			break; // NAME NOT CERTAINLY SET IN STONE JUST YET...
-		case 0x1f:
-			(() => {
-				opcode = "newproplist";
-				script.stack.pop();
-				script.stack.push(new StackValue("TODO", "pseudocode"));
-			})();
-			break;
-		/* Multi - Byte Instructions */
-		/*
-			To-do: 
-			handle special cases like getting names from name table,
-			or opcodes that determine context through other means
-			than their operands.
-		*/
-		case 0x41:
-			(() => {
-				opcode = "pushbyte";
-				pseudocode = this.obj;
-				script.stack.push(new StackValue(this.obj, "int"));
-			})();
-			break;
-		case 0x81:
-			(() => {
-				opcode = "pushshort";
-				pseudocode = this.obj;
-				script.stack.push(new StackValue(this.obj, "int"));
-			})();
-			break;
-		case 0xc1:
-			(() => {
-				opcode = "pushint24";
-				pseudocode = this.obj;
-				script.stack.push(new StackValue(this.obj, "int"));
-			})();
-			break;
-		case 0x42:
-		case 0x82:
-		case 0xc2:
-			(() => {
-				opcode = "newarglist";
-				var args = script.stack.splice(script.stack.length - this.obj, this.obj);
-				script.stack.push(new StackValue(args, "arglist"));
-			})();
-			break;
-		case 0x43:
-		case 0x83:
-		case 0xc3:
-			(() => {
-				opcode = "newlist";
-				var items = script.stack.splice(script.stack.length - this.obj, this.obj);
-				script.stack.push(new StackValue(items, "list"));
-			})();
-			break;
-		case 0x44:
-		case 0x84:
-		case 0xc4:
-			(() => {
-				var literal = script.literals[this.obj]
-				var type = Literal.types[literal.type];
-				opcode = "push" + type;
-				pseudocode = JSON.stringify(literal.value);
-				script.stack.push(new StackValue(literal.value, type));
-			})();
-			break; 
-		case 0x45:
-		case 0x85:
-		case 0xc5:
-			(() => {
-				opcode = "pushsymb";
-				pseudocode = "#" + nameList[this.obj];
-				script.stack.push(new StackValue(pseudocode, "symbol"));
-			})();
-			break;
-		/*
-		case 0x46:
-		case 0x86:
-		case 0xc6:
-			opcode = "nop"; // POSSIBLY RELATED TO NEWARGLIST
-			break;
-		case 0x47:
-		case 0x87:
-		case 0xc7:
-			opcode = "nop";
-			break;
-		case 0x48:
-		case 0x88:
-		case 0xc8:
-			opcode = "nop";
-			break;
-		*/
-		case 0x49:
-			(() => {
-				opcode = "push_global";
-				pseudocode = script.globalNames[this.obj];
-				script.stack.push(new StackValue(pseudocode, "globalvar"));
-			})();
-			break;
-		/*
-		case 0x4a:
-		case 0x8a:
-		case 0xca:
-			opcode = "nop";
-			break;
-		*/
-		case 0x4b:
-		case 0x8b:
-		case 0xcb:
-			(() => {
-				opcode = "pushparams";
-				pseudocode = this.handler.argumentNames[this.obj];
-				script.stack.push(new StackValue(pseudocode, "param"));
-			})();
-			break;
-		case 0x4c:
-		case 0x8c:
-		case 0xcc:
-			(() => {
-				opcode = "push_local";
-				pseudocode = this.handler.localNames[this.obj];
-				script.stack.push(new StackValue(pseudocode, "localvar"));
-			})();
-			break;
-		/*
-		case 0x4d:
-		case 0x8d:
-		case 0xcd:
-			opcode = "nop";
-			break;
-		case 0x4e:
-		case 0x8e:
-		case 0xce:
-			opcode = "nop";
-			break;
-		*/
-		case 0x4f:
-		case 0x8f:
-		case 0xcf:
-			(() => {
-				opcode = "pop_global";
-				var value = script.stack.pop();
-				pseudocode = "set " + script.globalNames[this.obj] + " = " + value.toString(true);
-			})();
-			break;
-		/*
-		case 0x50:
-		case 0x90
-		case 0xd0
-			opcode = "nop";
-			break;
-		case 0x51:
-		case 0x91:
-		case 0xd1:
-			opcode = "nop";
-			break;
-		*/
-		case 0x52:
-		case 0x92:
-		case 0xd2:
-			(() => {
-				opcode = "pop_local";
-				var value = script.stack.pop();
-				pseudocode = "set " + this.handler.localNames[this.obj] + " = " + value.toString(true);
-			})();
-			break;
-		case 0x53:
-		case 0x93:
-		case 0xd3:
-			(() => {
-				opcode = "jmp";
-				// do something
-			})();
-			break;
-		case 0x54:
-		case 0x94:
-		case 0xd4:
-			(() => {
-				opcode = "endrepeat";
-				pseudocode = "end repeat";
-			})();
-			break;
-		case 0x55:
-		case 0x95:
-		case 0xd5:
-			(() => {
-				opcode = "iftrue";
-				var expression = script.stack.pop();
-				pseudocode = "if (" + expression.toString(true) + ") then";
-			})();
-			break;
-		case 0x56:
-		case 0x96:
-		case 0xd6:
-			(() => {
-				opcode = "call_local";
-				(() => {
-					var arglist = script.stack.pop();
-					var argliststring = "";
-					if (arglist.type === "arglist" || arglist.type === "list") {
-						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
-					}
-					pseudocode = script.handlers[this.obj].name + "(" + argliststring + ")";
-					if (arglist.type === "list") {
-						script.stack.push(new StackValue(pseudocode, "pseudocode"));
-					}
-				})();
-			})();
-			break;
-		case 0x57:
-		case 0x97:
-		case 0xd7:
-			(() => {
-				opcode = "call_external";
-				(() => {
-					var arglist = script.stack.pop();
-					var argliststring = "";
-					if (arglist.type === "arglist" || arglist.type === "list") {
-						argliststring = arglist.value.map(arg => arg.toString(true)).join(", ")
-					}
-					pseudocode = nameList[this.obj] + "(" + argliststring + ")";
-					if (arglist.type === "list") {
-						script.stack.push(new StackValue(pseudocode, "pseudocode"));
-					}
-				})();
-			})();
-			break;
-		case 0x58:
-		case 0x98:
-		case 0xd8:
-			(() => {
-				opcode = "callobj";
-				var argslist = script.stack.pop();
-				var poppedobject = script.stack.pop();
-				var argsliststring = "";
-				for (var i=0,len=argslist.val.length;i<len;i++) {
-					argsliststring += argslist.val[i].val;
-					if (i < len - 1) {
-						argsliststring += ", ";
-					}
-				}
-				pseudocode = poppedobject.obj + "(" + argsliststring + ")";
-			})();
-			break;
-		case 0x59:
-			opcode = "op_59xx";
+	var ast = this.handler.ast;
+
+	const handleBinaryOperator = () => {
+		const operators = {
+			"mul": "*",
+			"add": "+",
+			"sub": "-",
+			"div": "/",
+			"mod": "mod",
+			"joinstr": "&",
+			"joinpadstr": "&&",
+			"lt": "<",
+			"lteq": "<=",
+			"nteq": "<>",
+			"eq": "=",
+			"gt": ">",
+			"gteq": ">=",
+			"and": "and",
+			"or": "or",
+			"containsstr": "contains",
+			"contains0str": "starts"
+		};
+		var y = script.stack.pop();
+		var x = script.stack.pop();
+		translation = new AST.BinaryOperator(operators[this.opcode], x, y);
+		script.stack.push(translation);
+	};
+
+	const bytecodeHandlers = {
+		"ret": () => {
+			translation = new AST.ExitStatement();
+			ast.addStatement(translation);
+		},
+		"pushint0": () => {
+			translation = new AST.IntLiteral(0);
+			script.stack.push(translation);
+		},
+		"mul": handleBinaryOperator,
+		"add": handleBinaryOperator,
+		"sub": handleBinaryOperator,
+		"div": handleBinaryOperator,
+		"mod": handleBinaryOperator,
+		"inv": () => {
+			var x = script.stack.pop();
+			translation = new AST.InverseOperator(x);
+			script.stack.push(translation);
+		},
+		"joinstr": handleBinaryOperator,
+		"joinpadstr": handleBinaryOperator,
+		"lt": handleBinaryOperator,
+		"lteq": handleBinaryOperator,
+		"nteq": handleBinaryOperator,
+		"eq": handleBinaryOperator,
+		"gt": handleBinaryOperator,
+		"gteq": handleBinaryOperator,
+		"or": handleBinaryOperator,
+		"not": () => {
+			var x = script.stack.pop();
+			translation = new AST.NotOperator(x);
+			script.stack.push(translation);
+		},
+		"containsstr": handleBinaryOperator,
+		"contains0str": handleBinaryOperator,
+		"splitstr": () => {
+			var string = script.stack.pop();
+			var lastLine = script.stack.pop();
+			var firstLine = script.stack.pop();
+			var lastItem = script.stack.pop();
+			var firstItem = script.stack.pop();
+			var lastWord = script.stack.pop();
+			var firstWord = script.stack.pop();
+			var lastChar = script.stack.pop();
+			var firstChar = script.stack.pop();
+			if (firstChar.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("char", firstChar, lastChar, string);
+			} else if (firstWord.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("word", firstWord, lastWord, string);
+			} else if (firstItem.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("item", firstItem, lastItem, string);
+			} else if (firstLine.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("line", firstLine, lastLine, string);
+			}
+			script.stack.push(translation);
+		},
+		"lightstr": () => {
+			var field = script.stack.pop();
+			var lastLine = script.stack.pop();
+			var firstLine = script.stack.pop();
+			var lastItem = script.stack.pop();
+			var firstItem = script.stack.pop();
+			var lastWord = script.stack.pop();
+			var firstWord = script.stack.pop();
+			var lastChar = script.stack.pop();
+			var firstChar = script.stack.pop();
+			if (firstChar.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("char", firstChar, lastChar, field);
+			} else if (firstWord.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("word", firstWord, lastWord, field);
+			} else if (firstItem.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("item", firstItem, lastItem, field);
+			} else if (firstLine.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("line", firstItem, lastItem, field);
+			}
+			ast.addStatement(translation);
+		},
+		"ontospr": () => {
+			var firstSprite = script.stack.pop();
+			var secondSprite = script.stack.pop();
+			translation = new AST.SpriteIntersectsExpression(firstSprite, secondSprite);
+			script.stack.push(translation);
+		},
+		"intospr": () => {
+			var firstSprite = script.stack.pop();
+			var secondSprite = script.stack.pop();
+			translation = new AST.SpriteWithinExpression(firstSprite, secondSprite);
+			script.stack.push(translation);
+		},
+		"caststr": () => {
+			var fieldID = script.stack.pop();
+			translation = new AST.FieldReference(fieldID);
+			script.stack.push(translation);
+		},
+		"startobj": () => {
 			script.stack.pop();
-			break; //TEMP NAME
-		/*
-		case 0x5a:
-		case 0x9a:
-		case 0xda:
-			opcode = "nop";
-			break;
-		*/
-		case 0x5b:
-		case 0x9b:
-		case 0xdb:
-			(() => {
-				opcode = "op_5bxx";
-				script.stack.pop();
-			})();
-			break; //TEMP NAME
-		case 0x5c:
-		case 0x9c:
-		case 0xdc:
-			(() => {
-				opcode = "get";
-				switch (this.obj) {
-					case 0x00:
-						(() => {
-							const options = {
-								0x00: "floatPrecision",
-								0x01: "mouseDownScript",
-								0x02: "mouseUpScript",
-								0x03: "keyDownScript",
-								0x04: "keyUpScript",
-								0x05: "timeoutScript",
-								0x06: "short time",
-								0x07: "abbr time",
-								0x08: "long time",
-								0x09: "short date",
-								0x0a: "abbr date",
-								0x0b: "long date",
-								0x0c: "char",
-								0x0d: "word",
-								0x0e: "item",
-								0x0f: "line"
-							};
-
-							var id = script.stack.pop();
-							if (id < 0x0c) {
-								pseudocode = "the " + options[id];
-							} else {
-								var string = script.stack.pop();
-								pseudocode = "the last " + options[id] + " in " + string;
-							}
-						})();
-						break;
-					case 0x01:
-						(() => {
-							const options = {
-								0x01: "chars",
-								0x02: "words",
-								0x03: "items",
-								0x04: "lines"
-							};
-
-							var statID = script.stack.pop();
+			// TODO
+		},
+		"stopobj": () => {
+			// TODO
+		},
+		"wraplist": () => {
+			script.stack.pop();
+			script.stack.push(new AST.TODO());
+		},
+		"newproplist": () => {
+			script.stack.pop();
+			script.stack.push(new AST.TODO());
+		},
+		"pushint": () => {
+			translation = new AST.IntLiteral(this.obj);
+			script.stack.push(translation);
+		},
+		"newarglist": () => {
+			var args = script.stack.splice(script.stack.length - this.obj, this.obj);
+			translation = new AST.ArgListLiteral(args);
+			script.stack.push(translation);
+		},
+		"newlist": () => {
+			var items = script.stack.splice(script.stack.length - this.obj, this.obj);
+			translation = new AST.ListLiteral(items);
+			script.stack.push(translation);
+		},
+		"pushcons": () => {
+			var literal = script.literals[this.obj]
+			var type = Literal.types[literal.type];
+			if (type === "string") {
+				translation = new AST.StringLiteral(literal.value);
+			} else if (type === "int") {
+				translation = new AST.IntLiteral(literal.value);
+			} else if (type === "float") {
+				translation = new AST.FloatLiteral(literal.value);
+			}
+			script.stack.push(translation);
+		},
+		"pushsymb": () => {
+			translation = new AST.SymbolLiteral(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_global": () => {
+			var name = nameList[this.obj];
+			translation = new AST.GlobalVarReference(name);
+			script.stack.push(translation);
+		},
+		"pushparams": () => {
+			var name = this.handler.argumentNames[this.obj];
+			translation = new AST.ParamReference(name);
+			script.stack.push(translation);
+		},
+		"push_local": () => {
+			var name = this.handler.localNames[this.obj];
+			translation = new AST.LocalVarReference(name);
+			script.stack.push(translation);
+		},
+		"pop_global": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.GlobalVarReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_local": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.LocalVarReference(this.handler.localNames[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"jmp": () => {},
+		"endrepeat": () => {
+			var parentStatement = ast.currentChunkParent;
+			if (parentStatement && lastStatement.constructor === AST.IfStatement) {
+				lastStatement.setType("repeat_while");
+			}
+		},
+		"iftrue": () => {
+			var condition = script.stack.pop();
+			translation = new AST.IfStatement("if", condition);
+			ast.addStatement(translation);
+			ast.enterBlock(translation.children.block1)
+			script.blockEnds.push(this.pos + this.obj);
+		},
+		"call_local": () => {
+			var argList = script.stack.pop();
+			translation = new AST.LocalCallStatement(script.handlers[this.obj].name, argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
+		},
+		"call_external": () => {
+			var argList = script.stack.pop();
+			translation = new AST.ExternalCallStatement(nameList[this.obj], argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
+		},
+		"callobj": () => {
+			var argList = script.stack.pop();
+			var object = script.stack.pop();
+		},
+		"op_59xx": () => {
+			script.stack.pop();
+			// TODO
+		},
+		"op_5bxx": () => {
+			script.stack.pop();
+			// TODO
+		},
+		"get": () => {
+			switch (this.obj) {
+				case 0x00:
+					(() => {
+						var id = script.stack.pop().getValue();
+						if (id <= 0x05) {
+							translation = new AST.MoviePropertyReference(lib.moviePropertyNames00[id]);
+						} else if (id <= 0x0b) {
+							translation = new AST.TimeExpression(lib.timeNames[id - 0x05]);
+						} else {
 							var string = script.stack.pop();
-							pseudocode = "the number of " + options[statID.value] + " in " + string;
-						})();
-						break;
-					case 0x02:
-						(() => {
-							const options = {
-								0x01: "name",
-								0x02: "number of menuItems"
-							};
-
-							var menuID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of menu " + menuID;
-						})();
-						break;
-					case 0x03:
-						(() => {
-							const options = {
-								0x01: "name",
-								0x02: "checkMark",
-								0x03: "enabled",
-								0x04: "script"
-							};
-
-							var itemID = script.stack.pop();
-							var menuID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of menuItem " + itemID + " of menu " + menuID;
-						})();
-						break;
-					case 0x04:
-						(() => {
-							const options = {
-								0x01: "volume"
-							};
-
-							var soundID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of sound " + soundID;
-						})();
-						break;
-					case 0x06:
-						(() => {
-							const options = {
-								0x01: "type",
-								0x02: "backColor",
-								0x03: "bottom",
-								0x04: "castNum",
-								0x05: "constraint",
-								0x06: "cursor",
-								0x07: "foreColor",
-								0x08: "height",
-								0x0a: "ink",
-								0x0b: "left",
-								0x0c: "lineSize",
-								0x0d: "locH",
-								0x0e: "locV",
-								0x0f: "movieRate",
-								0x10: "movieTime",
-								0x12: "puppet",
-								0x13: "right",
-								0x14: "startTime",
-								0x15: "stopTime",
-								0x16: "stretch",
-								0x17: "top",
-								0x18: "trails",
-								0x19: "visible",
-								0x1a: "volume",
-								0x1b: "width",
-								0x1d: "scriptNum",
-								0x1e: "moveableSprite",
-								0x20: "scoreColor"
-							};
-
-							var spriteID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of sprite " + spriteID;
-						})();
-						break;
-					case 0x07:
-						(() => {
-							const options = {
-								0x01: "beepOn",
-								0x02: "buttonStyle",
-								0x03: "centerStage",
-								0x04: "checkBoxAccess",
-								0x05: "checkboxType",
-								0x06: "colorDepth",
-								0x08: "exitLock",
-								0x09: "fixStageSize",
-								0x13: "timeoutLapsed",
-								0x17: "selEnd",
-								0x18: "selStart",
-								0x19: "soundEnabled",
-								0x1a: "soundLevel",
-								0x1b: "stageColor",
-								0x1d: "stillDown",
-								0x1e: "timeoutKeyDown",
-								0x1f: "timeoutLength",
-								0x20: "timeoutMouse",
-								0x21: "timeoutPlay",
-								0x22: "timer"
-							};
-
-							var settingID = script.stack.pop();
-							pseudocode = "the " + options[settingID.value];
-						})();
-						break;
-					case 0x08:
-						(() => {
-							const options = {
-								0x01: "the perFrameHook",
-								0x02: "number of castMembers",
-								0x03: "number of menus"
-							};
-
-							var statID = script.stack.pop();
-							pseudocode = options[statID.value];
-						})();
-						break;
-					case 0x09:
-						(() => {
-							const options = {
-								0x01: "name",
-								0x02: "text",
-								0x08: "picture",
-								0x0a: "number",
-								0x0b: "size",
-								0x11: "foreColor",
-								0x12: "backColor"
-							};
-
-							var castID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of cast " + castID;
-						})();
-						break;
-					case 0x0c:
-						(() => {
-							const options = {
-								0x03: "textStyle",
-								0x04: "textFont",
-								0x05: "textHeight",
-								0x06: "textAlign",
-								0x07: "textSize"
-							};
-
-							var fieldID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of field " + fieldID;
-						})();
-						break;
-					case 0x0d:
-						(() => {
-							const options = {
-								0x10: "sound"
-							};
-
-							var castID = script.stack.pop();
-							var propertyID = script.stack.pop();
-							pseudocode = "the " + options[propertyID.value] + " of cast " + castID;
-						})();
-				}
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x5d:
-		case 0x9d:
-		case 0xdd:
-			opcode = "set";
-			(val => {
-				// make a switch later
-				script.stack.pop();
-				script.stack.pop();
-				if (val == 3) {
-					script.stack.pop();
-					script.stack.pop();
-				}
-				if (val != 0 && val != 3 && val != 7) {
-					script.stack.pop();
-				}
-			})(this.val);
-			break; // needs values from stack to determine what it's setting
-				   // that said, dissassembly of this instruction is not yet complete
-		/*
-		case 0x5e:
-		case 0x9e:
-		case 0xde:
-			opcode = "nop";
-			break;
-		*/
-		case 0x5f:
-		case 0x9f:
-		case 0xdf:
-			(() => {
-				opcode = "getprop";
-				pseudocode = "the " + nameList[this.obj];
-				script.stack.push(new StackValue(pseudocode, "pseudocode"));
-			})();
-			break;
-		case 0x60:
-		case 0xa0:
-		case 0xe0:
-			(() => {
-				opcode = "setprop";
-				pseudocode = "set the " + nameList[this.obj] + " to " + script.stack.pop();
-			})();
-			break;
-		case 0x61:
-		case 0xa1:
-		case 0xe1:
-			(() => {
-				opcode = "getobjprop";
-				script.stack.pop();
-				script.stack.push(new StackValue("TODO", "pseudocode"));
-				pseudocode = "(the prop of x)";
-			})();
-			break;
-		case 0x62:
-		case 0xa2:
-		case 0xe2:
-			(() => {
-				opcode = "setobjprop";
-				script.stack.pop();
-				script.stack.pop();
-				pseudocode = "set the prop of x to y";
-			})();
-			break;
-		case 0x64:
-		case 0xa4:
-		case 0xe4:
-			//opcode = "op_64xx";
-			//break;
-		case 0x65:
-		case 0xa5:
-		case 0xe5:
-			//opcode = "op_65xx";
-			//break;
-		case 0x66:
-		case 0xa6:
-		case 0xe6:
-			//opcode = "op_66xx";
-			opcode = "op_" + this.val.toString(16);
-			break;
-		/* anything not yet indentitifed/discovered goes here */
-		default:
-			opcode = "UNK_" + this.val.toString(16);
-			/*
-				if we return values prefixed with "UNK_" (e.g. unknown), that means we have encountered
-				an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
-				and/or decompilation. If the decompiler is created before all the opcodes are known 
-				(and this might just happen), it should return source code with comments saying decompilation failed,
-				listing the opcodes and their offsets.
-			*/
-			script.stack.clear();
+							translation = new AST.LastStringChunkExpression(lib.chunkTypeNames[id - 0x0b]);
+						}
+					})();
+					break;
+				case 0x01:
+					(() => {
+						var statID = script.stack.pop().getValue();
+						var string = script.stack.pop();
+						translation = new AST.StringChunkCountExpression(lib.chunkTypeNames[statID], string);
+					})();
+					break;
+				case 0x02:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var menuID = script.stack.pop();
+						translation = new AST.MenuPropertyReference(menuID, lib.menuPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x03:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var menuID = script.stack.pop();
+						var itemID = script.stack.pop();
+						translation = new AST.MenuItemPropertyReference(menuID, itemID, lib.menuItemPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x04:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var soundID = script.stack.pop();
+						translation = new AST.SoundPropertyReference(soundID, lib.soundPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x06:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var spriteID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(spriteID, lib.spritePropertyNames[propertyID]);
+					})();
+					break;
+				case 0x07:
+					(() => {
+						var settingID = script.stack.pop().getValue();
+						translation = new AST.MoviePropertyReference(lib.moviePropertyNames07[settingID]);
+					})();
+					break;
+				case 0x08:
+					(() => {
+						var statID = script.stack.pop().getValue();
+						if (statID === 0x01) {
+							transltion = new AST.MoviePropertyReference("perFrameHook");
+						} else {
+							translation = new AST.ObjCountExpression(lib.countableObjectNames[statID]);
+						}
+					})();
+					break;
+				case 0x09:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var castID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(castID, lib.castPropertyNames09[propertyID]);
+					})();
+					break;
+				case 0x0c:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var fieldID = script.stack.pop();
+						translation = new AST.FieldPropertyReference(fieldID, lib.fieldPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x0d:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var castID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(castID, lib.castPropertyNames0d[propertyID]);
+					})();
+			}
+			script.stack.push(translation);
+		},
+		"set": () => {
+			switch (this.obj) {
+				case 0x00:
+					(() => {
+						var id = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						if (id <= 0x05) {
+							translation = new AST.AssignmentStatement(
+								new AST.MoviePropertyReference(lib.moviePropertyNames00[id]),
+								value
+							);
+						}
+					})();
+					break;
+				case 0x03:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var menuID = script.stack.pop();
+						var itemID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.MenuItemPropertyReference(menuID, itemID, lib.menuItemPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x04:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var soundID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SoundPropertyReference(soundID, lib.soundPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x06:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var spriteID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(spriteID, lib.spritePropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x07:
+					(() => {
+						var settingID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.MoviePropertyReference(lib.moviePropertyNames07[settingID]),
+							value
+						);
+					})();
+					break;
+				case 0x09:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var castID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(castID, lib.castPropertyNames09[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x0c:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var fieldID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.FieldPropertyReference(fieldID, lib.fieldPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x0d:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var castID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(castID, lib.castPropertyNames0d[propertyID]),
+							value
+						);
+					})();
+			}
+			ast.addStatement(translation);
+		},
+		"getprop": () => {
+			translation = new AST.MyPropertyReference(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"setprop": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.MyPropertyReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"getobjprop": () => {
+			var object = script.stack.pop();
+			translation = new AST.ObjPropertyReference(object, nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"setobjprop": () => {
+			var value  = script.stack.pop();
+			var object = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.ObjPropertyReference(object, nameList[this.obj]), value);
+			ast.addStatement(translation);
 		}
-		opcode += " " + (this.obj!==null?" "+this.obj:"");
-	return [opcode.toUpperCase(), pseudocode];
-}
+	};
 
-/* StackValue */
-
-function StackValue(value, type) {
-	this.value = value;
-	this.type = type;
-}
-
-StackValue.prototype.toString = function(noParentheses) {
-	if (this.type === "pseudocode" && !noParentheses) {
-		return "(" + this.value + ")";
+	if (typeof bytecodeHandlers[this.opcode] === "function") {
+		bytecodeHandlers[this.opcode]();
+	} else {
+		translation = new AST.ERROR();
+		script.stack = new Stack(); // Clear stack so later bytecode won't be too screwed up
 	}
-	if (["string", "int", "double", "arglist", "list"].includes(this.type)) {
-		return JSON.stringify(this.value);
-	}
-	return this.value;
+	this.translation = translation;
 }
+
+/* Stack */
+
+function Stack() {}
+Stack.prototype = [];
+
+Stack.prototype.pop = function() {
+	return this.length > 0 ? Array.prototype.pop.apply(this) : new AST.ERROR();
+};
 
 /* Initialization */
 
