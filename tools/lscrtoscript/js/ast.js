@@ -242,7 +242,7 @@ window.AST = (function () {
 
 		toString() {
 			var result = this.children.string + "." + this.type + "[" + this.children.first;
-			if (this.last.getValue()) {
+			if (this.children.last.getValue()) {
 				result += ".." + this.children.last;
 			}
 			this.result += "]";
