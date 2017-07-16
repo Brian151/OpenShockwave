@@ -1052,8 +1052,9 @@ Bytecode.prototype.translate = function() {
 			script.stack.push(list);
 		},
 		"newproplist": () => {
-			script.stack.pop();
-			script.stack.push(new AST.TODO());
+			var list = script.stack.pop().getValue();
+			translation = new AST.PropListLiteral(list);
+			script.stack.push(translation);
 		},
 		"pushint": () => {
 			translation = new AST.IntLiteral(this.obj);

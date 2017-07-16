@@ -139,6 +139,21 @@ window.AST = (function () {
 	class ArgListLiteral extends ListLiteral {}
 	AST.ArgListLiteral = ArgListLiteral;
 
+	/* PropListLiteral */
+
+	class PropListLiteral extends Literal {
+		toString() {
+			var result = "[";
+			for (let i = 0, l = this.value.length; i < l; i += 2) {
+				result += this.value[i] + ":" + this.value[i + 1];
+				if (i < l - 2) result += ", ";
+			}
+			result += "]";
+			return result;
+		}
+	}
+	AST.PropListLiteral = PropListLiteral;
+
 	/* SymbolLiteral */
 
 	class SymbolLiteral extends Literal {
