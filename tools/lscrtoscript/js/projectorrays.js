@@ -896,7 +896,7 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x15: "iftrue",
 		0x16: "call_local",
 		0x17: "call_external",
-		0x18: "callobj",
+		0x18: "callobj_old?",
 		0x19: "op_59xx",
 		0x1b: "op_5bxx",
 		0x1c: "get",
@@ -905,6 +905,7 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x20: "setmovieprop",
 		0x21: "getobjprop",
 		0x22: "setobjprop",
+		0x27: "callobj",
 		0x2e: "pushint"
 	};
 
@@ -1152,9 +1153,11 @@ Bytecode.prototype.translate = function() {
 				ast.addStatement(translation);
 			}
 		},
-		"callobj": () => {
-			var argList = script.stack.pop();
+		"callobj_old?": () => {
+			// Possibly used by old Director versions?
 			var object = script.stack.pop();
+			var argList = script.stack.pop();
+			// TODO
 		},
 		"op_59xx": () => {
 			script.stack.pop();
@@ -1365,6 +1368,16 @@ Bytecode.prototype.translate = function() {
 			var object = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.ObjPropertyReference(object, nameList[this.obj]), value);
 			ast.addStatement(translation);
+		},
+		"callobj": () => {
+			var argList = script.stack.pop();
+			var obj = argList.shift();
+			translation = new AST.ObjCallStatement(obj, nameList[this.obj], argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
 		}
 	};
 

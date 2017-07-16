@@ -123,6 +123,14 @@ window.AST = (function () {
 			let listString = this.value.join(", ");
 			return noBrackets ? listString : "[" + listString + "]";
 		}
+
+		pop() {
+			return this.value.pop();
+		}
+
+		shift() {
+			return this.value.shift();
+		}
 	}
 	AST.ListLiteral = ListLiteral;
 
@@ -417,6 +425,20 @@ window.AST = (function () {
 
 	class ExternalCallStatement extends CallStatement {}
 	AST.ExternalCallStatement = ExternalCallStatement;
+
+	/* ObjCallStatement */
+
+	class ObjCallStatement extends CallStatement {
+		constructor(obj, name, argList) {
+			super(name, argList);
+			this.addChild("obj", obj);
+		}
+
+		toString() {
+			return this.children.obj + "." + super.toString();
+		}
+	}
+	AST.ObjCallStatement = ObjCallStatement;
 
 	/* MoviePropertyReference */
 
