@@ -328,6 +328,11 @@ window.AST = (function () {
 	class GlobalVarReference extends VarReference {}
 	AST.GlobalVarReference = GlobalVarReference;
 
+	/* PropertyReference */
+
+	class PropertyReference extends VarReference {}
+	AST.PropertyReference = PropertyReference;
+
 	/* LocalVarReference */
 
 	class LocalVarReference extends VarReference {}
@@ -575,20 +580,6 @@ window.AST = (function () {
 		}
 	}
 	AST.FieldPropertyReference = FieldPropertyReference;
-
-	/* MyPropertyReference */
-
-	class MyPropertyReference extends Node {
-		constructor(propertyName) {
-			super();
-			this.propertyName = propertyName;
-		}
-
-		toString() {
-			return "me." + this.propertyName;
-		}
-	}
-	AST.MyPropertyReference = MyPropertyReference;
 
 	/* ObjPropertyReference */
 

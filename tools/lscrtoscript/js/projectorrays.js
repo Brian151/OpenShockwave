@@ -845,20 +845,20 @@ function Bytecode(handler, val, obj, objLength, pos) {
 
 Bytecode.prototype.getOpcode = function(val) {
 	const oneByteCodes = {
-		0x1: "ret",
-		0x3: "pushint0",
-		0x4: "mul",
-		0x5: "add",
-		0x6: "sub",
-		0x7: "div",
-		0x8: "mod",
-		0x9: "inv",
-		0xa: "joinstr",
-		0xb: "joinpadstr",
-		0xc: "lt",
-		0xd: "lteq",
-		0xe: "nteq",
-		0xf: "eq",
+		0x01: "ret",
+		0x03: "pushint0",
+		0x04: "mul",
+		0x05: "add",
+		0x06: "sub",
+		0x07: "div",
+		0x08: "mod",
+		0x09: "inv",
+		0x0a: "joinstr",
+		0x0b: "joinpadstr",
+		0x0c: "lt",
+		0x0d: "lteq",
+		0x0e: "nteq",
+		0x0f: "eq",
 		0x10: "gt",
 		0x11: "gteq",
 		0x12: "and",
@@ -884,9 +884,12 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x04: "pushcons",
 		0x05: "pushsymb",
 		0x09: "push_global",
-		0x0b: "pushparams",
+		0x0a: "push_prop",
+		0x0b: "push_param",
 		0x0c: "push_local",
 		0x0f: "pop_global",
+		0x10: "pop_prop",
+		0x11: "pop_param",
 		0x12: "pop_local",
 		0x13: "jmp",
 		0x14: "endrepeat",
@@ -898,8 +901,8 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x1b: "op_5bxx",
 		0x1c: "get",
 		0x1d: "set",
-		0x1f: "getprop",
-		0x20: "setprop",
+		0x1f: "getmovieprop",
+		0x20: "setmovieprop",
 		0x21: "getobjprop",
 		0x22: "setobjprop",
 		0x2e: "pushint"
@@ -1082,23 +1085,34 @@ Bytecode.prototype.translate = function() {
 			script.stack.push(translation);
 		},
 		"push_global": () => {
-			var name = nameList[this.obj];
-			translation = new AST.GlobalVarReference(name);
+			translation = new AST.GlobalVarReference(nameList[this.obj]);
 			script.stack.push(translation);
 		},
-		"pushparams": () => {
-			var name = this.handler.argumentNames[this.obj];
-			translation = new AST.ParamReference(name);
+		"push_prop": () => {
+			translation = new AST.PropertyReference(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_param": () => {
+			translation = new AST.ParamReference(this.handler.argumentNames[this.obj]);
 			script.stack.push(translation);
 		},
 		"push_local": () => {
-			var name = this.handler.localNames[this.obj];
-			translation = new AST.LocalVarReference(name);
+			translation = new AST.LocalVarReference(this.handler.localNames[this.obj]);
 			script.stack.push(translation);
 		},
 		"pop_global": () => {
 			var value = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.GlobalVarReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_prop": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.PropertyReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_param": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.ParamReference(this.handler.argumentNames[this.obj]), value);
 			ast.addStatement(translation);
 		},
 		"pop_local": () => {
@@ -1332,13 +1346,13 @@ Bytecode.prototype.translate = function() {
 			}
 			ast.addStatement(translation);
 		},
-		"getprop": () => {
-			translation = new AST.MyPropertyReference(nameList[this.obj]);
+		"getmovieprop": () => {
+			translation = new AST.MoviePropertyReference(nameList[this.obj]);
 			script.stack.push(translation);
 		},
-		"setprop": () => {
+		"setmovieprop": () => {
 			var value = script.stack.pop();
-			translation = new AST.AssignmentStatement(new AST.MyPropertyReference(nameList[this.obj]), value);
+			translation = new AST.AssignmentStatement(new AST.MoviePropertyReference(nameList[this.obj]), value);
 			ast.addStatement(translation);
 		},
 		"getobjprop": () => {
