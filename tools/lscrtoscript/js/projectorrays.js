@@ -1,6 +1,1441 @@
+'use strict';
+
+/* Utilities */
+
+function el(tagName, attributes, children) {
+	var e = document.createElement(tagName);
+	function addChild(child) {
+		if (Array.isArray(child)) {
+			for (let c of child) {
+				addChild(c);
+			}
+		} else if (child != null) {
+			if (!(child instanceof Node)) {
+				child = document.createTextNode(child);
+			}
+			e.appendChild(child);
+		}
+	}
+
+	if (attributes) {
+		for (var attr in attributes) {
+			e.setAttribute(attr, attributes[attr]);
+		}
+	}
+	if (children != null) {
+		addChild(children);
+	}
+	return e;
+}
+
+function formatBytes(num, length) {
+	var hex = num.toString(16).toUpperCase();
+	if (hex.length < length * 2) {
+		hex = "0".repeat(length * 2 - hex.length) + hex;
+	}
+	if (hex.length === 2) return hex;
+	return hex.match(/.{2}/g).join(' ');
+}
+
+/* Error Handling */
+
+function InvalidDirectorFileError(message) {
+	this.name = "InvalidDirectorFileError";
+	this.message = message;
+	this.stack = (new Error()).stack;
+}
+InvalidDirectorFileError.prototype = new Error();
+
+function PathTooNewError(message) {
+	this.name = "PathTooNewError";
+	this.message = message;
+	this.stack = (new Error()).stack;
+}
+PathTooNewError.prototype = new Error();
+
+/* DataStream */
+
+DataStream.prototype.readStringEndianness = function(length) {
+	var result = this.readString(length);
+	if (this.endianness) result = result.split("").reverse().join("");
+	return result;
+}
+
+DataStream.prototype.skip = function(n) {
+	this.seek(this.position + n);
+}
+
+/* OpenShockwaveMovie */
+
+function OpenShockwaveMovie(file) {
+	this.chunkArrays = null;
+	this.chunkMap = null;
+	this.differenceImap = null;
+
+	if (file != null) {
+		this.readFile(file);
+	}
+	// in the case that multiple files are chosen we can't draw more than one
+	// however, if the user wants to convert files we can do more than one at once
+}
+
+OpenShockwaveMovie.prototype.readFile = function(file) {
+	if (loggingEnabled) console.log("Constructing Open Shockwave Movie");
+
+	this.chunkArrays = {};
+	this.chunkArrays.RIFX = [];
+	this.chunkArrays.imap = [];
+	this.chunkArrays.mmap = [];
+
+	var reader = new FileReader();
+	reader.onload = e => {
+		if (loggingEnabled) console.log("ShockwaveMovieReader onLoad");
+		var dataStream = new DataStream(e.target.result);
+		dataStream.endianness = false; // we set this properly when we create the RIFX chunk
+		this.lookupMmap(dataStream);
+		this.linkScripts();
+
+		console.log(this.chunkArrays);
+
+		if (this.chunkArrays.LctX) {
+			var container = parent.right.document.getElementById("Lscrtables");
+			for (let i = 0, l = this.chunkArrays.LctX.length; i < l; i++) {
+				container.appendChild(this.chunkArrays.LctX[i].toHTML());
+				if (i < l - 1) container.appendChild(el('hr'));
+			}
+		}
+	};
+	reader.readAsArrayBuffer(file);
+};
+
+// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
+OpenShockwaveMovie.prototype.lookupMmap = function(dataStream) {
+	if (loggingEnabled) console.log("Looking Up mmap");
+
+	// valid length is undefined because we have not yet reached mmap
+	// however, it will be filled automatically in chunk's constructor
+	this.chunkMap = [];
+	this.chunkArrays.RIFX[0] = this.readChunk(dataStream, "RIFX");
+	// we can only open DIR or DXR
+	// we'll read OpenShockwaveMovie from dataStream because OpenShockwaveMovie is an exception to the normal rules
+	if (this.chunkArrays.RIFX[0].codec != "MV93") {
+		throw new PathTooNewError("Codec " + this.chunkArrays.RIFX[0].codec + " unsupported.");
+	}
+	// the next chunk should be imap
+	// this HAS to be dataStream for the OFFSET check to be correct
+	// we will continue to use it because in this implementation RIFX doesn't contain it
+	var imap = this.chunkArrays.imap[0] = this.readChunk(dataStream, "imap", undefined, 12);
+	this.differenceImap = 0;
+	// sanitize mmaps
+	if (imap.memoryMapArray[0] - 0x2C) {
+		this.differenceImap = imap.memoryMapArray[0] - 0x2C;
+		for (let i = 0, l = imap.memoryMapArray.length; i < l; i++) {
+			imap.memoryMapArray[i] -= this.differenceImap;
+		}
+	}
+	// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
+	dataStream.seek(imap.memoryMapArray[0]);
+	// interpret the numbers in the mmap - but don't actually find the chunks in it yet
+	this.chunkArrays.mmap.push(this.readChunk(dataStream, "mmap", undefined, this.chunkArrays.imap[0].memoryMapArray[0]));
+	// add chunks in the mmap to the chunkArrays HERE
+	// make sure to account for chunks with existing names, lengths and offsets
+	dataStream.position = 0;
+	for (let mapEntry of this.chunkArrays.mmap[0].mapArray) {
+		if (mapEntry.name != "mmap") {
+			dataStream.seek(mapEntry.offset);
+			if (!this.chunkArrays[mapEntry.name]) {
+				this.chunkArrays[mapEntry.name] = [];
+			}
+			let chunk = this.readChunk(dataStream, mapEntry.name, mapEntry.len, mapEntry.offset, mapEntry.padding, mapEntry.unknown0, mapEntry.link);
+			this.chunkArrays[mapEntry.name].push(chunk);
+			this.chunkMap[mapEntry.index] = chunk;
+		} else {
+			dataStream.position += this.chunkArrays.mmap[0].len + 8;
+		}
+	}
+}
+
+OpenShockwaveMovie.prototype.linkScripts = function() {
+	if (this.chunkArrays.LctX) {
+		for (let scriptContext of this.chunkArrays.LctX) {
+			let scriptNames = this.chunkMap[scriptContext.lnamSectionID];
+			scriptContext.scriptNames = scriptNames;
+			for (let section of scriptContext.sections) {
+				if (section.sectionID > -1) {
+					let script = this.chunkMap[section.sectionID];
+					script.context = scriptContext;
+					script.readNames();
+					script.translate();
+					scriptContext.scripts.push(script);
+				}
+			}
+		}
+	}
+}
+
+OpenShockwaveMovie.prototype.readChunk = function(mainDataStream, name, len, offset, padding, unknown0, link) {
+	if (loggingEnabled) console.log("Constructing Chunk: " + name);
+
+	// check if this is the chunk we are expecting
+	// we're using this instead of readString because we need to respect endianness
+	var validName = mainDataStream.readStringEndianness(4);
+	if (name == "RIFX") {
+		//if (validName.substring(0, 2) == "MZ") {
+			// handle Projector HERE
+		//}
+		if (validName == "XFIR") {
+			mainDataStream.endianness = true;
+			validName = "RIFX";
+		}
+	}
+	// check if it has the length the mmap table specifies
+	var validLen = mainDataStream.readUint32();
+	// the offset is checked against, well, our offset
+	var validOffset = mainDataStream.position - 8;
+	// if we don't know what to expect, grab the name of the chunk
+	if (name == null) {
+		name = validName;
+	}
+	// ignore validation if we have not yet reached the mmap section
+	if (len == null) {
+		len = validLen;
+	}
+	// use our current offset if we have not yet reached the mmap section
+	if (offset == null) {
+		offset = validOffset;
+	}
+	// padding can't be checked, so let's give it a default value if we don't yet know it
+	if (padding == null) {
+		// padding is usually zero
+		if (name != "free" && name != "junk") {
+			padding = 0;
+		} else {
+			padding = 12;
+		}
+	}
+	if (unknown0 == null) {
+		unknown0 = undefined;
+	}
+	if (link == null) {
+		link = undefined;
+	}
+
+	// validate chunk
+	if (name != validName || len != validLen || offset != validOffset) {
+		throw new InvalidDirectorFileError("At offset " + validOffset + ", expected '" + name + "' chunk with a length of " + len + " and offset of " + offset + " but found an '" + validName + "' chunk with a length of " + validLen + ".");
+	}
+
+	if (name != "RIFX") {
+	} else {
+		// we're going to pretend RIFX is only 12 bytes long
+		// this is because offsets are relative to the beginning of the file
+		// whereas everywhere else they're relative to chunk start
+		len = 4;
+	}
+
+	// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
+	var chunkDataStream = new DataStream();
+	chunkDataStream.endianness = mainDataStream.endianness;
+	chunkDataStream.writeUint8Array(mainDataStream.mapUint8Array(len));
+	chunkDataStream.seek(0);
+
+	var result;
+	switch (name) {
+		case "RIFX":
+			result = new Meta(this);
+			result.read(chunkDataStream);
+			break;
+		case "imap":
+			result = new IdealizedMap(this);
+			result.read(chunkDataStream);
+			break;
+		case "mmap":
+			result = new MemoryMap(this);
+			result.read(chunkDataStream);
+			break;
+		case "LctX":
+			result = new ScriptContext(this);
+			result.read(chunkDataStream);
+			break;
+		case "Lnam":
+			result = new ScriptNames(this);
+			result.read(chunkDataStream);
+			break;
+		case "Lscr":
+			result = new LingoScript(this);
+			result.read(chunkDataStream);
+			break;
+		default:
+			result = null;
+	}
+	return result;
+}
+
+/* Meta */
+
+function Meta(main) {
+	this.main = main;
+
+	this.codec = null;
+}
+
+Meta.prototype.read = function(dataStream) {
+	this.codec = dataStream.readStringEndianness(4);
+}
+
+/* IdealizedMap */
+
+function IdealizedMap(main) {
+	this.main = main;
+
+	this.memoryMapCount = null;
+	this.memoryMapArray = null;
+}
+
+IdealizedMap.prototype.read = function(dataStream) {
+	this.memoryMapCount = dataStream.readUint32();
+	this.memoryMapArray = dataStream.readUint32Array(this.memoryMapCount);
+}
+
+/* MemoryMap */
+
+function MemoryMap(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.chunkCountMax = null;
+	this.chunkCountUsed = null;
+	this.junkPointer = null;
+	this.unknown2 = null;
+	this.freePointer = null;
+	this.mapArray = null;
+}
+
+MemoryMap.prototype.read = function(dataStream) {
+	this.unknown0 = dataStream.readUint16();
+	this.unknown1 = dataStream.readUint16();
+	// possible one of the unknown mmap entries determines why an unused item is there?
+	// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
+	this.chunkCountMax = dataStream.readInt32();
+	this.chunkCountUsed = dataStream.readInt32();
+	this.junkPointer = dataStream.readInt32();
+	this.unknown2 = dataStream.readInt32();
+	this.freePointer = dataStream.readInt32();
+	this.mapArray = [];
+	// seems chunkCountUsed is used here, so what is chunkCount for?
+	// EDIT: chunkCountMax is maximum allowed chunks before new mmap created!
+	var entry;
+	for(var i=0,len=this.chunkCountUsed;i<len;i++) {
+		// don't actually generate new chunk objects here, just read in data
+		var entry = new MemoryMapEntry(this, i);
+		entry.read(dataStream);
+		// we don't care about free or junk chunks
+		if (entry.name !== "free" && entry.name !== "junk") {
+			this.mapArray.push(entry);
+		}
+	}
+}
+
+/* MemoryMapEntry */
+
+function MemoryMapEntry(map, index) {
+	this.map = map;
+	this.index = index;
+
+	this.name = null;
+	this.len = null;
+	this.offset = null;
+	this.padding = null;
+	this.unknown0 = null;
+	this.link = null;
+}
+
+MemoryMapEntry.prototype.read = function(dataStream) {
+	this.name = dataStream.readStringEndianness(4);
+	this.len = dataStream.readUint32();
+	this.offset = dataStream.readUint32() - this.map.main.differenceImap;
+	this.padding = dataStream.readInt16();
+	this.unknown0 = dataStream.readInt16();
+	this.link = dataStream.readInt32();
+};
+
+/* ScriptContext */
+
+function ScriptContext(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.entryCount = null;
+	this.entryCount2 = null;
+	this.entriesOffset = null;
+	this.unknown2 = null;
+	this.unknown3 = null;
+	this.unknown4 = null;
+	this.unknown5 = null;
+	this.lnamSectionID = null;
+	this.validCount = null;
+	this.flags = null;
+	this.freePointer = null;
+
+	this.sections = null;
+
+	this.scriptNames = null;
+	this.scripts = [];
+}
+
+ScriptContext.prototype.read = function(dataStream) {
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+
+	this.unknown0 = dataStream.readInt32();
+	this.unknown1 = dataStream.readInt32();
+	this.entryCount = dataStream.readUint32();
+	this.entryCount2 = dataStream.readUint32();
+	this.entriesOffset = dataStream.readUint16();
+	this.unknown2 = dataStream.readInt16();
+	this.unknown3 = dataStream.readInt32();
+	this.unknown4 = dataStream.readInt32();
+	this.unknown5 = dataStream.readInt32();
+	this.lnamSectionID = dataStream.readInt32();
+	this.validCount = dataStream.readUint16();
+	this.flags = dataStream.readUint16();
+	this.freePointer = dataStream.readInt16();
+
+	dataStream.seek(this.entriesOffset);
+	this.sections = [];
+	for (let i = 0, l = this.entryCount; i < l; i++) {
+		let section = new ScriptContextSection(this);
+		section.read(dataStream);
+		this.sections.push(section);
+	}
+}
+
+ScriptContext.prototype.toHTML = function() {
+	var container = el('div');
+	container.appendChild(el('h1', null, 'LctX ' + this.main.chunkMap.indexOf(this)));
+	for (let script of this.scripts) {
+		container.appendChild(script.toHTML());
+	}
+	return container;
+}
+
+/* ScriptContextSection */
+
+function ScriptContextSection(scriptContext) {
+	this.scriptContext = scriptContext;
+
+	this.unknown0 = null;
+	this.sectionID = null;
+	this.unknown1 = null;
+	this.unknown2 = null;
+}
+
+ScriptContextSection.prototype.read = function(dataStream) {
+	this.unknown0 = dataStream.readInt32();
+	this.sectionID = dataStream.readInt32();
+	this.unknown1 = dataStream.readUint16();
+	this.unknown2 = dataStream.readUint16();
+}
+
+/* ScriptNames */
+
+function ScriptNames(main) {
+	this.main = main;
+
+	this.unknown0 = null;
+	this.unknown1 = null;
+	this.len1 = null;
+	this.len2 = null;
+	this.namesOffset = null;
+	this.nameCount = null;
+
+	this.names = null;
+}
+
+ScriptNames.prototype.read = function(dataStream) {
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+
+	this.unknown0 = dataStream.readInt32();
+	this.unknown1 = dataStream.readInt32();
+	this.len1 = dataStream.readUint32();
+	this.len2 = dataStream.readUint32();
+	this.namesOffset = dataStream.readUint16();
+	this.nameCount = dataStream.readUint16();
+
+	dataStream.seek(this.namesOffset);
+	this.names = [];
+	for (let i = 0, l = this.nameCount; i < l; i++) {
+		let length = dataStream.readUint8();
+		let name = dataStream.readString(length);
+		this.names.push(name);
+	}
+}
+
+/* LingoScript */
+
+function LingoScript(main) {
+	this.main = main;
+
+	this.totalLength = null;
+	this.totalLength2 = null;
+	this.headerLength = null;
+	this.scriptNumber = null;
+	this.scriptBehaviour = null;
+	this.map = null;
+
+	this.propertyNameIDs = null;
+	this.globalNameIDs = null;
+
+	this.propertyNames = null;
+	this.globalNames = null;
+	this.handlers = null;
+	this.literals = null;
+	this.context = null;
+
+	this.stack = new Stack();
+}
+
+LingoScript.prototype.read = function(dataStream) {
+	dataStream.seek(8);
+	// Lingo scripts are always big endian regardless of file endianness
+	dataStream.endianness = false;
+	this.totalLength = dataStream.readUint32();
+	this.totalLength2 = dataStream.readUint32();
+	this.headerLength = dataStream.readUint16();
+	this.scriptNumber = dataStream.readUint16();
+	dataStream.seek(38);
+	this.scriptBehaviour = dataStream.readUint32();
+	dataStream.seek(50);
+	this.map = {};
+	this.map.handlervectors = new LscrChunk(dataStream.readUint16(), dataStream.readUint32(), dataStream.readUint32());
+	this.map.properties = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.globals = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.handlers = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.literals = new LscrChunk(dataStream.readUint16(), dataStream.readUint32());
+	this.map.literalsdata = new LscrChunk(dataStream.readUint32(), dataStream.readUint32());
+
+	this.propertyNameIDs = this.readVarnamesTable(dataStream, this.map.properties.len, this.map.properties.offset);
+	this.globalNameIDs = this.readVarnamesTable(dataStream, this.map.globals.len, this.map.globals.offset);
+
+	dataStream.seek(this.map.handlers.offset);
+	this.handlers = [];
+	for (let i = 0, l = this.map.handlers.len; i < l; i++) {
+		let handler = new Handler(this);
+		handler.readRecord(dataStream);
+		this.handlers.push(handler);
+	}
+	for (let handler of this.handlers) {
+		handler.readBytecode(dataStream);
+	}
+
+	dataStream.seek(this.map.literals.offset);
+	this.literals = [];
+	for (let i = 0, l = this.map.literals.len; i < l; i++) {
+		let literal = new Literal(this);
+		literal.readRecord(dataStream);
+		this.literals.push(literal);
+	}
+	for (let literal of this.literals) {
+		literal.readValue(dataStream, this.map.literalsdata.offset);
+	}
+}
+
+LingoScript.prototype.readVarnamesTable = function (dataStream, count, offset) {
+	dataStream.seek(offset);
+	var nameIDs = [];
+	for (let i = 0; i < count; i++) {
+		nameIDs.push(dataStream.readUint16());
+	}
+	return nameIDs;
+};
+
+LingoScript.prototype.readNames = function() {
+	var nameList = this.context.scriptNames.names;
+	this.propertyNames = this.propertyNameIDs.map(nameID => nameList[nameID]);
+	this.globalNames = this.globalNameIDs.map(nameID => nameList[nameID]);
+	for (let handler of this.handlers) {
+		handler.readNames();
+	}
+}
+
+LingoScript.prototype.translate = function() {
+	for (let handler of this.handlers) {
+		handler.translate();
+	}
+}
+
+LingoScript.prototype.toHTML = function() {
+	var fragment = document.createDocumentFragment();
+	fragment.appendChild(el('h2', null, 'Lscr ' + this.main.chunkMap.indexOf(this)));
+	if (this.propertyNames.length > 0) {
+		fragment.appendChild(el('h3', null, 'Properties'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.propertyNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.propertyNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
+	if (this.globalNames.length > 0) {
+		fragment.appendChild(el('h3', null, 'Globals'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.globalNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.globalNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
+	if (this.literals.length > 0) {
+		fragment.appendChild(el('h3', null, 'Literals'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'type'),
+				el('th', null, 'value')
+			])
+		]);
+		for (let literal of this.literals) {
+			table.appendChild(literal.toHTML());
+		}
+		fragment.appendChild(table);
+	}
+	if (this.handlers.length > 0) {
+		fragment.appendChild(el('h3', null, 'Handlers'));
+		for (let handler of this.handlers) {
+			fragment.appendChild(handler.toHTML());
+		}
+	}
+	return fragment;
+}
+
+/* LscrChunk */
+
+function LscrChunk(len, offset, flags) {
+	this.len = len;
+	this.offset = offset;
+	if (flags != null) {
+		this.flags = flags;
+	}
+}
+
+/* Handler */
+
+function Handler(script) {
+	this.script = script;
+
+	this.nameID = null;
+	this.handlerVectorPos = null;
+	this.compiledLen = null;
+	this.compiledOffset = null;
+	this.argumentCount = null;
+	this.argumentOffset = null;
+	this.localsCount = null;
+	this.localsOffset = null;
+	this.unknown0Count = null;
+	this.unknown0Offset = null;
+	this.unknown1 = null;
+	this.unknown2 = null;
+	// unknown3 doesn't seem to exist...
+	// this.unknown3 = null;
+	this.lineCount = null;
+	this.lineOffset = null;
+	this.stackHeight = null;
+
+	this.argumentNameIDs = [];
+	this.localNameIDs = [];
+
+	this.bytecodeArray = [];
+	this.bytecodeByPos = [];
+	this.argumentNames = [];
+	this.localNames = [];
+	this.name = null;
+	this.ast = null;
+}
+
+Handler.prototype.readRecord = function(dataStream) {
+	this.nameID = dataStream.readUint16();
+	this.handlerVectorPos = dataStream.readUint16();
+	this.compiledLen = dataStream.readUint32();
+	this.compiledOffset = dataStream.readUint32();
+	this.argumentCount = dataStream.readUint16();
+	this.argumentOffset = dataStream.readUint32();
+	this.localsCount = dataStream.readUint16();
+	this.localsOffset = dataStream.readUint32();
+	this.unknown0Count = dataStream.readUint16();
+	this.unknown0Offset = dataStream.readUint32();
+	this.unknown1 = dataStream.readUint32();
+	this.unknown2 = dataStream.readUint16();
+	// this.unknown3 = dataStream.readUint16();
+	this.lineCount = dataStream.readUint16();
+	this.lineOffset = dataStream.readUint32();
+	// yet to implement
+	this.stackHeight = dataStream.readUint32();
+}
+
+Handler.prototype.readBytecode = function(dataStream) {
+	dataStream.seek(this.compiledOffset);
+	this.bytecodeArray = [];
+	// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
+	// loop while there's still more code left
+	while (dataStream.position < this.compiledOffset + this.compiledLen) {
+		let pos = dataStream.position;
+		let op = dataStream.readUint8();
+		// instructions can be one, two or three bytes
+		let obj = null, objLength = 0;
+		if (op >= 0xc0) {
+			obj = dataStream.readUint24();
+			objLength = 3;
+		} else if (op >= 0x80) {
+			obj = dataStream.readUint16();
+			objLength = 2;
+		} else if (op >= 0x40) {
+			obj = dataStream.readUint8();
+			objLength = 1;
+		}
+		// read the first byte to convert to an opcode
+		let bytecode = new Bytecode(this, op, obj, objLength, pos);
+		this.bytecodeArray.push(bytecode);
+		this.bytecodeByPos[pos] = bytecode;
+	}
+
+	this.argumentNameIDs = this.readVarnamesTable(dataStream, this.argumentCount, this.argumentOffset);
+	this.localNameIDs = this.readVarnamesTable(dataStream, this.localsCount, this.localsOffset);
+}
+
+Handler.prototype.readVarnamesTable = LingoScript.prototype.readVarnamesTable;
+
+Handler.prototype.readNames = function() {
+	var nameList = this.script.context.scriptNames.names;
+	this.name = nameList[this.nameID];
+	this.argumentNames = this.argumentNameIDs.map(nameID => nameList[nameID]);
+	this.localNames = this.localNameIDs.map(nameID => nameList[nameID]);
+}
+
+Handler.prototype.translate = function() {
+	this.script.stack = new Stack();
+	this.ast = new AST(new AST.Handler(this.name, this.argumentNames));
+	for (let bytecode of this.bytecodeArray) {
+		let pos = bytecode.pos;
+		while (pos === this.ast.currentBlock._endPos) {
+			let exitedBlock = this.ast.currentBlock;
+			let blockParent = this.ast.currentBlock.parent;
+			this.ast.exitBlock();
+			if (blockParent.constructor === AST.IfStatement && blockParent.type === "if_else" && exitedBlock === blockParent.children.block1) {
+				this.ast.enterBlock(blockParent.children.block2);
+			}
+		}
+		bytecode.translate();
+	}
+}
+
+Handler.prototype.toHTML = function() {
+	var fragment = document.createDocumentFragment();
+	fragment.appendChild(
+		el(
+			'h4', null,
+			this.script.handlers.indexOf(this) + ': ' + this.name + '('
+			+ this.argumentNames.join(', ') + ')'
+		)
+	);
+	if (this.localNames.length > 0) {
+		fragment.appendChild(el('h5', null, 'Local Variables'));
+		let table = el('table', null, [
+			el('tr', null, [
+				el('th', null, 'index'),
+				el('th', null, 'name'),
+			])
+		]);
+		for (let i = 0, l = this.localNames.length; i < l; i++) {
+			table.appendChild(el('tr', null, [
+				el('td', null, i),
+				el('td', null, this.localNames[i])
+			]));
+		}
+		fragment.appendChild(table);
+	}
+	fragment.appendChild(el('h5', null, 'Bytecode'));
+	let table = el('table', null, [
+		el('tr', null, [
+			el('th', null, 'bytecode'),
+			el('th', null, 'opcode'),
+			el('th', null, 'pseudocode')
+		])
+	]);
+	for (let bytecode of this.bytecodeArray) {
+		table.appendChild(el('tr', null, [
+			el('td', null, formatBytes(bytecode.val, 1) + (bytecode.obj != null ? " " + formatBytes(bytecode.obj, bytecode.objLength) : "")),
+			el('td', null, bytecode.opcode.toUpperCase() + (bytecode.obj != null ? " " + bytecode.obj : "")),
+			el('td', null, bytecode.translation ? bytecode.translation.toPseudocode() : null)
+		]));
+	}
+	fragment.appendChild(table);
+	fragment.appendChild(el('h5', null, 'Lingo Code'));
+	fragment.appendChild(el('pre', null, this.ast.toString()));
+	return fragment;
+}
+
+/* Literal */
+
+function Literal(script) {
+	this.script = script;
+
+	this.type = null;
+	this.offset = null;
+	this.length = null;
+	this.value = null;
+}
+
+Literal.prototype.readRecord = function(dataStream) {
+	this.type = dataStream.readUint32();
+	this.offset = dataStream.readUint32();
+}
+
+Literal.prototype.readValue = function(dataStream, literalsOffset) {
+	dataStream.seek(literalsOffset + this.offset);
+	this.length = dataStream.readUint32();
+	if (this.type === 1) {
+		this.value = dataStream.readString(this.length - 1);
+	} else if (this.type === 4) {
+		this.value = this.offset;
+	} else if (this.type === 9) {
+		this.value = dataStream.readFloat64();
+	}
+}
+
+Literal.prototype.toHTML = function() {
+	return el('tr', null, [
+		el('td', null, this.script.literals.indexOf(this)),
+		el('td', null, Literal.types[this.type] || '?'),
+		el('td', null, JSON.stringify(this.value))
+	]);
+}
+
+Literal.types = {
+	1: 'string',
+	4: 'int',
+	9: 'float'
+};
+
+/* Bytecode */	
+
+function Bytecode(handler, val, obj, objLength, pos) {
+	this.handler = handler;
+	this.val = val || 0;
+	this.obj = obj != null ? obj : null;
+	this.objLength = objLength;
+	this.pos = pos;
+
+	this.opcode = this.getOpcode(this.val);
+	this.translation = null;
+}
+
+Bytecode.prototype.getOpcode = function(val) {
+	const oneByteCodes = {
+		0x01: "ret",
+		0x03: "pushint0",
+		0x04: "mul",
+		0x05: "add",
+		0x06: "sub",
+		0x07: "div",
+		0x08: "mod",
+		0x09: "inv",
+		0x0a: "joinstr",
+		0x0b: "joinpadstr",
+		0x0c: "lt",
+		0x0d: "lteq",
+		0x0e: "nteq",
+		0x0f: "eq",
+		0x10: "gt",
+		0x11: "gteq",
+		0x12: "and",
+		0x13: "or",
+		0x14: "not",
+		0x15: "containsstr",
+		0x16: "contains0str",
+		0x17: "splitstr",
+		0x18: "lightstr",
+		0x19: "ontospr",
+		0x1a: "intospr",
+		0x1b: "caststr",
+		0x1c: "startobj",
+		0x1d: "stopobj",
+		0x1e: "wraplist",
+		0x1f: "newproplist"
+	};
+
+	const multiByteCodes = {
+		0x01: "pushint",
+		0x02: "newarglist",
+		0x03: "newlist",
+		0x04: "pushcons",
+		0x05: "pushsymb",
+		0x09: "push_global",
+		0x0a: "push_prop",
+		0x0b: "push_param",
+		0x0c: "push_local",
+		0x0f: "pop_global",
+		0x10: "pop_prop",
+		0x11: "pop_param",
+		0x12: "pop_local",
+		0x13: "jmp",
+		0x14: "endrepeat",
+		0x15: "iftrue",
+		0x16: "call_local",
+		0x17: "call_external",
+		0x18: "callobj_old?",
+		0x19: "op_59xx",
+		0x1b: "op_5bxx",
+		0x1c: "get",
+		0x1d: "set",
+		0x1f: "getmovieprop",
+		0x20: "setmovieprop",
+		0x21: "getobjprop",
+		0x22: "setobjprop",
+		0x27: "callobj",
+		0x2e: "pushint"
+	};
+
+	var opcode = val < 0x40 ? oneByteCodes[val] : multiByteCodes[val % 0x40];
+	return opcode || "unk_" + val.toString(16);
+}
+
+Bytecode.prototype.translate = function() {
+	if (loggingEnabled) console.log("Translate Bytecode: " + bytecode);
+	var translation = null;
+	var script = this.handler.script;
+	var nameList = script.context.scriptNames.names;
+	var ast = this.handler.ast;
+
+	const handleBinaryOperator = () => {
+		const operators = {
+			"mul": "*",
+			"add": "+",
+			"sub": "-",
+			"div": "/",
+			"mod": "mod",
+			"joinstr": "&",
+			"joinpadstr": "&&",
+			"lt": "<",
+			"lteq": "<=",
+			"nteq": "<>",
+			"eq": "=",
+			"gt": ">",
+			"gteq": ">=",
+			"and": "and",
+			"or": "or",
+			"containsstr": "contains",
+			"contains0str": "starts"
+		};
+		var y = script.stack.pop();
+		var x = script.stack.pop();
+		translation = new AST.BinaryOperator(operators[this.opcode], x, y);
+		script.stack.push(translation);
+	};
+
+	const bytecodeHandlers = {
+		"ret": () => {
+			translation = new AST.ExitStatement();
+			ast.addStatement(translation);
+		},
+		"pushint0": () => {
+			translation = new AST.IntLiteral(0);
+			script.stack.push(translation);
+		},
+		"mul": handleBinaryOperator,
+		"add": handleBinaryOperator,
+		"sub": handleBinaryOperator,
+		"div": handleBinaryOperator,
+		"mod": handleBinaryOperator,
+		"inv": () => {
+			var x = script.stack.pop();
+			translation = new AST.InverseOperator(x);
+			script.stack.push(translation);
+		},
+		"joinstr": handleBinaryOperator,
+		"joinpadstr": handleBinaryOperator,
+		"lt": handleBinaryOperator,
+		"lteq": handleBinaryOperator,
+		"nteq": handleBinaryOperator,
+		"eq": handleBinaryOperator,
+		"gt": handleBinaryOperator,
+		"gteq": handleBinaryOperator,
+		"and": handleBinaryOperator,
+		"or": handleBinaryOperator,
+		"not": () => {
+			var x = script.stack.pop();
+			translation = new AST.NotOperator(x);
+			script.stack.push(translation);
+		},
+		"containsstr": handleBinaryOperator,
+		"contains0str": handleBinaryOperator,
+		"splitstr": () => {
+			var string = script.stack.pop();
+			var lastLine = script.stack.pop();
+			var firstLine = script.stack.pop();
+			var lastItem = script.stack.pop();
+			var firstItem = script.stack.pop();
+			var lastWord = script.stack.pop();
+			var firstWord = script.stack.pop();
+			var lastChar = script.stack.pop();
+			var firstChar = script.stack.pop();
+			if (firstChar.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("char", firstChar, lastChar, string);
+			} else if (firstWord.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("word", firstWord, lastWord, string);
+			} else if (firstItem.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("item", firstItem, lastItem, string);
+			} else if (firstLine.getValue() !== 0) {
+				translation = new AST.StringSplitExpression("line", firstLine, lastLine, string);
+			}
+			script.stack.push(translation);
+		},
+		"lightstr": () => {
+			var field = script.stack.pop();
+			var lastLine = script.stack.pop();
+			var firstLine = script.stack.pop();
+			var lastItem = script.stack.pop();
+			var firstItem = script.stack.pop();
+			var lastWord = script.stack.pop();
+			var firstWord = script.stack.pop();
+			var lastChar = script.stack.pop();
+			var firstChar = script.stack.pop();
+			if (firstChar.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("char", firstChar, lastChar, field);
+			} else if (firstWord.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("word", firstWord, lastWord, field);
+			} else if (firstItem.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("item", firstItem, lastItem, field);
+			} else if (firstLine.getValue() !== 0) {
+				translation = new AST.StringHilightCommand("line", firstItem, lastItem, field);
+			}
+			ast.addStatement(translation);
+		},
+		"ontospr": () => {
+			var firstSprite = script.stack.pop();
+			var secondSprite = script.stack.pop();
+			translation = new AST.SpriteIntersectsExpression(firstSprite, secondSprite);
+			script.stack.push(translation);
+		},
+		"intospr": () => {
+			var firstSprite = script.stack.pop();
+			var secondSprite = script.stack.pop();
+			translation = new AST.SpriteWithinExpression(firstSprite, secondSprite);
+			script.stack.push(translation);
+		},
+		"caststr": () => {
+			var fieldID = script.stack.pop();
+			translation = new AST.FieldReference(fieldID);
+			script.stack.push(translation);
+		},
+		"startobj": () => {
+			script.stack.pop();
+			// TODO
+		},
+		"stopobj": () => {
+			// TODO
+		},
+		"wraplist": () => {
+			var list = script.stack.pop();
+			script.stack.push(list);
+		},
+		"newproplist": () => {
+			var list = script.stack.pop().getValue();
+			translation = new AST.PropListLiteral(list);
+			script.stack.push(translation);
+		},
+		"pushint": () => {
+			translation = new AST.IntLiteral(this.obj);
+			script.stack.push(translation);
+		},
+		"newarglist": () => {
+			var args = script.stack.splice(script.stack.length - this.obj, this.obj);
+			translation = new AST.ArgListLiteral(args);
+			script.stack.push(translation);
+		},
+		"newlist": () => {
+			var items = script.stack.splice(script.stack.length - this.obj, this.obj);
+			translation = new AST.ListLiteral(items);
+			script.stack.push(translation);
+		},
+		"pushcons": () => {
+			var literal = script.literals[this.obj]
+			var type = Literal.types[literal.type];
+			if (type === "string") {
+				translation = new AST.StringLiteral(literal.value);
+			} else if (type === "int") {
+				translation = new AST.IntLiteral(literal.value);
+			} else if (type === "float") {
+				translation = new AST.FloatLiteral(literal.value);
+			}
+			script.stack.push(translation);
+		},
+		"pushsymb": () => {
+			translation = new AST.SymbolLiteral(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_global": () => {
+			translation = new AST.GlobalVarReference(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_prop": () => {
+			translation = new AST.PropertyReference(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_param": () => {
+			translation = new AST.ParamReference(this.handler.argumentNames[this.obj]);
+			script.stack.push(translation);
+		},
+		"push_local": () => {
+			translation = new AST.LocalVarReference(this.handler.localNames[this.obj]);
+			script.stack.push(translation);
+		},
+		"pop_global": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.GlobalVarReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_prop": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.PropertyReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_param": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.ParamReference(this.handler.argumentNames[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"pop_local": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.LocalVarReference(this.handler.localNames[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"jmp": () => {
+			var targetPos = this.pos + this.obj;
+			var nextBytecode = this.handler.bytecodeArray[this.getIndex() + 1];
+			var targetBytecode = this.handler.bytecodeByPos[targetPos];
+			var targetPrevBytecode = this.handler.bytecodeArray[targetBytecode.getIndex() - 1];
+			var blockParent = ast.currentBlock.parent;
+
+			if (blockParent.constructor === AST.IfStatement) {
+				if (nextBytecode.pos === ast.currentBlock._endPos && targetPrevBytecode.opcode === "endrepeat") {
+					translation = new AST.ExitRepeatStatement();
+					ast.addStatement(translation);
+				} else if (targetBytecode.opcode === "endrepeat") {
+					translation = new AST.NextRepeatStatement();
+					ast.addStatement(translation);
+				} else if (nextBytecode.pos === ast.currentBlock._endPos) {
+					blockParent.setType("if_else");
+					blockParent.children.block2._endPos = targetPos;
+				}
+			}
+		},
+		"endrepeat": () => {
+			var targetPos = this.pos - this.obj;
+			var targetBytecode = this.handler.bytecodeByPos[targetPos];
+			while (targetBytecode.opcode !== "iftrue") {
+				targetBytecode = this.handler.bytecodeArray[targetBytecode.getIndex() + 1];
+			}
+			targetBytecode.translation.setType("repeat_while");
+		},
+		"iftrue": () => {
+			var endPos = this.pos + this.obj
+			var condition = script.stack.pop();
+			translation = new AST.IfStatement("if", condition);
+			translation.children.block1._endPos = endPos;
+			ast.addStatement(translation);
+			ast.enterBlock(translation.children.block1)
+		},
+		"call_local": () => {
+			var argList = script.stack.pop();
+			translation = new AST.LocalCallStatement(script.handlers[this.obj].name, argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
+		},
+		"call_external": () => {
+			var argList = script.stack.pop();
+			translation = new AST.ExternalCallStatement(nameList[this.obj], argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
+		},
+		"callobj_old?": () => {
+			// Possibly used by old Director versions?
+			var object = script.stack.pop();
+			var argList = script.stack.pop();
+			// TODO
+		},
+		"op_59xx": () => {
+			script.stack.pop();
+			// TODO
+		},
+		"op_5bxx": () => {
+			script.stack.pop();
+			// TODO
+		},
+		"get": () => {
+			switch (this.obj) {
+				case 0x00:
+					(() => {
+						var id = script.stack.pop().getValue();
+						if (id <= 0x05) {
+							translation = new AST.MoviePropertyReference(lib.moviePropertyNames00[id]);
+						} else if (id <= 0x0b) {
+							translation = new AST.TimeExpression(lib.timeNames[id - 0x05]);
+						} else {
+							var string = script.stack.pop();
+							translation = new AST.LastStringChunkExpression(lib.chunkTypeNames[id - 0x0b]);
+						}
+					})();
+					break;
+				case 0x01:
+					(() => {
+						var statID = script.stack.pop().getValue();
+						var string = script.stack.pop();
+						translation = new AST.StringChunkCountExpression(lib.chunkTypeNames[statID], string);
+					})();
+					break;
+				case 0x02:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var menuID = script.stack.pop();
+						translation = new AST.MenuPropertyReference(menuID, lib.menuPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x03:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var menuID = script.stack.pop();
+						var itemID = script.stack.pop();
+						translation = new AST.MenuItemPropertyReference(menuID, itemID, lib.menuItemPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x04:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var soundID = script.stack.pop();
+						translation = new AST.SoundPropertyReference(soundID, lib.soundPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x06:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var spriteID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(spriteID, lib.spritePropertyNames[propertyID]);
+					})();
+					break;
+				case 0x07:
+					(() => {
+						var settingID = script.stack.pop().getValue();
+						translation = new AST.MoviePropertyReference(lib.moviePropertyNames07[settingID]);
+					})();
+					break;
+				case 0x08:
+					(() => {
+						var statID = script.stack.pop().getValue();
+						if (statID === 0x01) {
+							transltion = new AST.MoviePropertyReference("perFrameHook");
+						} else {
+							translation = new AST.ObjCountExpression(lib.countableObjectNames[statID]);
+						}
+					})();
+					break;
+				case 0x09:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var castID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(castID, lib.castPropertyNames09[propertyID]);
+					})();
+					break;
+				case 0x0c:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var fieldID = script.stack.pop();
+						translation = new AST.FieldPropertyReference(fieldID, lib.fieldPropertyNames[propertyID]);
+					})();
+					break;
+				case 0x0d:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var castID = script.stack.pop();
+						translation = new AST.SpritePropertyReference(castID, lib.castPropertyNames0d[propertyID]);
+					})();
+			}
+			script.stack.push(translation);
+		},
+		"set": () => {
+			switch (this.obj) {
+				case 0x00:
+					(() => {
+						var id = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						if (id <= 0x05) {
+							translation = new AST.AssignmentStatement(
+								new AST.MoviePropertyReference(lib.moviePropertyNames00[id]),
+								value
+							);
+						}
+					})();
+					break;
+				case 0x03:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var menuID = script.stack.pop();
+						var itemID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.MenuItemPropertyReference(menuID, itemID, lib.menuItemPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x04:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var soundID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SoundPropertyReference(soundID, lib.soundPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x06:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var spriteID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(spriteID, lib.spritePropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x07:
+					(() => {
+						var settingID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.MoviePropertyReference(lib.moviePropertyNames07[settingID]),
+							value
+						);
+					})();
+					break;
+				case 0x09:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var castID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(castID, lib.castPropertyNames09[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x0c:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var fieldID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.FieldPropertyReference(fieldID, lib.fieldPropertyNames[propertyID]),
+							value
+						);
+					})();
+					break;
+				case 0x0d:
+					(() => {
+						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
+						var castID = script.stack.pop();
+						translation = new AST.AssignmentStatement(
+							new AST.SpritePropertyReference(castID, lib.castPropertyNames0d[propertyID]),
+							value
+						);
+					})();
+			}
+			ast.addStatement(translation);
+		},
+		"getmovieprop": () => {
+			translation = new AST.MoviePropertyReference(nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"setmovieprop": () => {
+			var value = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.MoviePropertyReference(nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"getobjprop": () => {
+			var object = script.stack.pop();
+			translation = new AST.ObjPropertyReference(object, nameList[this.obj]);
+			script.stack.push(translation);
+		},
+		"setobjprop": () => {
+			var value  = script.stack.pop();
+			var object = script.stack.pop();
+			translation = new AST.AssignmentStatement(new AST.ObjPropertyReference(object, nameList[this.obj]), value);
+			ast.addStatement(translation);
+		},
+		"callobj": () => {
+			var argList = script.stack.pop();
+			var obj = argList.shift();
+			translation = new AST.ObjCallStatement(obj, nameList[this.obj], argList);
+			if (argList.constructor === AST.ListLiteral) {
+				script.stack.push(translation);
+			} else {
+				ast.addStatement(translation);
+			}
+		}
+	};
+
+	if (typeof bytecodeHandlers[this.opcode] === "function") {
+		bytecodeHandlers[this.opcode]();
+	} else {
+		translation = new AST.ERROR();
+		ast.addStatement(new AST.Comment(this.opcode.toUpperCase() + (this.obj != null ? " " + this.obj : "")));
+		script.stack = new Stack(); // Clear stack so later bytecode won't be too screwed up
+	}
+	this.translation = translation;
+}
+
+Bytecode.prototype.getIndex = function() {
+	return this.handler.bytecodeArray.indexOf(this);
+}
+
+/* Stack */
+
+function Stack() {}
+Stack.prototype = [];
+
+Stack.prototype.pop = function() {
+	return this.length > 0 ? Array.prototype.pop.apply(this) : new AST.ERROR();
+};
+
+/* Initialization */
+
 // When a user uploads a file, or if the user refreshes the page and a file is still loaded, send it to a variable.
 var files = null;
-if (!!document.form1.Lscr.files[0]) {
+if (document.form1.Lscr.files[0]) {
 	files = document.form1.Lscr.files;
 }
 
@@ -9,985 +1444,17 @@ function setFiles(e) {
 	files = e.target.files;
 }
 
-InvalidDirectorFileError = function(message) {
-	this.name = "InvalidDirectorFileError";
-	this.message = message;
-	this.stack = (new Error()).stack;
-}
-InvalidDirectorFileError.prototype = new Error;
-PathTooNewError = function(message) {
-	this.name = "PathTooNewError";
-	this.message = message;
-	this.stack = (new Error()).stack;
-}
-PathTooNewError.prototype = new Error;
-
-DataStream.prototype.readStringEndianness = function() {
-	var result = this.readString(4);
-	!this.endianness||(result=result.split("").reverse().join(""));
-	return result;
-}
-
-function OpenShockwaveMovie(file) {
-	// you know you want to
-	var Main = this;
-	
-	this.chunk = function(MainDataStream, name, len, offset, padding, unknown0, link) {
-		!loggingEnabled||console.log("Constructing Chunk: " + name);
-		// check if this is the chunk we are expecting
-		// we're using this instead of readString because we need to respect endianness
-		var validName = MainDataStream.readStringEndianness(4);
-		if (name == "RIFX") {
-			//if (validName.substring(0, 2) == "MZ") {
-				// handle Projector HERE
-			//}
-			if (validName == "XFIR") {
-				MainDataStream.endianness = true;
-				validName = "RIFX";
-			}
-		}
-		// check if it has the length the mmap table specifies
-		var validLen = MainDataStream.readUint32();
-		// the offset is checked against, well, our offset
-		var validOffset = MainDataStream.position - 8;
-		// if we don't know what to expect, grab the name of the chunk
-		if (typeof name !== 'undefined') {
-			this.name = name;
-		} else {
-			this.name = validName;
-		}
-		// ignore validation if we have not yet reached the mmap section
-		if (typeof len !== 'undefined') {
-			this.len = len;
-		} else {
-			this.len = validLen;
-		}
-		// use our current offset if we have not yet reached the mmap section
-		if (typeof offset !== 'undefined') {
-			this.offset = offset;
-		} else {
-			this.offset = validOffset;
-		}
-		// padding can't be checked, so let's give it a default value if we don't yet know it
-		if (typeof padding !== 'undefined') {
-			this.padding = padding;
-		} else {
-			// padding is usually zero
-			if (this.name != "free" && this.name != "junk") {
-				this.padding = 0;
-			} else {
-				this.padding = 12;
-			}
-		}
-		if (typeof unknown0 !== 'undefined') {
-			this.unknown0 = unknown0;
-		} else {
-			this.unknown0 = undefined;
-		}
-		if (typeof link !== 'undefined') {
-			this.link = link;
-		} else {
-			this.link = undefined;
-		}
-		if (!this.validate(this.name, validName, this.len, validLen, this.offset, validOffset)) {
-			throw new InvalidDirectorFileError("At offset " + validOffset + ", expected '" + this.name + "' chunk with a length of " + this.len + " and offset of " + this.offset + " but found an '" + validName + "' chunk with a length of " + validLen + ".");
-		}
-		if (this.name != "RIFX") {
-		} else {
-			// we're going to pretend RIFX is only 12 bytes long
-			// this is because offsets are relative to the beginning of the file
-			// whereas everywhere else they're relative to chunk start
-			this.len = 4;
-		}
-		// copy the contents of the chunk to a new DataStream (minus name/length as that's not what offsets are usually relative to)
-		this.ChunkDataStream = new DataStream();
-		this.ChunkDataStream.endianness = MainDataStream.endianness;
-		this.ChunkDataStream.writeUint8Array(MainDataStream.mapUint8Array(this.len/* - 8*/));
-		this.ChunkDataStream.seek(0);
-		
-		// read in the values pertaining to this chunk
-		// this will be a huge part of the code
-		// TODO: insert notes from FormatNotes.txt here for a quicker reference
-		this.read = function() {
-			var result;
-			switch (this.name) {
-				case "RIFX":
-					result = new Main.Meta();
-					result.codec = this.ChunkDataStream.readStringEndianness(4);
-					break;
-				case "imap":
-					result = new Main.idealizedMap();
-					result.memoryMapCount = this.ChunkDataStream.readUint32();
-					result.memoryMapArray = this.ChunkDataStream.readUint32Array(result.memoryMapCount);
-					break;
-				case "mmap":
-					result = new Main.memoryMap();
-					// read in mmap here
-					// these names are taken from Schockabsorber, I don't know what they do
-					result.unknown0 = this.ChunkDataStream.readUint16();
-					result.unknown1 = this.ChunkDataStream.readUint16();
-					// possible one of the unknown mmap entries determines why an unused item is there?
-					// it also seems code comments can be inserted after mmap after chunkCount is over, it may warrant investigation
-					result.chunkCountMax = this.ChunkDataStream.readInt32();
-					result.chunkCountUsed = this.ChunkDataStream.readInt32();
-					result.junkPointer = this.ChunkDataStream.readInt32();
-					result.unknown2 = this.ChunkDataStream.readInt32();
-					result.freePointer = this.ChunkDataStream.readInt32();
-					result.mapArray = new Array();
-					// seems chunkCountUsed is used here, so what is chunkCount for?
-					// EDIT: chunkCountMax is maximum allowed chunks before new mmap created!
-					for(var i=0,len=result.chunkCountUsed;i<len;i++) {
-						// don't actually generate new chunk objects here, just read in data
-						result.mapArray[i] = [];
-						result.mapArray[i]["name"] = this.ChunkDataStream.readStringEndianness(4);
-						//alert(i + " " + len + " " + this.mapArray[i]["name"]);
-						result.mapArray[i]["len"] = this.ChunkDataStream.readUint32();
-						result.mapArray[i]["offset"] = this.ChunkDataStream.readUint32();
-						result.mapArray[i]["offset"] -= Main.differenceImap;
-						result.mapArray[i]["padding"] = this.ChunkDataStream.readInt16();
-						result.mapArray[i]["unknown0"] = this.ChunkDataStream.readInt16();
-						result.mapArray[i]["link"] = this.ChunkDataStream.readInt32();
-						// we don't care about free or junk chunks, go back and overwrite them
-						// don't move this if block up - the cursor has to be in the right position to read the next chunk
-						if (result.mapArray[i]["name"] == "free" || result.mapArray[i]["name"] == "junk") {
-							// delete this chunk
-							result.mapArray.splice(i, 1);
-							i--;
-							len--;
-						}
-					}
-					break;
-				case "Lscr":
-					result = new Main.LingoScript();
-					this.ChunkDataStream.seek(8);
-					// Lingo scripts are always big endian regardless of file endianness
-					this.ChunkDataStream.endianness = false;
-					result.totalLength = this.ChunkDataStream.readUint32();
-					result.totalLength2 = this.ChunkDataStream.readUint32();
-					result.headerLength = this.ChunkDataStream.readUint16();
-					result.scriptNumber = this.ChunkDataStream.readUint16();
-					this.ChunkDataStream.seek(38);
-					result.scriptBehaviour = this.ChunkDataStream.readUint32();
-					this.ChunkDataStream.seek(50);
-					result.map = new Array();
-					result.map["handlervectors"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
-					result.map["properties"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-					//console.log(result.map["properties"].offset);
-					result.map["globals"] = new result.LscrChunk(this.ChunkDataStream.readUint16(), this.ChunkDataStream.readUint32());
-					//console.log(result.map["globals"].offset);
-					// 74
-					result.map["handlers"] = new result.LscrChunk(this.ChunkDataStream.readUint16(),  this.ChunkDataStream.readUint32());
-					//console.log(result.map["handlers"].offset);
-					result.map["literals"] = new result.LscrChunk(this.ChunkDataStream.readUint32(), this.ChunkDataStream.readUint32());
-					this.ChunkDataStream.seek(result.map["handlers"].offset);
-					// the length of the code in the handler and the offset to it (ignoring scripts can have multiple handlers for now)
-					result.handlers = new Array();
-					for(var i=0,len=result.map["handlers"].len;i<len;i++) {
-						result.handlers[i] = new result.handler();
-						result.handlers[i].name = this.ChunkDataStream.readUint16();
-						result.handlers[i].handlervectorpos = this.ChunkDataStream.readUint16();
-						result.handlers[i].compiledlen = this.ChunkDataStream.readUint32();
-						result.handlers[i].compiledoffset = this.ChunkDataStream.readUint32();
-						result.handlers[i].argumentcount = this.ChunkDataStream.readUint16();
-						result.handlers[i].argumentoffset = this.ChunkDataStream.readUint32();
-						result.handlers[i].localscount = this.ChunkDataStream.readUint16();
-						result.handlers[i].localsoffset = this.ChunkDataStream.readUint32();
-						result.handlers[i].unknown0count = this.ChunkDataStream.readUint16();
-						result.handlers[i].unknown0offset = this.ChunkDataStream.readUint32();
-						result.handlers[i].unknown1 = this.ChunkDataStream.readUint32();
-						result.handlers[i].unknown2 = this.ChunkDataStream.readUint16();
-						result.handlers[i].unknown3 = this.ChunkDataStream.readUint16();
-						result.handlers[i].linecount = this.ChunkDataStream.readUint16();
-						result.handlers[i].lineoffset = this.ChunkDataStream.readUint32();
-						// yet to implement
-						result.handlers[i].stackheight = this.ChunkDataStream.readUint32();
-					}
-					if (result.map["handlers"].len) {
-						this.ChunkDataStream.seek(result.handlers[0].compiledoffset);
-						result.handlers[0].bytecodeArray = new Array();
-						// seeks to the offset of the handlers. Currently only grabs the first handler in the script.
-						// loop while there's still more code left
-						var pos = null;
-						while (this.ChunkDataStream.position < result.handlers[0].compiledoffset + result.handlers[0].compiledlen) {
-							// read the first byte to convert to an opcode
-							pos = new result.handlers[0].bytecode(this.ChunkDataStream.readUint8());
-							// instructions can be one, two or three bytes
-							if (pos.val >= 192) {
-							pos.obj = this.ChunkDataStream.readUint24();
-							} else {
-								if (pos.val >= 128) {
-									pos.obj = this.ChunkDataStream.readUint16();
-								} else {
-									if (pos.val >= 64) {
-										pos.obj = this.ChunkDataStream.readUint8();
-									}
-								}
-							}
-							result.handlers[0].bytecodeArray.push(pos);
-						}
-					}
-					break;
-			}
-			return result;
-		}
-		return this.read();
-	}
-	
-	this.chunk.prototype.validate = function(name, validName, len, validLen, offset, validOffset) {
-		!loggingEnabled||console.log("Validating Chunk: " + name);
-		if (name != validName || len != validLen || offset != validOffset) {
-			return false;
-		} else {
-			return true;
-		}
-	}
-	
-	this.Meta = function() {
-	}
-	
-	this.idealizedMap = function() {
-	}
-	
-	this.memoryMap = function() {
-	}
-	
-	this.cast = function() {
-	}
-	
-	this.LingoScript = function() {
-		// add handlers, variables...
-		
-		this.handler = function() {
-			this.bytecodeArray = new Array();
-		}
-		
-		this.handler.prototype.bytecode = function(val, obj) {
-			if (typeof val !== 'undefined') {
-				this.val = val;
-			} else {
-				this.val = 0;
-			}
-			if (typeof obj !== 'undefined') {
-				this.obj = obj;
-			} else {
-				this.obj = null;
-			}
-		}
-		
-		this.handler.prototype.bytecode.prototype.operate11 = function(val) {
-			var opcode, operator, result;
-			var x = Main.LingoScript.prototype.stack.pop();
-			switch (val) {
-				case 0x9:
-					opcode = "inv";
-					operator = "-";
-					result = -x.val;
-					break;
-				case 0x14:
-					opcode = "not";
-					operator = "!";
-					result = !x.val;
-			}
-			pseudocode = "projectorrraystemp_" + operator + "" + x.name + " = (" + operator + "" + x.name + ")";
-			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result), "projectorrraystemp_" + operator + "" + x.name + "");
-		}
-		
-		this.handler.prototype.bytecode.prototype.operate21 = function(val) {
-			var opcode, operator, result;
-			var x = Main.LingoScript.prototype.stack.pop();
-			var y = Main.LingoScript.prototype.stack.pop();
-			switch (val) {
-				case 0x4:
-					opcode = "mul";
-					operator = "*";
-					result = x.val * y.val;
-					break;
-				case 0x5:
-					opcode = "add";
-					operator = "+";
-					result = (x.val * 1) + (y.val * 1);
-					break;
-				case 0x6:
-					opcode = "sub";
-					operator = "-";
-					result = x.val - y.val;
-					break;
-				case 0x7:
-					opcode = "div";
-					operator = "/";
-					result = x.val / y.val;
-					break;
-				case 0x8:
-					opcode = "mod";
-					operator = "mod";
-					result = x.val % y.val;
-				case 0xa:
-					opcode = "joinstr";
-					operator = "&";
-					result = x.val.toString() + y.val.toString();
-					break;
-				case 0xb:
-					opcode = "joinpadstr";
-					operator = "&&";
-					result = x.val.toString() + " " + y.val.toString();
-					break;
-				case 0xc:
-					opcode = "lt";
-					operator = "<";
-					result = x.val < y.val;
-					break;
-				case 0xd:
-					opcode = "lteq";
-					operator = "<=";
-					result = x.val <= y.val;
-					break;
-				case 0xe:
-					opcode = "nteq";
-					operator = "!=";
-					result = x.val != y.val;
-					break;
-				case 0xf:
-					opcode = "eq";
-					operator = "==";
-					result = x.val == y.val;
-					break;
-				case 0x10:
-					opcode = "gt";
-					operator = ">";
-					result = x.val > y.val;
-					break;
-				case 0x11:
-					opcode = "gteq";
-					operator = ">=";
-					result = x.val >= y.val;
-					break;
-				case 0x12:
-					opcode = "and";
-					operator = "and";
-					result = x.val && y.val;
-					break;
-				case 0x13:
-					opcode = "or";
-					operator = "or";
-					result = x.val || y.val;
-					break;
-				case 0x15:
-					opcode = "containsstr";
-					operator = "contains";
-					result = ~x.val.indexOf(y.val);
-					break;
-				case 0x16:
-					opcode = "contains0str";
-					operator = "starts";
-					result = !x.val.indexOf(y.val);
-			}
-			pseudocode = "projectorrraystemp_" + x.name + "" + operator + "" + y.name + " = (" + x.name + " " + operator + " " + y.name + ")";
-			Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(result, "projectorrraystemp_" + x.name + "" + pseudocode + "" + y.name + ""));
-		}
-		
-		var oldpop = Array.prototype.pop;
-		Array.prototype.pop = function() {
-			return this.length?oldpop():new Main.LingoScript.prototype.nameValuePair("", "");
-		}
-		
-		this.handler.prototype.bytecode.prototype.translate = function() {
-			Main.LingoScript.prototype.stack = [];
-			!loggingEnabled||console.log("Translate Bytecode: " + bytecode);
-			var opcode = "";
-			var pseudocode = "";
-			// see the documentation for notes on these opcodes
-			switch (this.val) {
-				// TODO: copy the comments from OP.txt into the code for a quicker reference
-				/* Single Byte Instructions */
-				case 0x1:
-					opcode = "ret";
-					pseudocode = "exit";
-					break;
-				case 0x3:
-					opcode = "pushint0";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
-					break;
-				case 0x4:
-				case 0x5:
-				case 0x6:
-				case 0x7:
-				case 0x8:
-				case 0xa:
-				case 0xb:
-				case 0xc:
-				case 0xd:
-				case 0xe:
-				case 0xf:
-				case 0x10:
-				case 0x11:
-				case 0x12:
-				case 0x13:
-				case 0x14:
-				case 0x15:
-				case 0x16:
-					this.operate21(this.val);
-					break;
-				case 0x9:
-				case 0x14:
-					this.operate11(this.val);
-					break;
-				case 0x17:
-					opcode = "splitstr";
-					(function() {
-						var firstchar = Main.LingoScript.prototype.stack.pop();
-						var lastchar = Main.LingoScript.prototype.stack.pop();
-						var firstchar = Main.LingoScript.prototype.stack.pop();
-						var firstword = Main.LingoScript.prototype.stack.pop();
-						var lastword = Main.LingoScript.prototype.stack.pop();
-						var firstitem = Main.LingoScript.prototype.stack.pop();
-						var lastitem = Main.LingoScript.prototype.stack.pop();
-						var firstline = Main.LingoScript.prototype.stack.pop();
-						var lastline = Main.LingoScript.prototype.stack.pop();
-						var strsplit = Main.LingoScript.prototype.stack.pop();
-						// lazy
-						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(strsplit));
-						pseudocode = "char " + firstchar + " of " + lastchar;
-					})();
-					break;
-				case 0x18:
-					opcode = "lightstr";
-					(function() {
-						var firstchar = Main.LingoScript.prototype.stack.pop();
-						var lastchar = Main.LingoScript.prototype.stack.pop();
-						var firstchar = Main.LingoScript.prototype.stack.pop();
-						var firstword = Main.LingoScript.prototype.stack.pop();
-						var lastword = Main.LingoScript.prototype.stack.pop();
-						var firstitem = Main.LingoScript.prototype.stack.pop();
-						var lastitem = Main.LingoScript.prototype.stack.pop();
-						var firstline = Main.LingoScript.prototype.stack.pop();
-						var lastline = Main.LingoScript.prototype.stack.pop();
-						var strsplit = Main.LingoScript.prototype.stack.pop();
-						// lazy
-						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(strsplit));
-						pseudocode = "hilite " + firstchar + " of " + lastchar;
-					})();
-					break;
-				case 0x19:
-					opcode = "ontospr";
-					(function() {
-						var firstspr = Main.LingoScript.prototype.stack.pop();
-						var secondspr = Main.LingoScript.prototype.stack.pop();
-						// lazy
-						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
-						pseudocode = "sprite " + firstspr + " intersects " + secondspr;
-					})();
-					break;
-				case 0x1a:
-					opcode = "intospr";
-					(function() {
-						var firstspr = Main.LingoScript.prototype.stack.pop();
-						var secondspr = Main.LingoScript.prototype.stack.pop();
-						// lazy
-						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(0));
-						pseudocode = "sprite " + firstspr + " within " + secondspr;
-					})();
-					break;
-				case 0x1b:
-					opcode = "caststr";
-					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
-					pseudocode = "(field 1)";
-					break;
-				case 0x1c:
-					opcode = "startobj";
-					Main.LingoScript.prototype.stack.pop();
-					pseudocode = "tell obj to go to frame x";
-					break;
-				case 0x1d:
-					opcode = "stopobj";
-					pseudocode = "tell obj to go to frame x";
-					break;
-				case 0x1e:
-					opcode = "wraplist";
-					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
-					break; // NAME NOT CERTAINLY SET IN STONE JUST YET...
-				case 0x1f:
-					opcode = "newproplist";
-					Main.LingoScript.prototype.stack.push(Main.LingoScript.prototype.stack.pop());
-					break;
-				/* Multi - Byte Instructions */
-				/*
-					To-do: 
-					handle special cases like getting names from name table,
-					or opcodes that determine context through other means
-					than their operands.
-				*/
-				case 0x41:
-					opcode = "pushbyte";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				case 0x81:
-					opcode = "pushshort";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				case 0xc1:
-					opcode = "pushint24";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				case 0x42:
-				case 0x82:
-				case 0xc2:
-					opcode = "newarglist";
-					(function(obj) {
-						var args = Main.LingoScript.prototype.stack.splice(Main.LingoScript.prototype.stack.length - obj, obj).reverse();
-						// we now have nameValuePair inside of
-						Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(args));
-						// pseudocode is "silent," this is just to sort out the stack
-					})(this.obj);
-					break;
-				case 0x43:
-				case 0x83:
-				case 0xc3:
-					opcode = "newlist";
-					break;
-				case 0x44:
-				case 0x84:
-				case 0xc4:
-					opcode = "push";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break; 
-					/* 
-						likely to be re-named to:
-						pushstring
-						pushint
-						pushfloat,
-						based on the type of constant record referenced by this instruction
-					*/
-				case 0x45:
-				case 0x85:
-				case 0xc5:
-					opcode = "pushsymb";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				/*
-				case 0x46:
-				case 0x86:
-				case 0xc6:
-					opcode = "nop"; // POSSIBLY RELATED TO NEWARGLIST
-					break;
-				case 0x47:
-				case 0x87:
-				case 0xc7:
-					opcode = "nop";
-					break;
-				case 0x48:
-				case 0x88:
-				case 0xc8:
-					opcode = "nop";
-					break;
-				*/
-				case 0x49:
-					opcode = "push_global";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				/*
-				case 0x4a:
-				case 0x8a:
-				case 0xca:
-					opcode = "nop";
-					break;
-				*/
-				case 0x4b:
-				case 0x8b:
-				case 0xcb:
-					opcode = "pushparams";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				case 0x4c:
-				case 0x8c:
-				case 0xcc:
-					opcode = "push_local";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair(this.obj));
-					break;
-				/*
-				case 0x4d:
-				case 0x8d:
-				case 0xcd:
-					opcode = "nop";
-					break;
-				case 0x4e:
-				case 0x8e:
-				case 0xce:
-					opcode = "nop";
-					break;
-				*/
-				case 0x4f:
-				case 0x8f:
-				case 0xcf:
-					opcode = "pop_global";
-					(function(obj) {
-						var popped = Main.LingoScript.prototype.stack.pop();
-						var poppedstring = popped.val;
-						// go to Lnam and set that global
-						pseudocode = poppedstring + " = " + obj;
-					})(this.obj);
-					break;
-				/*
-				case 0x50:
-				case 0x90
-				case 0xd0
-					opcode = "nop";
-					break;
-				case 0x51:
-				case 0x91:
-				case 0xd1:
-					opcode = "nop";
-					break;
-				*/
-				case 0x52:
-				case 0x92:
-				case 0xd2:
-					opcode = "pop_local";
-					(function(obj) {
-						var popped = Main.LingoScript.prototype.stack.pop();
-						var poppedstring = popped.val;
-						pseudocode = poppedstring + " = " + obj;
-					})(this.obj);
-					break;
-				case 0x53:
-				case 0x93:
-				case 0xd3:
-					opcode = "jmp";
-					// do something
-					break;
-				case 0x54:
-				case 0x94:
-				case 0xd4:
-					opcode = "endrepeat";
-					pseudocode = "end repeat";
-					break;
-				case 0x55:
-				case 0x95:
-				case 0xd5:
-					opcode = "iftrue";
-					pseudocode = "if (" + this.obj + ")";
-					break;
-				case 0x56:
-				case 0x96:
-				case 0xd6:
-					opcode = "call_local";
-					(function(obj) {
-						var argslist = Main.LingoScript.prototype.stack.pop();
-						var argsliststring = "";
-						for (var i=0,len=argslist.val.length;i<len;i++) {
-							argsliststring += argslist.val[i].val;
-							if (i < len - 1) {
-								argsliststring += ", ";
-							}
-						}
-						pseudocode = obj + "(" + argsliststring + ")";
-					})(this.obj);
-					break;
-				case 0x57:
-				case 0x97:
-				case 0xd7:
-					opcode = "call_external";
-					(function(obj) {
-						var argslist = Main.LingoScript.prototype.stack.pop();
-						var argsliststring = "";
-						for (var i=0,len=argslist.val.length;i<len;i++) {
-							argsliststring += argslist.val[i].val;
-							if (i < len - 1) {
-								argsliststring += ", ";
-							}
-						}
-						pseudocode = obj + "(" + argsliststring + ")";
-					})(this.obj);
-					break;
-				case 0x58:
-				case 0x98:
-				case 0xd8:
-					opcode = "callobj";
-					(function() {
-						var argslist = Main.LingoScript.prototype.stack.pop();
-						var poppedobject = Main.LingoScript.prototype.stack.pop();
-						var argsliststring = "";
-						for (var i=0,len=argslist.val.length;i<len;i++) {
-							argsliststring += argslist.val[i].val;
-							if (i < len - 1) {
-								argsliststring += ", ";
-							}
-						}
-						pseudocode = poppedobject.obj + "(" + argsliststring + ")";
-					})();
-					break;
-				case 0x59:
-					opcode = "op_59xx";
-					Main.LingoScript.prototype.stack.pop();
-					break; //TEMP NAME
-				/*
-				case 0x5a:
-				case 0x9a:
-				case 0xda:
-					opcode = "nop";
-					break;
-				*/
-				case 0x5b:
-				case 0x9b:
-				case 0xdb:
-					opcode = "op_5bxx";
-					Main.LingoScript.prototype.stack.pop();
-					break; //TEMP NAME
-				case 0x5c:
-				case 0x9c:
-				case 0xdc:
-					opcode = "get";
-					Main.LingoScript.prototype.stack.pop();
-					if (this.val >= 0x0C) {
-						Main.LingoScript.prototype.stack.pop();
-					}
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
-					break; // needs values from stack to determine what it's getting
-						   // that said, dissassembly of this instruction is not yet complete
-				case 0x5d:
-				case 0x9d:
-				case 0xdd:
-					opcode = "set";
-					(function(val) {
-						// make a switch later
-						Main.LingoScript.prototype.stack.pop();
-						Main.LingoScript.prototype.stack.pop();
-						if (val == 3) {
-							Main.LingoScript.prototype.stack.pop();
-							Main.LingoScript.prototype.stack.pop();
-						}
-						if (val != 0 && val != 3 && val != 7) {
-							Main.LingoScript.prototype.stack.pop();
-						}
-					})(this.val);
-					break; // needs values from stack to determine what it's setting
-						   // that said, dissassembly of this instruction is not yet complete
-				/*
-				case 0x5e:
-				case 0x9e:
-				case 0xde:
-					opcode = "nop";
-					break;
-				*/
-				case 0x5f:
-				case 0x9f:
-				case 0xdf:
-					opcode = "getprop";
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
-					pseudocode = "(the prop)";
-					break;
-				case 0x60:
-				case 0xa0:
-				case 0xe0:
-					opcode = "setprop";
-					Main.LingoScript.prototype.stack.pop();
-					pseudocode = "set the prop to x";
-					break;
-				case 0x61:
-				case 0xa1:
-				case 0xe1:
-					opcode = "getobjprop";
-					Main.LingoScript.prototype.stack.pop();
-					Main.LingoScript.prototype.stack.push(new Main.LingoScript.prototype.nameValuePair("TODO"));
-					pseudocode = "(the prop of x)";
-					break;
-				case 0x62:
-				case 0xa2:
-				case 0xe2:
-					opcode = "setobjprop";
-					Main.LingoScript.prototype.stack.pop();
-					Main.LingoScript.prototype.stack.pop();
-					pseudocode = "set the prop of x to y";
-					break;
-				case 0x64:
-				case 0xa4:
-				case 0xe4:
-					//opcode = "op_64xx";
-					//break;
-				case 0x65:
-				case 0xa5:
-				case 0xe5:
-					//opcode = "op_65xx";
-					//break;
-				case 0x66:
-				case 0xa6:
-				case 0xe6:
-					//opcode = "op_66xx";
-					opcode = "op_" + this.val.toString(16);
-					break;
-				/* anything not yet indentitifed/discovered goes here */
-				default:
-					opcode = "UNK_" + this.val.toString(16);
-					/*
-						if we return values prefixed with "UNK_" (e.g. unknown), that means we have encountered
-						an op code hasn't yet been discovered and needs to be understood for a complete dissassembly 
-						and/or decompilation. If the decompiler is created before all the opcodes are known 
-						(and this might just happen), it should return source code with comments saying decompilation failed,
-						listing the opcodes and their offsets.
-					*/
-				}
-				opcode += " " + (this.obj!==null?" "+this.obj:"");
-			return [opcode.toUpperCase(), pseudocode];
-		}
-		
-		// needs serious work within new model
-		!loggingEnabled||console.log("Constructing Lingo Script");
-		this.handler.prototype.write = function() {
-			var towrite = "<table border='1'><tr><th>bytecode</th><th>opcode</th><th>pseudocode</th></tr>";
-			var translation;
-			for(var i=0,len=this.bytecodeArray.length;i<len;i++) {
-				translation = this.bytecodeArray[i].translate();
-				towrite += "<tr><td>" + this.bytecodeArray[i].val + "" + (this.bytecodeArray[i].obj!==null?" "+this.bytecodeArray[i].obj:"") + "</td><td>" + translation[0] + "</td><td>" + translation[1] + "</td></tr>";
-			}
-			towrite += "</table>";
-			return towrite;
-		}
-	}
-	
-	this.LingoScript.prototype = this.cast;
-	
-	this.LingoScript.prototype.stack = new Array();
-	//this.Main.LingoScript.prototype.stack.push(this.val);
-	//this.val = this.Main.LingoScript.prototype.stack.pop();
-			
-	this.LingoScript.prototype.LscrChunk = function(len, offset, flags) {
-		this.len = len;
-		this.offset = offset;
-		if (typeof flags !== 'undefined') {
-			this.flags = flags;
-		}
-	}
-		
-	this.LingoScript.prototype.nameValuePair = function(val, name) {
-		if (typeof val !== 'undefined') {
-			this.val = val;
-		} else {
-			this.val = 0;
-		}
-		if (typeof name !== 'undefined') {
-			this.name = name;
-		} else {
-			this.name = this.val;
-		}
-	}
-	
-	// at the beginning of the file, we need to break some of the typical rules. We don't know names, lengths and offsets yet.
-	this.lookupMmap = function(DirectorFileDataStream) {
-		!loggingEnabled||console.log("Looking Up mmap");
-		// valid length is undefined because we have not yet reached mmap
-		// however, it will be filled automatically in chunk's constructor
-		this.chunkPointers = new Array();
-		this.chunkArray["RIFX"][0] = new this.chunk(DirectorFileDataStream, "RIFX");
-		// we can only open DIR or DXR
-		// we'll read OpenShockwaveMovie from DirectorFileDataStream because OpenShockwaveMovie is an exception to the normal rules
-		if (this.chunkArray["RIFX"][0].codec != "MV93") {
-			throw PathTooNewError("Codec " + this.chunkArray["RIFX"][0].codec + " unsupported.");
-		}
-		// the next chunk should be imap
-		// this HAS to be DirectorFileDataStream for the OFFSET check to be correct
-		// we will continue to use it because in this implementation RIFX doesn't contain it
-		this.chunkArray["imap"][0] = new this.chunk(DirectorFileDataStream, "imap", undefined, 12);
-		this.differenceImap = 0;
-		// sanitize mmaps
-		if (this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C) {
-			this.differenceImap = this.chunkArray["imap"][0].memoryMapArray[0] - 0x2C;
-			for(var i=0,len=this.chunkArray["imap"][0].memoryMapArray.length;i<len;i++) {
-				this.chunkArray["imap"][0].memoryMapArray[i] -= this.differenceImap;
-			}
-		}
-		// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
-		DirectorFileDataStream.seek(this.chunkArray["imap"][0].memoryMapArray[0]);
-		// interpret the numbers in the mmap - but don't actually find the chunks in it yet
-		this.chunkArray["mmap"].push(new this.chunk(DirectorFileDataStream, "mmap", undefined, this.chunkArray["imap"][0].memoryMapArray[0]));
-		// add chunks in the mmap to the chunkArray HERE
-		// make sure to account for chunks with existing names, lengths and offsets
-		DirectorFileDataStream.position = 0;
-		for(var i=0,len=this.chunkArray["mmap"][0].mapArray.length;i<len;i++) {
-			if (this.chunkArray["mmap"][0].mapArray[i]["name"] != "mmap") {
-				DirectorFileDataStream.seek(this.chunkArray["mmap"][0].mapArray[i]["offset"]);
-				if (!!!this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]) {
-					this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]] = new Array();
-				}
-				this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]].push(new this.chunk(DirectorFileDataStream, this.chunkArray["mmap"][0].mapArray[i]["name"], this.chunkArray["mmap"][0].mapArray[i]["len"], this.chunkArray["mmap"][0].mapArray[i]["offset"], this.chunkArray["mmap"][0].mapArray[i]["padding"], this.chunkArray["mmap"][0].mapArray[i]["unknown0"], this.chunkArray["mmap"][0].mapArray[i]["link"]));
-				this.chunkPointers.push(this.chunkArray[this.chunkArray["mmap"][0].mapArray[i]["name"]]);
-			} else {
-				DirectorFileDataStream.position += this.chunkArray["mmap"][0].len + 8;
-			}
-		}
-		// uncomment for a demo
-		if (!this.chunkArray["Lscr"]) {
-		} else {
-			for (var i=0,len=this.chunkArray["Lscr"].length;i<len;i++) {
-				for (var j=0,len2=this.chunkArray["Lscr"][i].handlers.length;j<len2;j++) {
-					parent.right.document.getElementById("Lscrtables").innerHTML += this.chunkArray["Lscr"][i].handlers[j].write();
-				}
-			}
-		}
-	}
-	
-	if (typeof file !== 'undefined') {
-		!loggingEnabled||console.log("Constructing Open Shockwave Movie");
-		this.chunkArray = new Array();
-		this.chunkArray["RIFX"] = new Array();
-		this.chunkArray["imap"] = new Array();
-		this.chunkArray["mmap"] = new Array();
-
-		var ShockwaveMovieReader = new FileReader();
-		// the file takes a while to upload so you have to do this.
-		// files[i] which exists because of the for loop, looping through each uploaded file, is passed into this onload function
-		// as well as the save variable, as the actual desicion is made later
-		ShockwaveMovieReader.onload = (function(OpenShockwaveMovie, file) {
-			return function(e) {
-				e=e||event;
-				!loggingEnabled||console.log("ShockwaveMovieReader onLoad");
-				// we'll be displaying content in the right frame
-				// with DataStream.js
-				var DirectorFileDataStream = new DataStream(e.target.result);
-				// we set this properly when we create the RIFX chunk
-				DirectorFileDataStream.endianness = false;
-				// for some reason this is passed as a reference, I guess my brain is melting
-				OpenShockwaveMovie.lookupMmap(DirectorFileDataStream);
-				// OpenShockwaveMovie should be the offset for mmap
-				//if (typeof chunkArray[name] === 'undefined') {
-				//chunkArray[name] = new Array();
-				//}
-				/*
-				if (save) {
-					var link = document.createElement('a');
-					link.href = cvs.toDataURL("image/jpeg");
-					link.setAttribute('download', file.name + ".JPG");
-					document.getElementsByTagName("body")[0].appendChild(link);
-					// Firefox
-					if (document.createEvent) {
-						var event = document.createEvent("MouseEvents");
-						event.initEvent("click", true, true);
-						link.dispatchEvent(event);
-					}
-					// IE
-					else if (link.click) {
-						link.click();
-					}
-					link.parentNode.removeChild(link);
-				}
-				*/
-			};
-		})(this, file);
-		ShockwaveMovieReader.readAsArrayBuffer(file);
-	}
-	// in the case that multiple files are chosen we can't draw more than one
-	// however, if the user wants to convert files we can do more than one at once
-}
+document.form1.Lscr.onchange = setFiles;
 
 // Draw as RAWRGB555, the way the format is on the CD. It also can draw the image to the canvas while it's hidden and use that to save it as a JPEG.
 // It's best to implement it this way, as BGR533 can convert to RGB555 with no quality loss, but not vice versa.
 // Also 3D Groove went on to use JPEG in this format's place making it the best format to save out to, so it'll be compatible with the later versions of the Groove Xtra.
 var movie = null;
 function createNewOpenShockwaveMovie() {
-	!loggingEnabled||console.log("Creating New Open Shockwave Movie");
-	if (!!files) {
+	if (loggingEnabled) console.log("Creating New Open Shockwave Movie");
+	if (files) {
 		movie = new OpenShockwaveMovie(files[0]);
 	} else {
 		window.alert("You need to choose a file first.");
 	}
 }
-
-document.form1.Lscr.onchange = setFiles;
