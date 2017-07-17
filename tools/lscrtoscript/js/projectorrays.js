@@ -976,6 +976,7 @@ Bytecode.prototype.translate = function() {
 		"eq": handleBinaryOperator,
 		"gt": handleBinaryOperator,
 		"gteq": handleBinaryOperator,
+		"and": handleBinaryOperator,
 		"or": handleBinaryOperator,
 		"not": () => {
 			var x = script.stack.pop();
