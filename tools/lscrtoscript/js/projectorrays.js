@@ -1017,13 +1017,13 @@ Bytecode.prototype.translate = function() {
 			var lastChar = script.stack.pop();
 			var firstChar = script.stack.pop();
 			if (firstChar.getValue() !== 0) {
-				translation = new AST.StringHilightCommand("char", firstChar, lastChar, field);
+				translation = new AST.StringHilightStatement("char", firstChar, lastChar, field);
 			} else if (firstWord.getValue() !== 0) {
-				translation = new AST.StringHilightCommand("word", firstWord, lastWord, field);
+				translation = new AST.StringHilightStatement("word", firstWord, lastWord, field);
 			} else if (firstItem.getValue() !== 0) {
-				translation = new AST.StringHilightCommand("item", firstItem, lastItem, field);
+				translation = new AST.StringHilightStatement("item", firstItem, lastItem, field);
 			} else if (firstLine.getValue() !== 0) {
-				translation = new AST.StringHilightCommand("line", firstItem, lastItem, field);
+				translation = new AST.StringHilightStatement("line", firstItem, lastItem, field);
 			}
 			ast.addStatement(translation);
 		},
