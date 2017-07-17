@@ -496,7 +496,6 @@ function LingoScript(main) {
 	this.context = null;
 
 	this.stack = new Stack();
-	this.blockEnds = [];
 }
 
 LingoScript.prototype.read = function(dataStream) {
@@ -663,6 +662,7 @@ function Handler(script) {
 	this.localNameIDs = [];
 
 	this.bytecodeArray = [];
+	this.bytecodeByPos = [];
 	this.argumentNames = [];
 	this.localNames = [];
 	this.name = null;
@@ -712,6 +712,7 @@ Handler.prototype.readBytecode = function(dataStream) {
 		// read the first byte to convert to an opcode
 		let bytecode = new Bytecode(this, op, obj, objLength, pos);
 		this.bytecodeArray.push(bytecode);
+		this.bytecodeByPos[pos] = bytecode;
 	}
 
 	this.argumentNameIDs = this.readVarnamesTable(dataStream, this.argumentCount, this.argumentOffset);
@@ -732,10 +733,12 @@ Handler.prototype.translate = function() {
 	this.ast = new AST(new AST.Handler(this.name, this.argumentNames));
 	for (let bytecode of this.bytecodeArray) {
 		let pos = bytecode.pos;
-		if (this.script.blockEnds.length > 0) {
-			if (pos === this.script.blockEnds[this.script.blockEnds.length - 1]) {
-				this.ast.exitBlock();
-				this.script.blockEnds.pop();
+		while (pos === this.ast.currentBlock._endPos) {
+			let exitedBlock = this.ast.currentBlock;
+			let blockParent = this.ast.currentBlock.parent;
+			this.ast.exitBlock();
+			if (blockParent.constructor === AST.IfStatement && blockParent.type === "if_else" && exitedBlock === blockParent.children.block1) {
+				this.ast.enterBlock(blockParent.children.block2);
 			}
 		}
 		bytecode.translate();
@@ -1122,19 +1125,41 @@ Bytecode.prototype.translate = function() {
 			translation = new AST.AssignmentStatement(new AST.LocalVarReference(this.handler.localNames[this.obj]), value);
 			ast.addStatement(translation);
 		},
-		"jmp": () => {},
-		"endrepeat": () => {
-			var parentStatement = ast.currentChunkParent;
-			if (parentStatement && lastStatement.constructor === AST.IfStatement) {
-				lastStatement.setType("repeat_while");
+		"jmp": () => {
+			var targetPos = this.pos + this.obj;
+			var nextBytecode = this.handler.bytecodeArray[this.getIndex() + 1];
+			var targetBytecode = this.handler.bytecodeByPos[targetPos];
+			var targetPrevBytecode = this.handler.bytecodeArray[targetBytecode.getIndex() - 1];
+			var blockParent = ast.currentBlock.parent;
+
+			if (blockParent.constructor === AST.IfStatement) {
+				if (nextBytecode.pos === ast.currentBlock._endPos && targetPrevBytecode.opcode === "endrepeat") {
+					translation = new AST.ExitRepeatStatement();
+					ast.addStatement(translation);
+				} else if (targetBytecode.opcode === "endrepeat") {
+					translation = new AST.NextRepeatStatement();
+					ast.addStatement(translation);
+				} else if (nextBytecode.pos === ast.currentBlock._endPos) {
+					blockParent.setType("if_else");
+					blockParent.children.block2._endPos = targetPos;
+				}
 			}
 		},
+		"endrepeat": () => {
+			var targetPos = this.pos - this.obj;
+			var targetBytecode = this.handler.bytecodeByPos[targetPos];
+			while (targetBytecode.opcode !== "iftrue") {
+				targetBytecode = this.handler.bytecodeArray[targetBytecode.getIndex() + 1];
+			}
+			targetBytecode.translation.setType("repeat_while");
+		},
 		"iftrue": () => {
+			var endPos = this.pos + this.obj
 			var condition = script.stack.pop();
 			translation = new AST.IfStatement("if", condition);
+			translation.children.block1._endPos = endPos;
 			ast.addStatement(translation);
 			ast.enterBlock(translation.children.block1)
-			script.blockEnds.push(this.pos + this.obj);
 		},
 		"call_local": () => {
 			var argList = script.stack.pop();
@@ -1389,6 +1414,10 @@ Bytecode.prototype.translate = function() {
 		script.stack = new Stack(); // Clear stack so later bytecode won't be too screwed up
 	}
 	this.translation = translation;
+}
+
+Bytecode.prototype.getIndex = function() {
+	return this.handler.bytecodeArray.indexOf(this);
 }
 
 /* Stack */

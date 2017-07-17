@@ -21,7 +21,7 @@ window.AST = (function () {
 		}
 
 		exitBlock() {
-			this.currentBlock = this.currentBlock.parentThatIsA(Block);
+			this.currentBlock = this.currentBlock.parent.parent;
 		}
 
 		lastStatement() {
@@ -52,13 +52,6 @@ window.AST = (function () {
 		addChild(name, child) {
 			this.children[name] = child;
 			if (child) child.parent = this;
-		}
-
-		parentThatIsA(constructor) {
-			if (!this.parent || this.parent instanceof constructor) {
-				return this.parent;
-			}
-			return this.parent.parentThatIsA(constructor);
 		}
 	}
 
@@ -169,11 +162,15 @@ window.AST = (function () {
 		constructor(children) {
 			super();
 			this.children = children || [];
+			this._endPos = null;
 		}
 
 		toString() {
 			const indent = "\n  ";
-			return indent + this.children.map(child => child.toString().split("\n").join(indent)).join(indent);
+			if (this.children.length > 0){
+				return indent + this.children.map(child => child.toString().split("\n").join(indent)).join(indent);
+			}
+			return "";
 		}
 
 		addChild(child) {
@@ -403,7 +400,13 @@ window.AST = (function () {
 		}
 
 		toPseudocode() {
-			return "if " + this.children.condition + " then";
+			if (this.type === "if") {
+				return "if " + this.children.condition + " then";
+			} else if (this.type === "if_else") {
+				return "if " + this.children.condition + " then";
+			} else if (this.type === "repeat_while") {
+				return "repeat while " + this.children.condition;
+			}
 		}
 
 		setType(type) {
@@ -632,6 +635,24 @@ window.AST = (function () {
 		}
 	}
 	AST.ObjPropertyReference = ObjPropertyReference;
+
+	/* ExitRepeatStatement */
+
+	class ExitRepeatStatement extends Node {
+		toString() {
+			return "exit repeat";
+		}
+	}
+	AST.ExitRepeatStatement = ExitRepeatStatement;
+
+	/* NextRepeatStatement */
+
+	class NextRepeatStatement extends Node {
+		toString() {
+			return "next repeat";
+		}
+	}
+	AST.NextRepeatStatement = NextRepeatStatement;
 
 	return AST;
 })();
