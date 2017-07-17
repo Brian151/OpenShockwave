@@ -73,6 +73,20 @@ window.AST = (function () {
 	}
 	AST.ERROR = ERROR;
 
+	/* Comment */
+
+	class Comment extends Node {
+		constructor(text) {
+			super();
+			this.text = text;
+		}
+
+		toString() {
+			return "-- " + this.text;
+		}
+	}
+	AST.Comment = Comment;
+
 	/* Literal */
 
 	class Literal extends Node {

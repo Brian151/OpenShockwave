@@ -1411,6 +1411,7 @@ Bytecode.prototype.translate = function() {
 		bytecodeHandlers[this.opcode]();
 	} else {
 		translation = new AST.ERROR();
+		ast.addStatement(new AST.Comment(this.opcode.toUpperCase() + (this.obj != null ? " " + this.obj : "")));
 		script.stack = new Stack(); // Clear stack so later bytecode won't be too screwed up
 	}
 	this.translation = translation;
