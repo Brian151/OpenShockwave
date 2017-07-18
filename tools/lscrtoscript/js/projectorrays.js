@@ -1405,7 +1405,8 @@ Bytecode.prototype.translate = function() {
 			ast.addStatement(translation);
 		},
 		"push_the": () => {
-			translation = new AST.TheVarReference(nameList[this.obj]);
+			script.stack.pop();
+			translation = new AST.MoviePropertyReference(nameList[this.obj]);
 			script.stack.push(translation);
 		},
 		"callobj": () => {

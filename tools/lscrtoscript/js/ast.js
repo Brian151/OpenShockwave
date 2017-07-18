@@ -362,15 +362,6 @@ window.AST = (function () {
 	class GlobalVarReference extends VarReference {}
 	AST.GlobalVarReference = GlobalVarReference;
 
-	/* TheVarReference */
-
-	class TheVarReference extends VarReference {
-		toString() {
-			return "the " + this.varName;
-		}
-	}
-	AST.TheVarReference = TheVarReference;
-
 	/* PropertyReference */
 
 	class PropertyReference extends VarReference {}
