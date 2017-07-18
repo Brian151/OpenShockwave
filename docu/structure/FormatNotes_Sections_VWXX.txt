@@ -22,6 +22,32 @@ Section VWTL {
 Section VWFI {
 	// "F[ile]I[nfo]"
 	// some kind of file-related information
+	Uint32 length
+	Uint32 skipLength - 4
+	
+	// skip (28 null/garbage bytes)
+
+	Uint16 fieldNum
+
+	1 byte null
+
+	Array fields(fieldNum) {
+		Uint32 value
+	}
+
+	byte cbLength
+	String(cbLength) createdBy
+
+	1 byte null
+
+	byte mdLength
+	String(mdLength) modifiedBy
+
+	1 byte null
+
+	byte fpLength
+	String(fpLength) filePath
+	// by MrBrax
 }
 
 Section VWSC {

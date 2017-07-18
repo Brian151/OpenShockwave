@@ -365,12 +365,24 @@ Section STXT
 {
 	Uint32[big] headerLength (constant 0xC)
 	Uint32[big] textLength
-	Uint32[big] footerLength (constant 0x16)
+	Uint32[big] styleLength
 	String(textLength) text
-	ByteArray(footerLength) footer
-	// seems to be associated with script cast members 
-	// possible meaning : "S[cript]T[E]XT"
-	// purpose : unknown
+	// this could be something to do with color
+	ByteArray(footerLength) styles {
+		Uint16 [big] stylesArrayLength
+		Array(arrayLength) stylesArray{
+			Struct style {
+				Uint32 [big] offset?
+				Uint32 [big] constant? (0)
+				Uint32 [little] unknown3 (seems constant)
+				Uint16 [big] unknown4 // identify what attribute of text is affected?
+				String(6) colorCode // RRGGBB format
+			}
+		}
+	}
+	// seems to be associated with scriptable cast members, like buttons and text fields
+	// possible meaning : "S[tyled]T[e]XT" - updated with information from Tomysshadow
+	// purpose : partially unknown
 }
 
 Section XTRl
@@ -422,39 +434,6 @@ Section Lnam
 	}
 }
 
-//???
-//something timeline-related, analysis in-progress by MrBrax
-Section VWFI
-{
-	Uint32 length
-	Uint32 skipLength - 4
-	
-	// skip (28 null/garbage bytes)
-
-	Uint16 fieldNum
-
-	1 byte null
-
-	Array fields(fieldNum) {
-		Uint32 value
-	}
-
-	byte cbLength
-	String(cbLength) createdBy
-
-	1 byte null
-
-	byte mdLength
-	String(mdLength) modifiedBy
-
-	1 byte null
-
-	byte fpLength
-	String(fpLength) filePath
-
-}
-
-
 shockwave format types:
 DXR : 'protected'
 DCR : compressed (via zlib)
@@ -462,6 +441,8 @@ DIR : uncompressed + unprotected
 CXT : 'protected'
 CCT : compressed (via zlib)
 CST : uncompressed + unprotected
+W3D : 3D model/scene file (related to the open U3D format, but exact similarities/differences not yet discovered)
+SWA : Audio file (variation of MP3, but contains some extra data for use by Shockwave)
 
 purposes:
 D*R : movie, runs stand-alone, may load C*T's as dependencies

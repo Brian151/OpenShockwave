@@ -1,7 +1,7 @@
 package brian151.earthquake;
-import brian151.earthquake.filesystem.CompressedFile;
-import brian151.earthquake.filesystem.DirectorFile;
-import brian151.earthquake.filesystem.ProtectedFile;
+import brian151.earthquake.containers.ContainerCompressed;
+import brian151.earthquake.containers.Container;
+import brian151.earthquake.containers.ContainerProtected;
 import brian151.riff.File;
 import js.html.ArrayBuffer;
 import js.html.Uint8Array;
@@ -32,14 +32,14 @@ class Movie
 		getType(header);
 		if (isValid) {
 			if (isCompressed) {
-				dataFile = new CompressedFile(src);
+				dataFile = new ContainerCompressed(src);
 			} else if (isProtected || isProjector) {
-				dataFile = new ProtectedFile(src);
+				dataFile = new ContainerProtected(src);
 				if (isProjector) {
 					dataFile.setProjector();
 				}
 			} else {
-				dataFile = new DirectorFile(src);
+				dataFile = new Container(src);
 			}
 			dataFile.setFormat(riffType);
 			var mapO:Int = dataFile.findMap();

@@ -1,0 +1,52 @@
+// attempt to decompile JavaScript version of Lscr
+
+// header seems mostly the same
+00 00 00 00 // 0
+00 00 00 00 // 0
+00 00 00 EC // length
+00 00 00 EC // length 2
+00 5C // header length
+00 00 // num
+00 01 // constant per file
+FF FF FF FF // -1
+00 00 00 00 // 0
+00 00 00 00 // ?
+00 00 00 00 // 0
+00 00 C0 02 // type what ?!
+00 00 00 01 // 1
+00 01 // id 2
+FF FF // ?
+00 00 // hvec length
+00 00 00 EC // hvec offset
+00 00 00 00 // hvec flags
+00 00 // prop count
+00 00 00 5C // prop name offset
+00 00 // glob count
+00 00 00 5C // glob offset
+00 00 // func count
+00 00 00 5C func offset
+00 02 // literal count
+00 00 00 5C // literal offset
+00 00 00 80 // literal data size
+00 00 00 6C // literal data offset
+
+
+// stuff gets weird with the literals...
+
+// literals record
+00 00 00 0B 00 00 00 00 
+00 00 00 00 00 00 00 00
+
+// literals data
+00 00 00 7C // length
+// wtf?!
+03 00 AD DE 0D 00 00 00 03 00 00 00 96 00 00 00 7F 00 00 6C 00 00 3D 00 01 6D 00 00 51 00 00 00 02 00 00 00 00 00 00 00 04 00 00 00 
+05 00 00 00 68 00 65 00 6C 00 6C 00 6F 00 // String "hello"
+// wtf ?!
+00 00 01 00 00 00 04 00 00 00 
+0B 00 00 00 68 00 65 00 6C 00 6C 00 6F 00 20 00 77 00 6F 00 72 00 6C 00 64 00 // String "hello world"
+// wtf ?!
+00 00 02 00 00 00 36 00 00 00 01 00 00 00 01 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00
+
+// since this is from the original DIR file, we know somehow, all this binary gibberish SHOULD translate to...
+var hello = "hello world";

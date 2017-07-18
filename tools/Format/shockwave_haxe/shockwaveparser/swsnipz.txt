@@ -5,7 +5,8 @@ proccess CASt and clut
 copy BITD handler from projectorrays
 implement methods to check if file is a movie or an external cast
 start parsing DCR/CCT formats
-discern purpose of STXT section
+[done]
+discern purpose of STXT section: Styled Text
 
 [NOTES]
 purpose of packages/classes (riff):
@@ -16,19 +17,16 @@ purpose of packages/classes (riff):
 		processing methods
 
 purpose of packages/classes (earthquake):
-  filesystem : actual file structure
-    CompressedFile : DCR/CCT handler/container
-    DirectorFile : DIR/CST handler/container
-    ProtectedFile : DXR/CXT handler/container
-    structs: parsing sections
-		CastMemberHeader : processes the CASt sections
+  containers : actual file structure
+    ContainerCompressed : handle DCR/CCT
+    Container : handle DIR/CST
+    ContainerProtected : handle DXR/CXT
   scripting : scripting stuff
   Movie : object containing one or more casts, can run stand-alone, 
 	wrapped around one of the three types of file handlers
-  Cast : object containing zero or more cast members, can be stored inside a movie or in own file
-  CastMember : a cast member, contains all internal assets and source code
-  members : contains certain types of cast members all extending the base type,
-	may or may not get implemented
+  castlib : casts and cast members
+	Cast : object containing zero or more cast members, can be stored inside a movie or in own file
+	CastMember : a cast member, contains all internal assets and source code
   
 [CODE]
 var varint = 0;
