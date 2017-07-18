@@ -127,12 +127,14 @@ OpenShockwaveMovie.prototype.lookupMmap = function(dataStream) {
 	var imap = this.chunkArrays.imap[0] = this.readChunk(dataStream, "imap", undefined, 12);
 	this.differenceImap = 0;
 	// sanitize mmaps
+	/*
 	if (imap.memoryMapArray[0] - 0x2C) {
 		this.differenceImap = imap.memoryMapArray[0] - 0x2C;
 		for (let i = 0, l = imap.memoryMapArray.length; i < l; i++) {
 			imap.memoryMapArray[i] -= this.differenceImap;
 		}
 	}
+	*/
 	// go to where imap says mmap is (ignoring the possibility of multiple mmaps for now)
 	dataStream.seek(imap.memoryMapArray[0]);
 	// interpret the numbers in the mmap - but don't actually find the chunks in it yet
@@ -354,7 +356,7 @@ function MemoryMapEntry(map, index) {
 MemoryMapEntry.prototype.read = function(dataStream) {
 	this.name = dataStream.readStringEndianness(4);
 	this.len = dataStream.readUint32();
-	this.offset = dataStream.readUint32() - this.map.main.differenceImap;
+	this.offset = dataStream.readUint32();// - this.map.main.differenceImap;
 	this.padding = dataStream.readInt16();
 	this.unknown0 = dataStream.readInt16();
 	this.link = dataStream.readInt32();
@@ -908,6 +910,7 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x20: "setmovieprop",
 		0x21: "getobjprop",
 		0x22: "setobjprop",
+		0x26: "push_the",
 		0x27: "callobj",
 		0x2e: "pushint"
 	};
@@ -1092,6 +1095,10 @@ Bytecode.prototype.translate = function() {
 		},
 		"push_global": () => {
 			translation = new AST.GlobalVarReference(nameList[this.obj]);
+			// causes "Uncaught TypeError: Cannot read property 'push' of undefined"
+			//this.handler.ast.globals.push(nameList[this.obj]);
+			// causes "this.currentBlock.addChild is not a function"
+			//this.handler.globalNames.push(nameList[this.obj]);
 			script.stack.push(translation);
 		},
 		"push_prop": () => {
@@ -1324,6 +1331,7 @@ Bytecode.prototype.translate = function() {
 				case 0x06:
 					(() => {
 						var propertyID = script.stack.pop().getValue();
+						var value = script.stack.pop();
 						var spriteID = script.stack.pop();
 						translation = new AST.AssignmentStatement(
 							new AST.SpritePropertyReference(spriteID, lib.spritePropertyNames[propertyID]),
@@ -1395,6 +1403,10 @@ Bytecode.prototype.translate = function() {
 			var object = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.ObjPropertyReference(object, nameList[this.obj]), value);
 			ast.addStatement(translation);
+		},
+		"push_the": () => {
+			translation = new AST.TheVarReference(nameList[this.obj]);
+			script.stack.push(translation);
 		},
 		"callobj": () => {
 			var argList = script.stack.pop();

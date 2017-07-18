@@ -362,6 +362,15 @@ window.AST = (function () {
 	class GlobalVarReference extends VarReference {}
 	AST.GlobalVarReference = GlobalVarReference;
 
+	/* TheVarReference */
+
+	class TheVarReference extends VarReference {
+		toString() {
+			return "the " + this.varName;
+		}
+	}
+	AST.TheVarReference = TheVarReference;
+
 	/* PropertyReference */
 
 	class PropertyReference extends VarReference {}
@@ -579,7 +588,7 @@ window.AST = (function () {
 	/* SpritePropertyReference */
 
 	class SpritePropertyReference extends Node {
-		constructor(menuID, propertyName) {
+		constructor(spriteID, propertyName) {
 			super();
 			this.addChild("spriteID", spriteID);
 			this.propertyName = propertyName;
