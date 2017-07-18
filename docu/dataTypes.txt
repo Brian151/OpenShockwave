@@ -42,6 +42,10 @@ String
 String
 Values that store text, these have an arbitrary length, which is defined somewhere before,
 or even completely isolated from the actual data.
+{modifiers}
+Null-terminated: character data followed immediatly by a byte 0x00
+Length-prefixed: character data prefixed by some number indicating its length
+ASCII: text is encoded as ASCII, rather not go into super-specific details... character size: 1 byte
 
 Varint(?)
 Varying Length Integer

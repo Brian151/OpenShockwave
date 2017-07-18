@@ -1,0 +1,13 @@
+studies:
+in-depth analysis of many files/chunks of files in attempt to 
+crack a certain section of the format.
+dumps_and_disassemblies:
+text representations of data from a specific file.
+comes in various formats.
+Unlike studies, format notes are used as instructions, whereas studies
+form the foundations of the format notes.
+Overall, these don't contribute a whole lot.
+src.txt:
+attributions... not working too well
+anything else:
+one of many example files, all in their original binary formats

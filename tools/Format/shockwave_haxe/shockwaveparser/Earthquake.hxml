@@ -5,5 +5,5 @@
 #(do not want, the idea is to compile the different parts of the app as separate modules)
 --macro exclude("brian151.riff")
 brian151.earthquake.Movie
-brian151.earthquake.Cast
-brian151.earthquake.CastMember
+brian151.earthquake.castlib.Cast
+brian151.earthquake.castlib.CastMember

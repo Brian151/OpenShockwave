@@ -29,7 +29,7 @@ Section RIFF {
 		// this section added to store the extra information from the CLUT section,
 		// just in case it's actually needed for something
 		Uint32 [lit] dat2Len
-		RGB34Array(data.colCount) entries
+		RGB24Array(data.colCount) entries
 		{
 			Byte redExtra 
 			Byte greenExtra 

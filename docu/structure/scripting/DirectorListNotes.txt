@@ -118,3 +118,12 @@ While this explicitly covers the coversion process for JSON, the process is simi
 
 ==end note==
 With all that said, good luck and have fun with these - Brain151
+
+===
+
+Properties are not case sensitive, from what i've painstakinly understood, after manually converted hundreds of lists to JS objects.
+
+Referenced properties on values are also kinda confusing since you can put them in text format:
+> [#partId: 86, #master: 47, #MorphsTo: 0, #description: "", #junkView: "", #UseView: "20b086v2", #UseView2: "", #offset: [0, 0], #Properties: [#Weight: 1, #Steering: 1], #Requires: [#a9], #Covers: [#a9], #new: 0]
+
+Shouldn't it be possible to just use a JSON parser as a base (kinda described above) and modify it to use # signs? I'm trying so hard to understand parsers but wow, they're advanced. - MrBrax 

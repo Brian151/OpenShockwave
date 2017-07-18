@@ -1,0 +1,2 @@
+the core director file format,
+or sub-formats that simply can't be ignored
