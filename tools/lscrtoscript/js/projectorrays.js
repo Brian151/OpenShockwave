@@ -888,14 +888,14 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x03: "newlist",
 		0x04: "pushcons",
 		0x05: "pushsymb",
-		0x09: "push_global",
-		0x0a: "push_prop",
-		0x0b: "push_param",
-		0x0c: "push_local",
-		0x0f: "pop_global",
-		0x10: "pop_prop",
-		0x11: "pop_param",
-		0x12: "pop_local",
+		0x09: "getglobal",
+		0x0a: "getprop",
+		0x0b: "getparam",
+		0x0c: "getlocal",
+		0x0f: "setglobal",
+		0x10: "setprop",
+		0x11: "setparam",
+		0x12: "setlocal",
 		0x13: "jmp",
 		0x14: "endrepeat",
 		0x15: "iftrue",
@@ -910,7 +910,7 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x20: "setmovieprop",
 		0x21: "getobjprop",
 		0x22: "setobjprop",
-		0x26: "push_the",
+		0x26: "getmovieinfo",
 		0x27: "callobj",
 		0x2e: "pushint"
 	};
@@ -1093,42 +1093,38 @@ Bytecode.prototype.translate = function() {
 			translation = new AST.SymbolLiteral(nameList[this.obj]);
 			script.stack.push(translation);
 		},
-		"push_global": () => {
+		"getglobal": () => {
 			translation = new AST.GlobalVarReference(nameList[this.obj]);
-			// causes "Uncaught TypeError: Cannot read property 'push' of undefined"
-			//this.handler.ast.globals.push(nameList[this.obj]);
-			// causes "this.currentBlock.addChild is not a function"
-			//this.handler.globalNames.push(nameList[this.obj]);
 			script.stack.push(translation);
 		},
-		"push_prop": () => {
+		"getprop": () => {
 			translation = new AST.PropertyReference(nameList[this.obj]);
 			script.stack.push(translation);
 		},
-		"push_param": () => {
+		"getparam": () => {
 			translation = new AST.ParamReference(this.handler.argumentNames[this.obj]);
 			script.stack.push(translation);
 		},
-		"push_local": () => {
+		"getlocal": () => {
 			translation = new AST.LocalVarReference(this.handler.localNames[this.obj]);
 			script.stack.push(translation);
 		},
-		"pop_global": () => {
+		"setglobal": () => {
 			var value = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.GlobalVarReference(nameList[this.obj]), value);
 			ast.addStatement(translation);
 		},
-		"pop_prop": () => {
+		"setprop": () => {
 			var value = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.PropertyReference(nameList[this.obj]), value);
 			ast.addStatement(translation);
 		},
-		"pop_param": () => {
+		"setparam": () => {
 			var value = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.ParamReference(this.handler.argumentNames[this.obj]), value);
 			ast.addStatement(translation);
 		},
-		"pop_local": () => {
+		"setlocal": () => {
 			var value = script.stack.pop();
 			translation = new AST.AssignmentStatement(new AST.LocalVarReference(this.handler.localNames[this.obj]), value);
 			ast.addStatement(translation);
@@ -1404,7 +1400,7 @@ Bytecode.prototype.translate = function() {
 			translation = new AST.AssignmentStatement(new AST.ObjPropertyReference(object, nameList[this.obj]), value);
 			ast.addStatement(translation);
 		},
-		"push_the": () => {
+		"getmovieinfo": () => {
 			script.stack.pop();
 			translation = new AST.MoviePropertyReference(nameList[this.obj]);
 			script.stack.push(translation);
