@@ -279,15 +279,15 @@ window.AST = (function () {
 			if (this.children.last.getValue()) {
 				result += ".." + this.children.last;
 			}
-			this.result += "]";
+			result += "]";
 			return result;
 		}
 	}
 	AST.StringSplitExpression = StringSplitExpression;
 
-	/* StringHilightCommand */
+	/* StringHilightStatement */
 
-	class StringHilightCommand extends StringSplitExpression {
+	class StringHilightStatement extends StringSplitExpression {
 		constructor(type, first, last, string) {
 			super(type, first, last, string);
 		}
@@ -298,7 +298,7 @@ window.AST = (function () {
 			return result;
 		}
 	}
-	AST.StringHilightCommand = StringHilightCommand;
+	AST.StringHilightStatement = StringHilightStatement;
 
 	/* SpriteIntersectsExpression */
 
@@ -361,15 +361,6 @@ window.AST = (function () {
 
 	class GlobalVarReference extends VarReference {}
 	AST.GlobalVarReference = GlobalVarReference;
-
-	/* TheVarReference */
-
-	class TheVarReference extends VarReference {
-		toString() {
-			return "the " + this.varName;
-		}
-	}
-	AST.TheVarReference = TheVarReference;
 
 	/* PropertyReference */
 
