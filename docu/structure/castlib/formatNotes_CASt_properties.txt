@@ -1,0 +1,65 @@
+CASt offset table and corresponding properties:
+
+
+offsets:
+script,name,02,03
+comment,05,06,07
+08,09,10,11
+12,13,14,15
+16,datecreate,datemodify,19
+20,imageCompression
+
+As of yet, most properties haven't yet been discovered or indentified
+
+properties:
+String scriptSrcText
+Length(Byte)-prefixed ASCII String name
+??? cProp02
+??? cProp03
+comment {
+	String comment
+}
+??? cProp05
+??? cProp06
+??? cProp07
+??? cProp08
+??? cProp09
+Struct cProp10 {
+	String type (
+		"Flash Movie" : SWF
+		"Shockwave 3D" : W3D
+		"QuickTime" : MOV
+		"Font" : font, format not yet identified
+	)
+	??? //size inconsistent
+}
+??? cProp11
+??? cProp12
+??? cProp13
+??? cProp14
+??? cProp15
+String MOAFileFormatID (
+		// or "MacromediaOpenArchitectureFileFormatID"
+		/*
+			more of these exist, all of them can be seen defined in the XDK, 
+			the idea is to have a unique identifier for every format 
+			(similar to a mimetype but an Adobe version of it)
+		*/
+		"kMoaCfFormat_SWA" : SWA
+		"kMoaCfFormat_snd" : PCM
+		"kMoaCfFormat_JPEG" : JPEG
+		"kMoaCfFormat_PNG" : PNG
+)
+UTCDate created
+UTCDate modified
+Uint32 cProp19 (constant 43 2F 41 00)
+??? cProp20
+Struct imageCompression {
+	byte type (
+		0xFB : movie setting
+		0XFE : standard
+		0XFD : JPEG
+	)
+	byte quality (default of 0x50, or 80%, only used if JPEG)
+	Uint16 [big] ???
+}

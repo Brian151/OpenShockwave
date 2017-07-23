@@ -135,7 +135,14 @@ form. There's no universal rule on how to lay these out, and it varies largely b
 {
 	specific to a certain type of data
 }
-
+[loose]
+{
+	this structure is not concrete and might be split into pieces
+}
+Byte-Aligned
+{
+	Something has been forced to always be divisible by certain length in bytes
+}
 ==RIFF/RIFX==
 RIFF: http://www.johnloomis.org/cpe102/asgn/asgn1/riff.html
 basically, 

@@ -1,0 +1,139 @@
+SHOCKWAVE FORMAT (compiled scrips):
+
+// Script Context
+// originally documented by Shockabsorber in "section-LctX.asciidoc"
+// now called context instead of collection, at suggestion of tomysshadow, makes more sense
+Section LctX {
+	Struct header {
+		Uint32 cons1 // 0
+		Uint32 cons2 // 0
+		Uint32 [big] count
+		Uint32 [big] count2
+		Uint16 [big] offset
+		Uint16 [big] entrySize // constant 0xC
+		Uint32 cons3 // 0
+		Uint32 [big] fileType? // 1 movie, 3 cast, 0xF ???
+		Uint32 [big] cons4 // -1
+		Uint32 [big] nameTableID // use MMAP!
+		Uint16 [big] validCount
+		Bitfield(2) flags
+		Uint16 [big] freePtr
+	}
+	Uint16Array /* till offset */ handlerNames {
+		Uint16 nameID // from names list
+	}
+	Array scripts(count) {
+		Struct scriptLink {
+			Uint32 unknown
+			Uint32 [big] ID // use MMAP!
+			Uint16 [big] used // 0 : unused , 4: used
+			Uint12 [big] link // For unused entries: link to next unused, or -1.
+		}
+	}
+}
+
+// Script Name Table
+// originally documented by Shockabsorber in "section-Lnam.asciidoc"
+Section Lnam
+{
+	Uint32 Const1 (0x00)
+	Uint32 Const2 (0x00)
+	Uint32 [big] nameTablelength
+	Uint32 [big] nameTablelength2 //usually equal to nameTablelength
+	Uint16 [big] offset (constant 0x14) //where the names table actually begins
+	Uint16 [big] namesCount //how many names
+	Array names(namesCount) {
+		Length(Byte)-prefixed ASCII String name
+	}
+}
+
+// Script
+// originally documented by Shockabsorber in "section-Lsrc.asciidoc"
+// also somewhat less accurately and incompletely documented by fileformats.archiveteam.org
+// as of yet, only the lingo syntax is covered
+// also, some things are not yet understood, such as scripts with no handlers/functions...
+Section Lscr {
+	Struct header {
+		Uint32 cons1 // 0
+		Uint32 cons2 // 0
+		Uint32 [big] length 
+		Uint32 [big] length2 // usually equal to length
+		Uint16 [big] headerLength
+		Uint16 [big] scriptNum
+		Uint13 [big] cons_file // constant per file
+		Uint32 cons3 // -1
+		Uint32 cons4 // 0
+		Uint32 unknown1
+		Uint32 cons5 // 0
+		Uint32 [big] scriptType // 0 : behavior, 2 : global
+		Uint32 [big] varCount? // 1
+		Uint16 [big] scriptID2
+		Uint16 unknown2
+		Uint16 [big] handlerVectorLength
+		Uint32 handlerVectorOffset
+		Bitfield(4) handlerVectorFlags
+		Uint16 [big] propertyCount
+		Uint32 [big] propertyNameOffset
+		Uint16 [big] globalCount
+		Uint32 [big] globalNameOffset
+		Uint16 [big] functionCount
+		Uint32 [big] functionOffset
+		Uint16 [big] literalCount
+		Uint32 [big] literalRecordOffset
+		Uint32 [big] literalDataSize
+		Uint32 [big] literalDataOffset
+	}
+	Uint16Array(globalCount) globals{
+		Uint16 [big] globalName
+	}
+	Uint16Array(propertyCount) properties{
+		Uint16 [big] propertyName
+	}
+	Array(functionCount) functionRecords{
+		Struct functionRecord {
+			Uint16 [big] name // use names table
+			Int16 handler // position in handler vector, or -1 if not standard
+			Uint32 [big] length
+			Uint32 [big] offset // relative to entire section
+			Uint16 [big] argumentsCount
+			Uint32 [big] argumentsOffset // relative to entire section
+			Uint16 [big] localsCount
+			Uint32 [big] localNamesOffset // relative to entire section
+			Uint16 [big] xCount
+			Uint32 [big] xOffset
+			Uint32 [big] unknown1
+			Uint16 [big] unknown2
+			Uint16 [big] lineCount
+			Uint32 [big] lineOffset // relative to entire section
+			Uint32 [big] stackHeight
+		}
+	}
+	// function bytecode seems to appear in this area
+	Array functions {
+		Struct [loose] function {
+			ByteArray bytecode // see OPS.txt
+			Uint16Array args {
+				Uint16 [big] argumentName // use name table
+			}
+			Struct lineInfo {
+				// format undetermined as of yet, probably an array
+			}
+		}
+	}
+	Uint32Array(literalCount * 2) literalRecords{
+		Struct literalRecord {
+			Uint32 [big] type // 1 : String
+			Uint32 [big] offset // relative to literalDataOffset
+		}
+	}
+	Array(literalCount) literalData{
+		Struct literal {
+			Uint32 [big] length
+			ByteArray(length) data
+		}
+	}
+	?Byte padding // 0 , might not always be present
+	Uint16Array(handlerVectorLength) handlerVector {
+		Uint16 [big] funcLink // -1, or function number of handler in script
+	}
+}

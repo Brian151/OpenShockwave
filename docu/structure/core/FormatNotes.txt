@@ -21,7 +21,8 @@ Section imap
 	/* 
 		points to the currently valid mmap chunk
 		as it turns-out, re-saving a .dir just appends data, including
-		a new mmap chunk (does not happen with "save and compact") 
+		a new mmap chunk (does not happen with "save and compact")
+		
 	*/
 }
 
@@ -115,6 +116,55 @@ Section XMED
 	// observed so far : text [field] , Flash SWF , W3D Model/Scene
 }
 
+Section Fmap {
+	// font mapping table (one per cast)
+	// exact purpose not yet known
+	Struct header {
+		Uint32 [big] dataLength
+		Uint32 [big] dataLength2
+		Uint32 unknown1
+		Uint32 unknown2
+		Uint32 unknown3
+		Uint32 [big] count
+		Uint32 [big] count2
+		Uint32 unknown4
+	}
+	Struct ofstNull {
+		Uint32 offset // 0
+		Uint32 unknown // 0
+	}
+	Uint32Array(count * 2) offsets {
+		struct offset {
+			Uint32 [big] offset
+			Uint16 [big] cons1 // 2
+			Byte cons2 // 0x80
+			Byte ID? // 1+
+		}
+	}
+	Struct data {
+		Struct dataNull {
+			Uint32 unknown1 // 0
+			Uint32 unknown2 // 0
+			Uint32 dataLength2B // same as dataLength2
+			Uint32 dataLength2C // same as dataLength2
+			Uint16 unknown3 // 0
+		}
+		// @ offset offsets[0].offset :
+		Array(count) fontNames {
+			Byte-Aligned(4) Length(Uint32 [big])-prefixed ASCII String fontName
+			/* 
+				example :
+				{
+					00 00 00 05 // length
+					"Arial" // string
+					00 00 00 // padding
+				}
+				// 4(length) + 5(string) + 3(padding) = 12
+			*/
+		}
+	}
+}
+
 Section snd 
 {
 	/* 
@@ -183,7 +233,7 @@ Section Thum
 
 Section CASt
 {
-	header
+	Struct header
 	{
 		Uint32 [big-end] castMemberType
 		(
@@ -205,16 +255,16 @@ Section CASt
 		}
 		Uint16 [big-end] offsetTableLen
 			Uint32Array(offsetTableLen) offsetTable {
-			Uint32 [big-end] offsetX //see formatNotes_CASt_fields
+			Uint32 [big-end] offsetX //see formatNotes_CASt_properties
 		}
 		Uint32 [big end] finalDataLen
-		metaData(finalDataLen)
+		ByteArray(finalDataLen) properties
 		{
 			//comprised of various fields...
-			//see formatNotes_CASt_fields
+			//see formatNotes_CASt_properties
 		}
 	}
-	specificData(specificDataLength) 
+	ByteArray(specificDataLength)  specificData
 	{
 		/*
 			These vary a lot, but they do seem to have an absolute structure and order
@@ -392,10 +442,29 @@ Section XTRl
 	Uint32 [big-end] xtraCount
 	Array entries(xtraCount) {
 		Uint32 [big end] length
-		Block(length) data
+		Struct(length) data
 		{
 			//needs more research
-			0x22 bytes unknown (values seem fairly consistent)
+			ByteArray(0x22) unknown {
+				Uint16 GUIDLen // constant 16
+				Struct GUID { 
+					// Globally Unique Identifier for a given XTRA
+					// In some cases, it will be {00000000-0000-00-00-00-00-00-00-00-00}
+					// unsure what allows this, as identical GUIDs should typically case errors
+					Uint32 [big] id1
+					Uint16 [big] id2
+					Byte id3
+					Byte id4
+					Byte id5
+					Byte id6
+					Byte id7
+					Byte id8
+					Byte id9
+					Byte id10
+					// 664C4541-1AD8-11d3-8635-00104B27A1A1
+				}
+				
+			}
 			Uint32 [big-end] length2
 			Block(length2) data
 			{
@@ -414,24 +483,6 @@ Section XTRl
 		Xtra library/linkage...
 		Lists required Xtras to play the movie
 	*/
-}
-
-//Script Name Table
-//originally documented by Shockabsorber in "section-Lnam.asćiidoc"
-Section Lnam
-{
-	Uint32 Const1 (0x00)
-	Uint32 Const2 (0x00)
-	Uint32 [big] nameTablelength
-	Uint32 [big] nameTablelength2 //usually equal to nameTablelength
-	Uint16 [big] offset (constant 0x14) //where the names table actually begins
-	Uint16 [big] namesCount //how many names
-	Array names(namesCount) {
-		Struct name {
-			byte nameLength
-			String(nameLength) nameText
-		}
-	}
 }
 
 shockwave format types:

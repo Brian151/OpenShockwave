@@ -191,13 +191,8 @@ MULTI-BYTE CODES
 	pop values from the stack to create a list/array
 }
 44,84,c4 {
-	PUSH 
+	PUSHCONS
 	push a value from constants records
-	/*
-		may be changed to PUSHCONS
-		or use the type indicated in the respective constant record
-		ex. PUSHSTRING
-	*/
 }
 45,85,c5 {
 	PUSHSYMB 
@@ -220,11 +215,11 @@ MULTI-BYTE CODES
 	push value of a global variable with a name from the namelist
 }
 4a,8a,ca {
-	UNK_4A,UNK_8A,UNK_CA 
-	further research required
+	GETPROP
+	push the value of a contextual property
 }
 4b,8b,cb {
-	PUSHPARAMS 
+	GETPARAM
 	push value of a function call parameter
 }
 4c,8c,cc {
@@ -244,8 +239,8 @@ MULTI-BYTE CODES
 	pop a value to set as the value of a global variable with a name from the namelist
 }
 50,90,d0 {
-	UNK_50,UNK_90,UNK_D0 
-	further research required
+	SETPROP
+	pop a value to set as the value of a contextual property with a name from the namelist
 }
 51,91,d1 {
 	UNK_51,UNK_91,UNK_D1 
@@ -324,12 +319,12 @@ MULTI-BYTE CODES
 	further research required
 }
 5f,9f,df {
-	GETPROP 
-	push the value of a contextual property
+	GETMOVIEPROP 
+	get movie property specified by provided namelist index
 }
 60,a0,e0 {
-	SETPROP 
-	set the value of a contextual property
+	SETMOVIEPROP 
+	get movie property specified by provided namelist index
 }
 61,a1,e1 {
 	GETOBJPROP 
@@ -344,16 +339,18 @@ MULTI-BYTE CODES
 	tell some object to go to frame 1
 }
 64,a4,e4 {
-	OP_64
-	just read the docu from archiveteam
+	case
+	number corresponds to the nesting level of this case, since they can be nested
+	other code actually evaluates the conditions
 }
 65,a5,e5 {
-	OP_65
-	clean-up after a loop
+	endcase
+	number corresponds to the nesting level of this case, since they can be nested
 }
 66,a6,e6 {
-	OP_66 
-	read docu
+	getmovieinfo
+	get read-only movie property specified by provided namelist index
+	consumes an empty argument list for some reason
 }
 67,a7,e7 {
 	UNK_67 
