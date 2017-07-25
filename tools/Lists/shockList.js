@@ -1,8 +1,9 @@
-//input, output : textareas
+// input, output : textareas
 
 /*
 TODO:
 	Nothing, for now...
+	detailed comments actually explaining how it works...
 */
 
 var ShockwaveListParser = function() {}
@@ -107,7 +108,6 @@ ShockwaveListParser.prototype.detectProperty = function(s) {
 	}
 	return out;
 }
-//needs an update... won't work as-is
 ShockwaveListParser.prototype.appendChildren = function(obj,children,isPropList) {
 	for (var i=0; i < children.length; i++) {
 		var curr = children[i];
@@ -122,7 +122,6 @@ ShockwaveListParser.prototype.appendChildren = function(obj,children,isPropList)
 		}
 	}
 }
-//needs to be updated, won't work as-is...
 ShockwaveListParser.prototype.trimOuterBrackets = function(dat,checkComplex) {
 	var d = dat;
 	var out = d;

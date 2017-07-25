@@ -99,6 +99,20 @@ Universal Time Coordinated Date/Time
 Date
 counts milliseconds since January 1, 1970
 
+GUID
+Globally Unique Identifier
+UUID, Universally Unique Identifier
+16 bytes representing a unique id for an object or codebase
+Shockwave/Director makes use of these in XTRAs
+{
+	// for more info: https://en.wikipedia.org/wiki/Universally_unique_identifier#Format
+	Uint32 time_low
+	Uint16 time_mid
+	Uint16 time_hi_and_version
+	Uint16 clock_seq_hi_and_res clock_seq_low
+	Uint48 node //6 bytes
+}
+
 Block
 Block
 Struct //specifically in languages like C
@@ -143,6 +157,7 @@ Byte-Aligned
 {
 	Something has been forced to always be divisible by certain length in bytes
 }
+
 ==RIFF/RIFX==
 RIFF: http://www.johnloomis.org/cpe102/asgn/asgn1/riff.html
 basically, 

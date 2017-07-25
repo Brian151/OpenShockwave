@@ -1,0 +1,23 @@
+CASt specificDatas:
+
+Struct bitmapProperties {
+	//still trying to understand this one...
+	2 bytes unknown
+	Uint16 posY
+	Uint16 posX
+	Uint16 height // subtract posY for correct value
+	Uint16 width // subtract posX for correct value
+	Uint32 constant1 (1) //1 is so far, only observed value...
+	4 bytes unknown
+	Uint16 regPointY // subtract posY for correct value
+	Uint16 regPointX // subtract posX for correct value
+	1 byte unknown //possibly a bitfield
+	1 byte bitsPerPixel //8,16,24,32
+	Uint16 [big] palette ID //still needs research, but seems to be based on the cast member number of a given palette
+}
+
+Uint16 [big] scriptType (
+	00 01 : behavior
+	00 03 : movie
+	00 07 : parent
+)

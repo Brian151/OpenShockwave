@@ -1,0 +1,193 @@
+SHOCKWAVE FORMAT (Cast Members):
+
+Section CASt
+{
+	/* 
+		cast member header, contains settings and various properties, such as name
+		this chunk is proving particularly difficult to fully decypher, and recent efforts have 
+		shown the available fields vary quite largely depending on any number of factors.
+		This can be attributed to both the type of cast member, and even if a file has been
+		Dir-Opened vs. being the genuine DIR source movie/document
+	*/
+	Struct header
+	{
+		Uint32 [big-end] castMemberType
+		(
+			// do each of these correspond to one type of chunk or group of chunks? (BITD, whatever the chunk for a film loop is, CLUT, snd , whatever the chunk for a button is, whatever the chunk for a vector shape is, Lscr, and XMED?)
+			0x01 : bitmap
+			0x02 : film loop
+			0x04 : palette
+			0x06 : audio
+			0X07 : button
+			0x08 : vector shape
+			0x0B : script
+			0x0F : flash,font,text,W3D,QuickTime MOV //The common link between all is the requirement of Xtras to use these
+		)
+		Uint32 [big end] length2 //from 0x14 to specificData
+		Uint32 [big-end] specificDataLen
+		0x14 bytes skipThis {
+			Uint32 [big-end] skipSize? (always 0x14)
+			0x10 bytes unknownData (does vary, but purpose unknown)
+		}
+		Uint16 [big-end] offsetTableLen
+			Uint32Array(offsetTableLen) offsetTable {
+			Uint32 [big-end] offsetX //see formatNotes_CASt_properties
+		}
+		Uint32 [big end] finalDataLen
+		ByteArray(finalDataLen) properties
+		{
+			//comprised of various fields...
+			//see formatNotes_CASt_properties
+		}
+	}
+	ByteArray(specificDataLength)  specificData
+	{
+		/*
+			These vary a lot, but they do seem to have an absolute structure and order
+			// see FormatNotes_CASt_specificData.txt
+		*/
+	}
+}
+
+Section Thum
+{
+	// thumnails?
+	// these two appear to be constantly 36
+	Uint32 [big] width // ?
+	Uint32 [big] height //?
+	length - 8 bytes data {
+		currently assumed to be RLE,
+		but no success yet. Might be at bit depth 16 or lower
+	}
+}
+
+Section BITD
+{
+	length
+	data
+	/*
+		format varies...
+		the format is a length followed by a value, across the width of the image one channel at a time
+		however, the length has an odd quirk: you need to do 257 minus the length to get the actual length to use
+		however, if 257 minus the length is less than 127, it is a literal run for that length plus one and specifies all the colours in a row like a raw image
+	*/
+	@4BPP {
+		unknown, no examples analyzed yet
+	}
+	@8BPP {
+		ByteArray(length * width), or some form of compression
+	}
+	@16BPP {
+		unknown, no examples encountered yet
+	}
+	@24BPP {
+		RLE {
+			encodes all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded	
+		}
+	}
+	@32BPP {
+		RLE {
+			encodes all alpha, all red, all green, all blue across entire width of image,
+			then starts over until all rows have been encoded
+			sometimes all alpha values are reversed, and 0 means 255, which only seems to occur if every value is 0
+		}
+	}
+}
+
+Section CLUT
+{
+	// length is ALWAYS divisible by 6
+	/*
+		color palettes,
+		each CLUT actually contains 2, and they're combined in a somewhat odd manner...
+		Or, each color value has some extra data attached.
+		Regardless, the reasons for the three extra bytes per entry is a mystery for the time being.
+		Other than that, the data is an array of RGB24 colors
+		The name of an Xtra seems to suggest this is lifted from Photoshop
+	*/
+	Array entries/data(length/6) {
+		byte red
+		byte red2
+		byte green
+		byte green2
+		byte blue
+		byte blue2
+	}
+}
+
+Section STXT
+{
+	Uint32[big] headerLength (constant 0xC)
+	Uint32[big] textLength
+	Uint32[big] styleLength
+	String(textLength) text
+	// this could be something to do with color
+	ByteArray(footerLength) styles {
+		Uint16 [big] stylesArrayLength
+		Array(arrayLength) stylesArray{
+			Struct style {
+				Uint32 [big] offset?
+				Uint32 [big] constant? (0)
+				Uint32 [little] unknown3 (seems constant)
+				Uint16 [big] unknown4 // identify what attribute of text is affected?
+				String(6) colorCode // RRGGBB format
+			}
+		}
+	}
+	// seems to be associated with scriptable cast members, like buttons and text fields
+	// possible meaning : "S[tyled]T[e]XT" - updated with information from Tomysshadow
+	// purpose : partially unknown
+}
+
+Section snd 
+{
+	/* 
+		sometimes the length is 0 and it trails SWA audio.
+		in that scenario the XMED and snd are linked to the same CASt in the KEY* section so the cast member is classed as a sound even though it requires an Xtra to play
+		other times it contains raw PCM streams which GoldWave can import, and probably Audacity as well.
+		observed: Raw PCM unsigned 8 bit, 11025 Hz, 88 kbps, mono (for the door opening sound in MYLK)
+	*/
+}
+
+Section ediM
+{
+	data
+	/*
+		contains SWA audio-
+		further analysis shows this contains other data/file types as well...further research required
+	*/
+	//known formats : JPEG Image file, SWA Audio file
+}
+
+Section XMED
+{
+	/* 
+		XTRA Media, completely arbitrary format, often consists of optional header and an embedded file
+		Probably most common cause of XTRA dependency (no surprise there), anything in an XMED requires
+		an XTRA to be displayed/processed.
+	*/
+	// text (RTF) , Flash SWF , W3D Model/Scene, PFR/TrueDoc font
+	data {
+		//format varies depending on the type of media
+		@ Flash {
+			Uint32 [big] length1
+			Uint32 [big] version?
+			Uint32 [big] length2 //seems to be the real length of the file
+			data //embedded Flash SWF file
+		}
+		@ Text {
+			data //some weird way of storing formatted text...
+		}
+		@ W3D {
+			subHeader {
+				String/FourCC? "3DEM"
+				Uint32 [big] length1 //same as the section length
+				Uint32 [big] version?
+				Uint32 [big] length2 //seems to be the real length of the file
+			}
+			data //embedded W3D Model/Scene file
+		}
+	}
+}
+

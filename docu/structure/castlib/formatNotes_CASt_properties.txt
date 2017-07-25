@@ -16,14 +16,12 @@ String scriptSrcText
 Length(Byte)-prefixed ASCII String name
 ??? cProp02
 ??? cProp03
-comment {
-	String comment
-}
+String comment // pure character data
 ??? cProp05
 ??? cProp06
 ??? cProp07
 ??? cProp08
-??? cProp09
+GUID xtraGUID
 Struct cProp10 {
 	String type (
 		"Flash Movie" : SWF

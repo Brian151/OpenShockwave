@@ -1,0 +1,76 @@
+SHOCKWAVE FORMAT (cast library):
+
+Section MCsL
+{
+	// cast list, includes name and settings of all casts
+	Uint32 [big] unknown (0x0c)
+	Uint32 [big] castCount
+	Uint16 [small?] unknown (0x400)
+	Uint32 [big] arraySize
+	Uint32Array(arraySize) offsetTable (one entry per cast) {
+		Struct castDataOffsetEntry // four indices in the table make one entry
+		{
+			// all offsets are relative to the start of the data table
+			Uint32 [big] nameOffset
+			Uint32 [big] filePathOffset
+			Uint32 [big] preloadSettingsOffset
+			Uint32 [big] attributesOffset
+		}
+		/*
+			This is practically identical to the offset tables found in CASt sections...
+			excluding that the first U32 is either junk data, or a pointer to the
+			data table, presumably relative to the end of this table. At this time,
+			no MCsL have been discovered where this value is of any use.
+		*/
+	}
+	Uint32 [big] castEntriesLength
+	Array dataTable(castCount)
+	{
+		Struct castEntry {
+			Null-terminated* Length(byte)-prefixed ASCII String name
+			Null-terminated* Length(byte)-prefixed ASCII String filePath
+			Uint16 [big] preloadSettings (0:when needed, 1: before frame one, 2: after frame one)
+			Struct castAttributes {
+				Uint16 [big] storageType? (0:external,1:internal) // purpose recently brought into question
+				Uint16 [big] membersCount
+				Uint16 [big] numID
+				Uint16 [big] realCastID (starts at 0x400 , or 1024)
+			}
+		}
+		/*
+			This might still be slightly innaccurate...
+			It's also somehow missing a value for preload settings
+			
+			*
+			Some older versions appear not to use null-terminated strings, according to MrBrax
+		*/
+	}
+	/*
+		External cast files (CST,CCT,CXT) seem to not have these. It makes sense, because external casts only contain ONE
+		cast: themselves.
+	*/
+	/*
+	tomysshadow said:
+	Also, haven't had a chance to document this but I should add: the IDs in MCsL refer to the CAS* chunks, 
+	based on their index in mmap. The CAS* are a table of the IDs of CASt chunks in the mmap table, iirc, 
+	and the chunks those CASt rely on are found using KEY*. So it goes MCsL > CAS* > mmap > CASt >KEY* > Data 
+	(such as BITD, snd , etc.) note that multiple chunks can be linked to one CASt in KEY*, for example the 
+	sound headers can be seperate of the sound itself using sndH and sndS
+
+	This is one of my more recent realizations and it is with this that I finally begin to understand the 
+	structure somewhat.
+
+	Also, note that LCsM isn't present in older Director movies as not all versions of Director have cast libraries.
+	
+	src: https://github.com/Brian151/OpenShockwave/issues/9#issuecomment-313375248
+	*/
+}
+
+Section CAS* {
+	// cast section association table, points to CASt chunks via their MMAP ID
+	// external casts seem to lack these
+	Uint32Array(length / 4) CAStIDs // length, as in the section length
+	{
+		Uint32 [big] CAStID
+	}
+}

@@ -2,7 +2,12 @@ PFR (Portable Font Resource) aka "TrueDoc" format:
 adapted from existing .pdf's detailing specs, but in a nicer format
 
 Struct header {
-	String(4) signature // "pfr0" , but shockwave has "PFR1"
+	String(4) signature // "PFR0" , but shockwave has "PFR1"
 	Uint16 [big] version // constant 4
 	
+}
+
+Struct trailer {
+	Uint24 [big] size // of entire file
+	String(5) trailerSig // "$PFR$"
 }

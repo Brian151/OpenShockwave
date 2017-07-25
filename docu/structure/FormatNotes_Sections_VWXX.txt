@@ -1,6 +1,6 @@
 SHOCKWAVE FORMAT (timeline???):
 All sections here seem to pertain to the timeline
-Their FourCC ID's All begin with "VW" (meaning yet unknown)
+Their FourCC ID's All begin with "VW" (Most likely means "VideoWorks", the original name of Director)
 
 Section VWLB {
 	// "L[a]B[el]"
