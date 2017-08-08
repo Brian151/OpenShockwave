@@ -1,0 +1,38 @@
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<title>EARTHQUAKE DOCU V2 - TEST</title>
+		<link rel="stylesheet" type="text/css" href="styles.css"/>
+	</head>
+	<body>
+		<table id="root" border="1">
+			<tr id="UI_TOP">
+				<td id="nav">nav</td>
+				<td id="docu">
+					Struct test {<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;<a href="" onmouseover="say('typedef U32 : 4-byte unsigned integer')">U32</a> bigNumber
+					<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;<a href="" onmouseover="say('typedef U16 : 2-byte unsigned integer')">U16</a> smallNumber<br/>
+					}
+				</td>
+				<td id="hex">
+					<h2>Example Hex Dump</h2>
+					<div class="test3"><span title="U32 bigNumber" onmouseleave="nohighlight('dump1')" id="dump1" onmouseover="highlight('dump1','U32 bigNumber = 1337')" class="test">00&nbsp;00&nbsp;05&nbsp;39&nbsp;</span><span title="U16 smallNumber" onmouseleave="nohighlight('dump2')" id="dump2" onmouseover="highlight('dump2','U16 smallNumber = 666 // WHAT!')" class="test2">02&nbsp;9A&nbsp;</span></div>
+				</td>
+			</tr>
+			<tr>
+				<td id="types" colspan="3">typedef null</td>
+			</tr>
+		</table>
+		<script type="text/javascript" src="code.js"></script>
+		<!--
+			width of hex area should be (3 * width) [in entries] + 1
+			every 16th entry needs a space appended to the front
+			
+			optimization consideration:
+			event listener on just hex dump and somehow get which child element afflicted by it
+			
+			possible feature plan : CSS3 grid layouts...
+		-->
+	</body>
+</html>

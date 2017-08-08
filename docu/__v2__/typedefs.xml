@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- a well-formed XML has a singluar root tag -->
+<root>
+	<!-- place for all our typedefs -->
+	<typedefs>
+		<!-- a typedef -->
+		<!-- name for this type of data -->
+		<!-- size in bytes, 0 for variable -->
+		<!-- byteorder is 0 to 2 (big/little/arbitrary) -->
+		<def name="U64" size="8" byteorder="2">
+			<!-- aliases, e.g. other names for it -->
+			<aliases>
+				<alias>Uint64</alias>
+				<alias>ULong</alias>
+				<alias>Unsigned Long</alias>
+				<alias>QWORD</alias> <!-- could put a comment here, for example: QWORD means Quad Word -->
+			</aliases>
+			<!-- info, where you put a description of the data type -->
+			<info>
+				An unsigned integer with a value range of 0 to ...lazy
+			</info>
+		</def>
+		<def name="U32" size="4" byteorder="2">
+			<aliases>
+				<alias>Uint32</alias>
+				<alias>Uint</alias>
+				<alias>Unsigned Int</alias>
+				<alias>DWORD</alias>
+			</aliases>
+			<info>
+				An unsigned integer with a value range of 0 to 4,294,997,295
+			</info>
+		</def>
+		<def name="U24" size="3" byteorder="2">
+			<aliases>
+				<alias>Uint24</alias>
+			</aliases>
+			<info>
+				An unsigned integer with a value range of 0 to 16,777,215
+			</info>
+		</def>
+		<def name="U16" size="2" byteorder="2">
+			<aliases>
+				<alias>Uint16</alias>
+				<alias>UShort</alias>
+				<alias>Unsigned Short</alias>
+				<alias>WORD</alias>
+			</aliases>
+			<info>
+				An unsigned integer with a value range of 0 to 65,535
+			</info>
+		</def>
+	</typedefs>
+	<!-- meta-data, e.g. extra information the program does NOT have to read, stuff like author info, last modified date -->
+	<meta/>
+</root>

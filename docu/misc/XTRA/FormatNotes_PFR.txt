@@ -1,13 +1,47 @@
 PFR (Portable Font Resource) aka "TrueDoc" format:
 adapted from existing .pdf's detailing specs, but in a nicer format
+default endian-ness: big
 
 Struct header {
 	String(4) signature // "PFR0" , but shockwave has "PFR1"
-	Uint16 [big] version // constant 4
-	
+	Uint16 version // constant 4
+	Uint16 sig2 // constant 0x0D0A
+	Uint16 headerLength // constant 0x3A (58)
+	Uint16 logFontDirSize
+	Uint16 logFontDirOffset
+	Uint16 logFontMaxSize
+	Uint24 logFontSectionSize
+	Uint24 logFontSectionOffset
+	Uint16 physFontMaxSize
+	Uint24 physFontSectionSize
+	Uint24 physFontSectionOffset
+	Uint16 gpsMaxSize
+	Uint24 gpsSectionSize
+	Uint24 gpsSectionOffset
+	Byte maxBlueValues
+	Byte maxXorus
+	Byte maxYorus
+	Byte physFontMaxSizeHighByte
+	Bitfield(1) flags (
+		0x1 = pfrBlackPixel
+		0x2 = pfrInvertBitmap
+		0x4 = unused
+		0x8 = unused
+		0x10 = unused
+		0x20 = unused
+		0x40 = unused
+		0x80 = unused
+	)
+	Uint24 btcMaxSize
+	Uint24 btcSetMaxSize
+	Uint24 pftBctSetMaxSize
+	Uint16 nPhysFonts
+	Byte maxStemSnapVSize
+	Byte maxStemSnapHSize
+	Uint16 maxChars
 }
 
 Struct trailer {
-	Uint24 [big] size // of entire file
+	Uint24 size // of entire file
 	String(5) trailerSig // "$PFR$"
 }

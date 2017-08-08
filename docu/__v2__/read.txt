@@ -1,0 +1,2 @@
+new version of documentation, more interactive
+current status : EXTREMELY WIP , not usable

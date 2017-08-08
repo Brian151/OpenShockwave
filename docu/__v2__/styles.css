@@ -1,0 +1,56 @@
+body{
+	background : #000000;
+	color : #ffffff;
+	padding : 0px;
+}
+#root {
+	width : 99%;
+	height : 99%;
+	border : 3px solid blue;
+	padding : 0px;
+	border-radius : 10px;
+	text-align: center;
+}
+#nav,#docu,#hex,#types {
+	border: 1px solid cyan;
+	border-radius : 10px;
+	margin : 0px;
+}
+#docu , #hex {
+	width : 40%;
+}
+#UI_TOP{
+	height : 60%;
+}
+a {
+	color : #777777;
+}
+a:hover {
+	color : #ff0000;
+}
+a:active {
+	color : #0000ff;
+}
+.test {
+	word-wrap: break-word;
+	margin: 0px;
+	background : #80ffff;
+	color : #000000;
+	text-decoration : none;
+}
+.test2 {
+	word-wrap: break-word;
+	margin: 0px;
+	background : #ff80ff;
+	color : #000000;
+}
+.test3 {
+	max-width : 48ch;
+	border : 3px solid #00ff00;
+	padding : 0px;
+	font-family : Courier New;
+	text-align:left;
+}
+#docu {
+	text-align : left;
+}

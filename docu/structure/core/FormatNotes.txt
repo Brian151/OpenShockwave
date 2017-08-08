@@ -36,14 +36,14 @@ Section mmap
 		following those bytes is a list of chunks
 		this is the mapping table
 	*/
-	entry
+	Struct entry
 	{
 		fourcc chunkID
-		uint32 length (not sure why include this, since these entries are nothing but pointers to the chunk)
+		uint32 length // not sure why include this, since these entries are nothing but pointers to the chunk
 		uint32 offset
-		uint16 attributes (seems to be 0x01 if chunk is "protected," as in unreadable by Director, not sure what other values do. Seems to commonly be 0x04 or 0x0C for junk and free chunks respectively, so may be a mask, with 0x04 meaning do not validate, and 0x08 meaning ignore in KEY* section ids)
-		uint16 unknown (always zero)
-		uint32 memsize? (the number of bytes of additional memory beyond the chunk's length that will need to be allocated to parse the rest of the chunk, i.e. for the imap/mmap entries this value will be the number of bytes needed to be allocated in memory to store everything within the mmap table?)
+		uint16 attributes // seems to be 0x01 if chunk is "protected," as in unreadable by Director, not sure what other values do. Seems to commonly be 0x04 or 0x0C for junk and free chunks respectively, so may be a mask, with 0x04 meaning do not validate, and 0x08 meaning ignore in KEY* section ids
+		uint16 unknown // always zero
+		uint32 memsize? // the number of bytes of additional memory beyond the chunk's length that will need to be allocated to parse the rest of the chunk, i.e. for the imap/mmap entries this value will be the number of bytes needed to be allocated in memory to store everything within the mmap table?
 	}
 
 }
@@ -170,6 +170,39 @@ Section XTRl
 		Xtra library/linkage...
 		Lists required Xtras to play the movie
 	*/
+}
+
+Section Sord {
+	// exact purpose yet unknown...
+	/* 
+		affects UI sort order, but it's clearly far more important,
+		as movies won't compile to DCR or DXR without it.
+		re-generated when DIR is saved
+	*/
+	Struct header {
+		Uint32 [big] const1 // 0
+		Uint32 [big] const2 // 0
+		Uint32 [big] count
+		Uint32 [big] count2
+		Uint16 [big] headerSize // constant 0x14
+		Uint16 [big] entrySize // 02, 04
+	}
+	Array data(entrySize) {
+		Struct dataEntry {
+			/*
+				entrySize of 02 seems to come before director 4.
+				This is also before the concept of multiple casts per movie was a thing.
+				That seems to suggest that the id's correspond to cast and cast member numbers
+			*/
+			@entrySize 02 {
+				Uint16 [big] id
+			}
+			@entrySize 04 {
+				Uint16 [big] id1
+				Uint16 [big] id2
+			}
+		}
+	}
 }
 
 shockwave format types:

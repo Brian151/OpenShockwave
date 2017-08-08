@@ -116,7 +116,23 @@ Section Lscr {
 				Uint16 [big] argumentName // use name table
 			}
 			Struct lineInfo {
-				// format undetermined as of yet, probably an array
+				/* 
+					format undetermined as of yet, probably an array
+					possibly one of:
+					a ByteArray of lineCount length
+					a VarintArray of lineCount length
+				*/
+				/* 
+					each entry seems to be the size of a line in bytes
+					for example:
+						given this lineinfo:
+						08 ...
+						this bytecode makes-up line 1:
+							5F 02 //GETPROP frameLabel
+							44 00 //PUSHSTRING "title"
+							0F //EQ
+							95 00 12
+				*/
 			}
 		}
 	}
