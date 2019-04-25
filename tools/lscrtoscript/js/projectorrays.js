@@ -925,10 +925,6 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x2f: "pushint32",
 		0x31: "pushfloat32"
 	};
-	
-	if (val == 239) {
-		alert(val < 0x40 ? oneByteCodes[val] : val % 0x40);
-	}
 
 	var opcode = val < 0x40 ? oneByteCodes[val] : multiByteCodes[val % 0x40];
 	return opcode || "unk_" + val.toString(16);
