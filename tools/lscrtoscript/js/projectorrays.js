@@ -701,15 +701,24 @@ Handler.prototype.readBytecode = function(dataStream) {
 		let op = dataStream.readUint8();
 		// instructions can be one, two or three bytes
 		let obj = null, objLength = 0;
-		if (op >= 0xc0) {
-			obj = dataStream.readUint24();
-			objLength = 3;
-		} else if (op >= 0x80) {
-			obj = dataStream.readUint16();
-			objLength = 2;
-		} else if (op >= 0x40) {
-			obj = dataStream.readUint8();
-			objLength = 1;
+		if (op >= 0xee) {
+			if (op == 0xf1) {
+				obj = dataStream.readFloat32();
+			} else {
+				obj = dataStream.readUint32();
+			}
+			objLength = 4;
+		} else if (op >= 0xc0) {
+				obj = dataStream.readUint24();
+				objLength = 3;
+		}
+		else if (op >= 0x80) {
+				obj = dataStream.readUint16();
+				objLength = 2;
+		}
+		else if (op >= 0x40) {
+				obj = dataStream.readUint8();
+				objLength = 1;
 		}
 		// read the first byte to convert to an opcode
 		let bytecode = new Bytecode(this, op, obj, objLength, pos);
@@ -912,8 +921,14 @@ Bytecode.prototype.getOpcode = function(val) {
 		0x22: "setobjprop",
 		0x26: "getmovieinfo",
 		0x27: "callobj",
-		0x2e: "pushint"
+		0x2e: "pushint",
+		0x2f: "pushint32",
+		0x31: "pushfloat32"
 	};
+	
+	if (val == 239) {
+		alert(val < 0x40 ? oneByteCodes[val] : val % 0x40);
+	}
 
 	var opcode = val < 0x40 ? oneByteCodes[val] : multiByteCodes[val % 0x40];
 	return opcode || "unk_" + val.toString(16);
@@ -1414,6 +1429,23 @@ Bytecode.prototype.translate = function() {
 			} else {
 				ast.addStatement(translation);
 			}
+		},
+		"pushint32": () => {
+			translation = new AST.SYS("" + this.obj);
+			script.stack.push(translation);
+		},
+		"pushfloat32": () => {
+			translation = new AST.SYS("" + this.obj);
+			script.stack.push(translation);
+		},
+		"unk_70": () => { //sprite(me.spriteNum).member
+			script.stack.push(new AST.SYS(nameList[this.obj]));
+		},
+		"unk_64": () => { //one value? propertyname
+			script.stack.push(new AST.SYS(this.handler.argumentNames[this.obj]));
+		},
+		"unk_65": () => {
+			
 		}
 	};
 

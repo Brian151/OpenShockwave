@@ -73,6 +73,17 @@ window.AST = (function () {
 	}
 	AST.ERROR = ERROR;
 
+	class SYS extends Node {
+		constructor(value) {
+			super();
+			this.value = value;
+		}
+		toString() {
+			return this.value;
+		}
+	}
+	AST.SYS = SYS;
+
 	/* Comment */
 
 	class Comment extends Node {
