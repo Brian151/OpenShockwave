@@ -182,7 +182,7 @@ window.AST = (function () {
 		toString() {
 			const indent = "\n  ";
 			if (this.children.length > 0){
-				return indent + this.children.map(child => child.toString().split("\n").join(indent)).join(indent);
+				return indent + this.children.map(child => child === null ? "" : child.toString().split("\n").join(indent)).join(indent);
 			}
 			return "";
 		}
